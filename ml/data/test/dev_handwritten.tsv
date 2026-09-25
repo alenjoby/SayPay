@@ -1,0 +1,73 @@
+# Hand-written DEV set: used for error analysis and tuning.
+# The test set (unseen.tsv) is frozen and only used for final reporting.
+# Columns: intent<TAB>script<TAB>text<TAB>amount<TAB>unit<TAB>contact
+check_balance	ar	كم صار عندي بعد التحويل	-	-	-
+check_balance	ar	المبلغ الموجود عندي كم	-	-	-
+check_balance	ar	أبي أعرف فلوسي الباقية	-	-	-
+check_balance	ar	كم يطلع رصيدي	-	-	-
+check_balance	arabizi	kam ba9i fel wallet	-	-	-
+check_balance	en	what have i got in there	-	-	-
+check_balance	en	how much do i still have	-	-	-
+check_balance	en	whats my remaining balance	-	-	-
+check_balance	en	do i have any eth left	-	-	-
+check_balance	en	current funds?	-	-	-
+check_balance	hi_latin	account me kitna hai	-	-	-
+check_balance	hi_deva	कितने पैसे बचे हैं	-	-	-
+send	ar	ارسل لخالد ثلاثين	30	-	Khalid
+send	ar	أبي أعطي أحمد ميتين	200	-	Ahmed
+send	ar	حول مية ريال لسارة	100	SAR	Sara
+send	arabizi	7wl l sara 20	20	-	Sara
+send	en	get 10 eth to ahmed	10	ETH	Ahmed
+send	en	send over 0.2 to my dad	0.2	-	Dad
+send	en	top up khalid with 50 dirhams	50	AED	Khalid
+send	en	transfer fifty to sara now	50	-	Sara
+send	hi_latin	Rahul ko 300 de do	300	-	Rahul
+send	hi_latin	mummy ko ek hazaar daal do	1000	-	Amma
+send	hi_deva	पापा को 200 भेजो	200	-	Dad
+history	ar	شنو آخر تحويلاتي	-	-	-
+history	ar	كم صرفت الاسبوع هذا	-	-	-
+history	ar	وش دفعت اليوم	-	-	-
+history	en	what did i spend this month	-	-	-
+history	en	show me my spending	-	-	-
+history	en	my recent activity	-	-	-
+history	en	what payments did i make yesterday	-	-	-
+history	hi_latin	aaj kitna kharch kiya	-	-	-
+history	hi_latin	mere last payments dikhao	-	-	-
+tx_status	ar	وش صار على الفلوس اللي أرسلتها	-	-	-
+tx_status	ar	خالد قال ما وصله شي	-	-	Khalid
+tx_status	en	did sara get it	-	-	Sara
+tx_status	en	whats happening with my payment	-	-	-
+tx_status	en	is the transfer to ahmed done	-	-	Ahmed
+tx_status	en	has my last payment cleared	-	-	-
+tx_status	hi_latin	Rahul ko pahucha ya nahi	-	-	Rahul
+tx_status	hi_deva	ट्रांसफर पूरा हुआ क्या	-	-	-
+receive	ar	أبي أطلب فلوس من أحمد	-	-	Ahmed
+receive	ar	ابي خالد يحول لي خمسين	50	-	Khalid
+receive	en	request 20 from sara	20	-	Sara
+receive	en	i need to collect money from dad	-	-	Dad
+receive	en	how can ahmed send me money	-	-	Ahmed
+receive	en	share my payment link	-	-	-
+receive	hi_latin	Rahul se paise mangwa do	-	-	Rahul
+receive	hi_latin	mujhe paise bhejne ke liye kya du	-	-	-
+add_contact	ar	سجل رقم جديد باسم ريم	-	-	-
+add_contact	ar	أضيف هذا الشخص	-	-	-
+add_contact	en	add this wallet as layla	-	-	-
+add_contact	en	create contact hassan	-	-	-
+add_contact	hi_latin	isko save kar lo Neha naam se	-	-	-
+recovery_help	ar	تلفوني ضايع من امس	-	-	-
+recovery_help	ar	كيف أرجع حسابي	-	-	-
+recovery_help	en	i misplaced my phone	-	-	-
+recovery_help	en	lost access to my wallet	-	-	-
+recovery_help	hi_latin	phone toot gaya wallet kaise kholu	-	-	-
+cancel	ar	لا تسويها	-	-	-
+cancel	ar	طنش	-	-	-
+cancel	en	cancel that please	-	-	-
+cancel	en	no dont	-	-	-
+cancel	en	skip it	-	-	-
+cancel	hi_latin	nahi nahi mat bhejo	-	-	-
+unknown	ar	وش الأخبار	-	-	-
+unknown	ar	احجز لي موعد	-	-	-
+unknown	en	send an email to sara	-	-	Sara
+unknown	en	what's bitcoin price	-	-	-
+unknown	en	turn on the lights	-	-	-
+unknown	hi_latin	Priya ko sms bhejo	-	-	Priya

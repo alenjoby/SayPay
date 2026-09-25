@@ -83,6 +83,21 @@ def _table() -> dict[str, tuple[str, float]]:
     add(FRAC, 0.25, "ربع")
     add(AND, 0, "و")
 
+    # Arabizi (stored both raw and with digits mapped, as tokenize() does)
+    from .normalize import arabizi_to_latin
+    for w, v in [("sifr", 0), ("wa7ed", 1), ("wahed", 1), ("wa7da", 1), ("ithnain", 2),
+                 ("ithnein", 2), ("etnein", 2), ("itnen", 2), ("thalatha", 3), ("talata", 3),
+                 ("thalath", 3), ("arba3a", 4), ("arba3", 4), ("khamsa", 5), ("khams", 5),
+                 ("sitta", 6), ("sab3a", 7), ("thamanya", 8), ("tis3a", 9), ("3ashara", 10),
+                 ("3ashra", 10), ("3ishreen", 20), ("3eshreen", 20), ("thalatheen", 30),
+                 ("khamseen", 50), ("khamsin", 50), ("mitain", 200), ("meteen", 200),
+                 ("khamsmiya", 500), ("khamsmeya", 500), ("alfain", 2000), ("alfen", 2000)]:
+        add(NUM, v, w, arabizi_to_latin(w))
+    add(MULT, 100, "miya", "meya", "mia", "mya")
+    add(MULT, 1000, "alf", "aalaf", "alaf")
+    add(FRAC, 0.5, "nus", "nuss", "nos")
+    add(POINT, 0, "fasla", "fas'la", "no9ta", arabizi_to_latin("no9ta"))
+
     # Hindi, Latin transliteration
     for w, v in [("ek", 1), ("teen", 3), ("tin", 3), ("char", 4), ("chaar", 4), ("paanch", 5),
                  ("panch", 5), ("paach", 5), ("pach", 5), ("chhe", 6), ("chhah", 6), ("che", 6),

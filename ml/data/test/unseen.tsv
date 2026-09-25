@@ -1,0 +1,165 @@
+# Hand-written held-out commands. Never used for training or tuning.
+# Written after the templates, deliberately with different wording.
+# Columns: intent<TAB>script<TAB>text<TAB>amount<TAB>unit<TAB>contact
+# Contacts saved on the device for every row: see CONTACTS in scripts/evaluate.py
+check_balance	ar	يا ترى كم بقى عندي فلوس	-	-	-
+check_balance	ar	وش الوضع المادي في المحفظة	-	-	-
+check_balance	ar	أبغى أعرف المتبقي عندي	-	-	-
+check_balance	ar	تكفى شف لي كم عندي	-	-	-
+check_balance	ar	كم تبقى في الحساب	-	-	-
+check_balance	ar	عندي كم ايثيريوم الحين	-	-	-
+check_balance	ar	هل عندي فلوس تكفي	-	-	-
+check_balance	ar	المحفظة فيها كم	-	-	-
+check_balance	ar+en	شكثر الbalance اليوم	-	-	-
+check_balance	ar+en	الwallet فيها كم	-	-	-
+check_balance	arabizi	sh9ad ba9i 3indi	-	-	-
+check_balance	arabizi	kam feeh fel ma7fatha	-	-	-
+check_balance	arabizi	wesh 3indi flous	-	-	-
+check_balance	en	how rich am i right now	-	-	-
+check_balance	en	blnce	-	-	-
+check_balance	en	whats left in my acount	-	-	-
+check_balance	en	how much crypto have i got	-	-	-
+check_balance	en	can i afford anything, how much do i hold	-	-	-
+check_balance	en	tell me what's sitting in my wallet	-	-	-
+check_balance	hi_latin	kitna bacha hai	-	-	-
+check_balance	hi_latin	mere wallet me kitne paise pade hai	-	-	-
+check_balance	hi_latin	balance bata do yaar	-	-	-
+check_balance	hi_deva	मेरे खाते में कितना बचा है	-	-	-
+check_balance	hi_deva	बैलेंस कितना है भाई	-	-	-
+send	ar	ابي أحول لأحمد ميتين درهم	200	AED	Ahmed
+send	ar	رسل لأبوي نص إيثيريوم	0.5	ETH	Dad
+send	ar	تكفى حط لسارة خمسين	50	-	Sara
+send	ar	حوّلي لخالد ٣ ريال	3	SAR	Khalid
+send	ar	أبغاك ترسل لماما ألف	1000	-	Amma
+send	ar	خل أحمد ياخذ مني عشرة	10	-	Ahmed
+send	ar	أريد إرسال ٢٥ دولار إلى فاطمة	25	USD	Fatima
+send	ar	ادفع لمحمد علي صفر فاصلة اثنين إيث	0.2	ETH	Mohammed Ali
+send	ar	بدي ابعت لأحمد ميه	100	-	Ahmed
+send	ar	عايز ابعت لسارة خمسة ايثيريوم	5	ETH	Sara
+send	ar+en	سوي send لخالد 2 eth	2	ETH	Khalid
+send	ar+en	transfer لأمي 0.3	0.3	-	Amma
+send	arabizi	7awlo l ahmed 500	500	-	Ahmed
+send	arabizi	ab3ath l sara khamseen	50	-	Sara
+send	arabizi	dezz 0.1 eth l khalid	0.1	ETH	Khalid
+send	en	I want Ahmed to have 5 eth	5	ETH	Ahmed
+send	en	can you get 20 dollars over to Sara	20	USD	Sara
+send	en	sned 0.5 to mom	0.5	-	Amma
+send	en	fire off two hundred dirhams to khaled	200	AED	Khalid
+send	en	pay my dad back, 30 bucks	30	USD	Dad
+send	en	Rahul should get 1.5 ethereum from me	1.5	ETH	Rahul
+send	en	put 100 in Priya's wallet	100	-	Priya
+send	hi_latin	ammi ko thode paise bhej do, 500	500	-	Amma
+send	hi_latin	Rahul ke paas 200 rupaye daal do	200	INR	Rahul
+send	hi_latin	Priya ko do eth bhejna hai	2	ETH	Priya
+send	hi_latin	papa ko dedh hazaar bhejo	1500	-	Dad
+send	hi_deva	राहुल को तीन सौ रुपये भेज दो	300	INR	Rahul
+send	hi_deva	प्रिया को 0.5 ईथर भेजो	0.5	ETH	Priya
+history	ar	وش آخر شي صرفته	-	-	-
+history	ar	لمين دفعت أمس	-	-	-
+history	ar	أبي أشوف وين راحت فلوسي هالشهر	-	-	-
+history	ar	كم مرة حولت لأحمد	-	-	Ahmed
+history	ar	اعرض آخر خمس معاملات	-	-	-
+history	ar	شنو صار في حسابي الاسبوع اللي طاف	-	-	-
+history	ar	فرجيني شو دفعت مبارح	-	-	-
+history	ar+en	ابي الtransactions حقت امس	-	-	-
+history	arabizi	shu 7awalt ams	-	-	-
+history	arabizi	warini a5er 3amaliyat	-	-	-
+history	en	wen did i last pay rahul	-	-	Rahul
+history	en	what have i spent money on lately	-	-	-
+history	en	list everything i sent this week	-	-	-
+history	en	who got money from me yesterday	-	-	-
+history	en	pull up my payment log	-	-	-
+history	hi_latin	kal kisko paise bheje the	-	-	-
+history	hi_latin	is hafte kitna kharcha hua	-	-	-
+history	hi_deva	पिछले हफ्ते के सारे लेन देन दिखाओ	-	-	-
+tx_status	ar	الفلوس اللي أرسلتها لأحمد وصلت؟	-	-	Ahmed
+tx_status	ar	التحويل لسارة تم ولا لسه	-	-	Sara
+tx_status	ar	ليش ماما ما استلمت	-	-	Amma
+tx_status	ar	التحويل اللي سويته قبل شوي مشى؟	-	-	-
+tx_status	ar	عالق التحويل ولا وصل	-	-	-
+tx_status	ar	هل تأكدت العملية الأخيرة	-	-	-
+tx_status	ar+en	الpayment لخالد confirmed؟	-	-	Khalid
+tx_status	arabizi	wesalat el flous?	-	-	-
+tx_status	arabizi	el ta7weel l ahmed mesha?	-	-	Ahmed
+tx_status	en	did the money land	-	-	-
+tx_status	en	has sara received my payment yet	-	-	Sara
+tx_status	en	is my transfer still stuck	-	-	-
+tx_status	en	did the thing i sent go thru	-	-	-
+tx_status	en	any update on the payment to dad	-	-	Dad
+tx_status	hi_latin	Rahul ko paisa mila ki nahi	-	-	Rahul
+tx_status	hi_latin	transfer complete hua kya abhi tak	-	-	-
+tx_status	hi_deva	पैसे पहुंचे या नहीं	-	-	-
+receive	ar	أبي أحد يرسل لي فلوس كيف	-	-	-
+receive	ar	اعطني الكود حقي عشان يحولون لي	-	-	-
+receive	ar	وش أعطي أحمد عشان يحول لي	-	-	Ahmed
+receive	ar	أرسل عنوان محفظتي لسارة	-	-	Sara
+receive	ar	ابي أطلب من خالد ميه	100	-	Khalid
+receive	ar+en	وين الaddress حقي	-	-	-
+receive	arabizi	3tini el code 7aggi	-	-	-
+receive	en	how do people send me stuff	-	-	-
+receive	en	show the code so dad can pay me	-	-	Dad
+receive	en	ask rahul for 50	50	-	Rahul
+receive	en	i'm expecting money, what do i share	-	-	-
+receive	hi_latin	mujhe paise receive karne hai kaise	-	-	-
+receive	hi_latin	Priya se 100 maango	100	-	Priya
+receive	hi_deva	मेरा वॉलेट पता भेजो	-	-	-
+add_contact	ar	حطه عندي في الارقام	-	-	-
+add_contact	ar	سجل هالشخص باسم سالم	-	-	-
+add_contact	ar	خزن رقم يوسف	-	-	-
+add_contact	ar	اللي أرسل لي قبل شوي سجله باسم عمر	-	-	-
+add_contact	ar	أضف مريم للقائمة	-	-	-
+add_contact	ar+en	ضيف نورة للcontacts	-	-	-
+add_contact	arabizi	sajlah b esm salem	-	-	-
+add_contact	en	remember this person as omar	-	-	-
+add_contact	en	make a contact for yousef	-	-	-
+add_contact	en	put the copied address under maryam	-	-	-
+add_contact	en	i want to save noura	-	-	-
+add_contact	hi_latin	isko Vikram naam se rakh lo	-	-	-
+add_contact	hi_latin	Anjali ko contacts me daal do	-	-	-
+add_contact	hi_deva	दीपक का नंबर सेव कर लो	-	-	-
+recovery_help	ar	جوالي طاح مني وانكسر	-	-	-
+recovery_help	ar	أحد خذ تلفوني	-	-	-
+recovery_help	ar	فقدت الموبايل وش بيصير لفلوسي	-	-	-
+recovery_help	ar	اشتريت جوال جديد وابي فلوسي ترجع	-	-	-
+recovery_help	ar	ما عاد أقدر أفتح المحفظة	-	-	-
+recovery_help	ar+en	الphone ضاع ساعدني	-	-	-
+recovery_help	arabizi	jawali 9a3 wesh asawi	-	-	-
+recovery_help	en	my mobile got stolen what now	-	-	-
+recovery_help	en	dropped my phone in the sea	-	-	-
+recovery_help	en	got a brand new handset, need my wallet back	-	-	-
+recovery_help	en	someone snatched my phone	-	-	-
+recovery_help	hi_latin	mobile kahin gir gaya	-	-	-
+recovery_help	hi_latin	kisi ne phone chura liya	-	-	-
+recovery_help	hi_deva	मोबाइल गुम हो गया अब क्या करूं	-	-	-
+cancel	ar	لا لا لا	-	-	-
+cancel	ar	خلها ما أبي أرسل	-	-	-
+cancel	ar	انسى الموضوع	-	-	-
+cancel	ar	غلطت لا تكمل	-	-	-
+cancel	ar	اصبر لا ترسلها	-	-	-
+cancel	ar	مو الحين	-	-	-
+cancel	ar+en	cancel هالعملية	-	-	-
+cancel	arabizi	khalas ma abi	-	-	-
+cancel	arabizi	la la wa9ef	-	-	-
+cancel	en	wait no	-	-	-
+cancel	en	scrap that	-	-	-
+cancel	en	actually don't	-	-	-
+cancel	en	no no stop it	-	-	-
+cancel	hi_latin	ek minute ruk ja	-	-	-
+cancel	hi_latin	mat karo	-	-	-
+cancel	hi_latin	chhodo rehne do	-	-	-
+cancel	hi_deva	नहीं भेजना	-	-	-
+unknown	ar	ارسل لأحمد رسالة واتساب	-	-	Ahmed
+unknown	ar	دز لسارة صورة	-	-	Sara
+unknown	ar	شغل قرآن	-	-	-
+unknown	ar	كم درجة الحرارة برا	-	-	-
+unknown	ar	وش سجل المكالمات	-	-	-
+unknown	ar	ذكرني أشتري خبز	-	-	-
+unknown	arabizi	shlonk ya zain	-	-	-
+unknown	en	text my mom that im late	-	-	Amma
+unknown	en	send ahmed the pdf	-	-	Ahmed
+unknown	en	what's the score	-	-	-
+unknown	en	navigate home	-	-	-
+unknown	en	add milk to my shopping list	-	-	-
+unknown	hi_latin	Rahul ko whatsapp karo	-	-	Rahul
+unknown	hi_latin	aaj kya date hai	-	-	-
+unknown	hi_deva	मम्मी को फोन लगाओ	-	-	Amma
