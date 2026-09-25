@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import os
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from saypay_nlu import CONFIDENCE_THRESHOLD, INTENTS, __version__, engine_name, parse
 
@@ -39,3 +42,9 @@ def intent(req: IntentRequest, debug: bool = False) -> IntentResponse:
     body["engine"] = engine_name()
     body["scores"] = result.scores if debug else None
     return IntentResponse(**body)
+
+
+@app.get("/", include_in_schema=False)
+def tester() -> FileResponse:
+    """Small voice/text test page for trying the model by hand."""
+    return FileResponse(Path(__file__).parent / "static" / "index.html")
