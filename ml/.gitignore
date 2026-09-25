@@ -5,3 +5,5 @@ __pycache__/
 data/generated/
 data/external/
 data/cache/
+preds/_*/
+data/splits/

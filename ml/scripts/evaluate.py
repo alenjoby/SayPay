@@ -18,9 +18,11 @@ Slot accuracy (hand-written set): amount, unit, contact.
 
 from __future__ import annotations
 
+import argparse
 import json
 import statistics
 import time
+from pathlib import Path
 from collections import Counter, defaultdict
 
 import numpy as np
@@ -38,10 +40,38 @@ TEST_LABELS = {
     "arbanking77_moroccan_test": "ArBanking77 Moroccan (real, unseen dialect)",
     "arbanking77_tunisian_test": "ArBanking77 Tunisian (real, unseen dialect)",
     "banking77_test": "Banking77 English (real)",
+    "clinc150_test": "CLINC150 English (real, incl. out-of-scope)",
     "massive_ar_test": "MASSIVE Arabic, out-of-scope (must say unknown)",
     "massive_hi_test": "MASSIVE Hindi, out-of-scope (must say unknown)",
     "massive_en_test": "MASSIVE English, out-of-scope (must say unknown)",
 }
+
+
+class Precomputed:
+    """Intent probabilities produced elsewhere (e.g. a fine-tuned transformer on Colab)."""
+
+    def __init__(self, pred_dir: Path):
+        self.probs: dict[str, dict[str, float]] = {}
+        for f in Path(pred_dir).glob("test_*.jsonl"):
+            for line in open(f, encoding="utf-8"):
+                r = json.loads(line)
+                self.probs[r["text"]] = r["probs"]
+        meta = Path(pred_dir) / "meta.json"
+        self.meta = json.loads(meta.read_text()) if meta.exists() else {}
+
+    def predict_one(self, text, contacts=None):
+        return self.probs[text]
+
+
+class Ensemble:
+    """Average of two systems' probabilities."""
+
+    def __init__(self, *members):
+        self.members = members
+
+    def predict_one(self, text, contacts=None):
+        ps = [m.predict_one(text, contacts) for m in self.members]
+        return {k: sum(p[k] for p in ps) / len(ps) for k in ps[0]}
 
 
 def ece(conf: np.ndarray, correct: np.ndarray, bins: int = 10) -> float:
@@ -108,13 +138,26 @@ def pct(x) -> str:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--preds", nargs="*", default=[],
+                    help="prediction dirs from finetune_transformer.py / laya_zeroshot.py")
+    ap.add_argument("--out", default="eval")
+    args = ap.parse_args()
     systems = {
         "english_only": IntentModel.load(MODELS / "baseline_english_only.joblib"),
         "rules_v1": None,
         "v3": IntentModel.load(MODELS / "intent_v3.joblib"),
     }
+    extra_meta = {}
+    for d in args.preds:
+        name = Path(d).name
+        systems[name] = Precomputed(Path(d))
+        extra_meta[name] = systems[name].meta
+        if systems[name].meta.get("kind") != "zeroshot":
+            systems[f"v3+{name}"] = Ensemble(systems["v3"], systems[name])
     tests = {"unseen": load_unseen(), **{n: load_external(n) for n in EXTERNAL_TEST}}
-    report: dict = {"generated": time.strftime("%Y-%m-%d %H:%M"), "sets": {}}
+    report: dict = {"generated": time.strftime("%Y-%m-%d %H:%M"), "sets": {},
+                    "models": extra_meta}
     unseen_preds = {}
     for tname, rows in tests.items():
         report["sets"][tname] = {}
@@ -147,10 +190,10 @@ def main() -> None:
     report["latency_ms"] = {"p50": statistics.median(lat), "p95": lat[int(0.95 * len(lat)) - 1]}
 
     REPORTS.mkdir(exist_ok=True)
-    (REPORTS / "eval.json").write_text(json.dumps(report, ensure_ascii=False, indent=1))
-    (REPORTS / "eval.md").write_text(render(report, systems.keys()))
+    (REPORTS / f"{args.out}.json").write_text(json.dumps(report, ensure_ascii=False, indent=1))
+    (REPORTS / f"{args.out}.md").write_text(render(report, systems.keys()))
     print(f"latency p50={report['latency_ms']['p50']:.1f}ms p95={report['latency_ms']['p95']:.1f}ms")
-    print("wrote reports/eval.md")
+    print(f"wrote reports/{args.out}.md")
 
 
 def render(report: dict, systems) -> str:
@@ -197,7 +240,13 @@ def render(report: dict, systems) -> str:
     for text, gold, pred, c in report["v3_unseen_errors"]:
         L.append(f"| {text} | {gold} | {pred} | {c:.2f} |")
     lat = report["latency_ms"]
-    L += ["", f"Latency (full pipeline, CPU): p50 {lat['p50']:.1f} ms, p95 {lat['p95']:.1f} ms.", ""]
+    L += ["", f"Latency, v3 (full pipeline, CPU): p50 {lat['p50']:.1f} ms, p95 {lat['p95']:.1f} ms.", ""]
+    for name, meta in report.get("models", {}).items():
+        if meta:
+            L.append(f"- **{name}**: `{meta.get('model')}`, {meta.get('n_params', 0) / 1e6:.0f}M params, "
+                     f"dev macro-F1 {meta.get('best_dev_macro_f1', 0):.3f}, "
+                     f"latency p50 {meta.get('latency_ms_p50', 0):.1f} ms on {meta.get('device')}")
+    L.append("")
     return "\n".join(L)
 
 

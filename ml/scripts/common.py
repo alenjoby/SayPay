@@ -20,9 +20,9 @@ REPORTS = ROOT / "reports"
 UNSEEN_CONTACTS = ["Amma", "Ahmed", "Rahul", "Mohammed Ali", "Sara", "Khalid", "Priya",
                    "Fatima", "Dad", "أبو خالد"]
 
-EXTERNAL_TRAIN = ["banking77_train", "arbanking77_train", "massive_ar_train", "massive_hi_train",
+EXTERNAL_TRAIN = ["banking77_train", "arbanking77_train", "clinc150_train", "massive_ar_train", "massive_hi_train",
                   "massive_en_train"]
-EXTERNAL_TEST = ["banking77_test", "arbanking77_msa_test", "arbanking77_pal_test",
+EXTERNAL_TEST = ["banking77_test", "clinc150_test", "arbanking77_msa_test", "arbanking77_pal_test",
                  "arbanking77_saudi_test", "arbanking77_moroccan_test",
                  "arbanking77_tunisian_test", "massive_ar_test", "massive_hi_test",
                  "massive_en_test"]
