@@ -141,6 +141,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--preds", nargs="*", default=[],
                     help="prediction dirs from finetune_transformer.py / laya_zeroshot.py")
+    ap.add_argument("--onnx", default="", help="int8 ONNX model dir (e.g. models/mmbert_int8): "
+                    "adds it and the deployed v3+ONNX ensemble as systems")
     ap.add_argument("--out", default="eval")
     args = ap.parse_args()
     systems = {
@@ -149,6 +151,13 @@ def main() -> None:
         "v3": IntentModel.load(MODELS / "intent_v3.joblib"),
     }
     extra_meta = {}
+    if args.onnx:
+        from saypay_nlu.transformer import Ensemble as DeployEnsemble, OnnxIntentModel
+        onnx = OnnxIntentModel.load(Path(args.onnx))
+        systems["onnx_int8"] = onnx
+        systems["v3+onnx_int8 (deployed)"] = DeployEnsemble(systems["v3"], onnx)
+        extra_meta["onnx_int8"] = {"model": onnx.cfg.get("source_model"), "kind": "onnx",
+                                   "int8_agreement": onnx.cfg.get("int8_agreement_with_fp32")}
     for d in args.preds:
         name = Path(d).name
         systems[name] = Precomputed(Path(d))
@@ -244,6 +253,9 @@ def render(report: dict, systems) -> str:
     for name, meta in report.get("models", {}).items():
         if meta and meta.get("kind") == "zeroshot":
             L.append(f"- **{name}**: {meta.get('model')} (no training on our data)")
+        elif meta and meta.get("kind") == "onnx":
+            L.append(f"- **{name}**: int8 ONNX of `{meta.get('model')}`, agreement with fp32 "
+                     f"on dev {meta.get('int8_agreement')}")
         elif meta:
             L.append(f"- **{name}**: `{meta.get('model')}`, {meta.get('n_params', 0) / 1e6:.0f}M params, "
                      f"dev macro-F1 {meta.get('best_dev_macro_f1', 0):.3f}, "
