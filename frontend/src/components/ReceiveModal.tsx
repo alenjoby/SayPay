@@ -42,27 +42,27 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="receive-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-sm animate-fade-in"
     >
-      <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 text-center">
+      <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-zinc-200 text-center">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+        <div className="flex items-center justify-between pb-4 border-b border-zinc-100 mb-5">
           <div className="flex items-center gap-2.5 text-left">
-            <div className="w-9 h-9 rounded-2xl bg-[#00E575]/15 text-emerald-600 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-2xl bg-[#FF5500]/10 text-[#FF5500] flex items-center justify-center">
               <ArrowDownLeft className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
                 Account Abstraction
               </span>
-              <h2 id="receive-title" className="text-lg font-black text-slate-900 font-display">
+              <h2 id="receive-title" className="text-lg font-black text-zinc-900 font-display">
                 Receive Crypto
               </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-sm font-bold transition"
+            className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 flex items-center justify-center text-sm font-bold transition"
             aria-label="Close dialog"
           >
             ✕
@@ -70,9 +70,9 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
         </div>
 
         {/* QR Code Container with High-Contrast Framing */}
-        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 inline-block shadow-inner mx-auto mb-4">
-          <div className="w-48 h-48 bg-white p-3 rounded-xl border border-slate-200 flex flex-col items-center justify-center relative shadow-sm">
-            <svg viewBox="0 0 100 100" className="w-full h-full text-slate-900 fill-current">
+        <div className="bg-zinc-50 p-6 rounded-2xl border border-zinc-200 inline-block shadow-inner mx-auto mb-4">
+          <div className="w-48 h-48 bg-white p-3 rounded-xl border border-zinc-200 flex flex-col items-center justify-center relative shadow-sm">
+            <svg viewBox="0 0 100 100" className="w-full h-full text-zinc-900 fill-current">
               <rect x="0" y="0" width="30" height="30" rx="4" />
               <rect x="70" y="0" width="30" height="30" rx="4" />
               <rect x="0" y="70" width="30" height="30" rx="4" />
@@ -93,22 +93,22 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
               <circle cx="85" cy="70" r="3" />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-9 h-9 rounded-lg bg-[#00E575] text-slate-950 font-black text-xs flex items-center justify-center shadow-md">
+              <div className="w-9 h-9 rounded-lg bg-[#FF5500] text-white font-black text-xs flex items-center justify-center shadow-md">
                 S
               </div>
             </div>
           </div>
-          <span className="text-[11px] font-mono text-slate-500 mt-2 block font-medium">
+          <span className="text-[11px] font-mono text-zinc-500 mt-2 block font-medium">
             Scan with any Sepolia testnet camera
           </span>
         </div>
 
         {/* Address Display Box */}
-        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-left mb-4">
-          <div className="text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
+        <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200 text-left mb-4">
+          <div className="text-[11px] font-bold text-zinc-500 mb-1 uppercase tracking-wider">
             Your Sepolia Smart Account:
           </div>
-          <div className="font-mono text-xs text-slate-900 break-all select-all font-semibold">
+          <div className="font-mono text-xs text-zinc-900 break-all select-all font-semibold">
             {address}
           </div>
         </div>
@@ -117,15 +117,15 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
         <div className="grid grid-cols-2 gap-2.5">
           <button
             onClick={handleReadAloud}
-            className="py-3 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center justify-center gap-1.5"
+            className="py-3 px-3 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold transition flex items-center justify-center gap-1.5"
           >
-            <Volume2 className="w-4 h-4 text-emerald-600" />
+            <Volume2 className="w-4 h-4 text-[#FF5500]" />
             <span>Read Aloud</span>
           </button>
 
           <button
             onClick={handleCopy}
-            className="py-3 px-3 rounded-xl btn-lime text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm"
+            className="py-3 px-3 rounded-xl btn-orange text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm"
           >
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             <span>{copied ? 'Copied!' : 'Copy Address'}</span>

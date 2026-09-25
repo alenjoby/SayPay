@@ -92,7 +92,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#00E575]/20 text-[#00A850] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[#FF5500]/10 text-[#FF5500] flex items-center justify-center">
               <ArrowUpRight className="w-5 h-5" />
             </div>
             <div>
@@ -117,7 +117,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         <div id="dialog-desc" className="my-5 p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-3">
           <button
             onClick={() => speakText(getReadbackText(), lang)}
-            className="mt-0.5 p-2 rounded-xl bg-white hover:bg-[#00E575]/20 text-[#00A850] border border-slate-200 transition shrink-0 shadow-sm"
+            className="mt-0.5 p-2 rounded-xl bg-white hover:bg-[#FF5500]/10 text-[#FF5500] border border-slate-200 transition shrink-0 shadow-sm"
             title="Listen again"
             aria-label="Repeat spoken details"
           >
@@ -137,7 +137,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             <span className="text-slate-500">{lang === 'hi' ? 'प्राप्तकर्ता:' : lang === 'ar' ? 'المستلم:' : 'Recipient:'}</span>
             <div className="flex items-center gap-2">
               <span className="font-bold text-slate-900 text-base">{contact}</span>
-              <span className="text-xs px-2 py-0.5 rounded-md bg-[#00E575]/20 text-[#008A42] font-mono font-medium">
+              <span className="text-xs px-2 py-0.5 rounded-md bg-[#FF5500]/10 text-[#FF5500] font-mono font-medium">
                 {contact === 'Amma' ? '0x71C8...4E92' : '0x89AB...12F4'}
               </span>
             </div>
@@ -153,13 +153,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
           <div className="flex justify-between items-center py-2 px-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-500">{lang === 'hi' ? 'गैस शुल्क:' : lang === 'ar' ? 'رسوم الشبكة:' : 'Gas Fee:'}</span>
-            <span className="text-xs font-mono text-[#00A850] font-bold">&lt; 0.0001 ETH ($0.12)</span>
+            <span className="text-xs font-mono text-[#FF5500] font-bold">&lt; 0.0001 ETH ($0.12)</span>
           </div>
         </div>
 
         {/* Security Assurance */}
         <div className="flex items-center gap-2 text-xs text-slate-500 mb-6 px-1">
-          <ShieldCheck className="w-4 h-4 text-[#00A850] shrink-0" />
+          <ShieldCheck className="w-4 h-4 text-[#FF5500] shrink-0" />
           <span>
             {lang === 'hi'
               ? 'AI सीधे पैसे नहीं भेजता; बायोमेट्रिक हस्ताक्षर अनिवार्य है।'
@@ -177,10 +177,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             disabled={scanState !== 'idle'}
             className={`w-full py-3.5 px-5 rounded-2xl font-bold flex items-center justify-center gap-2.5 transition-all text-sm shadow-md ${
               scanState === 'approved'
-                ? 'bg-[#00E575] text-slate-950 shadow-emerald-500/20'
+                ? 'bg-[#FF5500] text-white shadow-orange-500/20'
                 : scanState === 'scanning'
-                ? 'bg-[#00C853] text-slate-950 animate-pulse'
-                : 'bg-[#00E575] hover:bg-[#00C853] text-slate-950 shadow-emerald-500/25 active:scale-98'
+                ? 'bg-[#E04B00] text-white animate-pulse'
+                : 'bg-[#FF5500] hover:bg-[#E04B00] text-white shadow-orange-500/25 active:scale-98'
             }`}
           >
             {scanState === 'approved' ? (

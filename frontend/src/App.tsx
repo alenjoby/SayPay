@@ -88,44 +88,44 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans selection:bg-[#00E575] selection:text-slate-950">
+    <div className="min-h-screen bg-[#FAFAFA] text-zinc-900 flex flex-col font-sans selection:bg-[#FF5500] selection:text-white">
       {/* Accessible W3C ARIA Live Announcer */}
       <LiveAnnouncer politeMessage={politeAnnouncement} alertMessage={alertAnnouncement} />
 
-      {/* 1. Header / Navbar (Trust Wallet Clean Style) */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 py-3.5 transition-all">
+      {/* 1. Header / Navbar (Industrial Minimalist Style) */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-zinc-200/80 px-4 sm:px-8 py-3.5 transition-all">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           {/* Logo */}
           <div className="flex items-center gap-3">
             <a href="#top" className="flex items-center gap-2.5 group outline-none" aria-label="SayPay Home">
-              <div className="w-8 h-8 rounded-xl bg-[#00E575] flex items-center justify-center font-black text-slate-950 text-sm shadow-sm group-hover:scale-105 transition">
+              <div className="w-8 h-8 rounded-xl bg-[#FF5500] flex items-center justify-center font-black text-white text-sm shadow-sm group-hover:scale-105 transition">
                 S
               </div>
-              <span className="text-xl font-extrabold tracking-tight text-slate-900">SayPay</span>
+              <span className="text-xl font-extrabold tracking-tight text-zinc-900">SayPay</span>
             </a>
 
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-[11px] font-mono font-medium text-slate-600">
-              <span className="w-2 h-2 rounded-full bg-[#00E575]" />
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-zinc-100 text-[11px] font-mono font-medium text-zinc-600">
+              <span className="w-2 h-2 rounded-full bg-[#FF5500]" />
               <span>Sepolia Testnet</span>
             </div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
-            <a href="#features" className="hover:text-slate-950 transition">Features</a>
-            <a href="#accessibility" className="hover:text-slate-950 transition">Accessibility</a>
-            <a href="#security" className="hover:text-slate-950 transition">Security</a>
-            <a href="#faq" className="hover:text-slate-950 transition">FAQ</a>
+          <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-zinc-600">
+            <a href="#features" className="hover:text-zinc-950 transition">Features</a>
+            <a href="#accessibility" className="hover:text-zinc-950 transition">Accessibility</a>
+            <a href="#security" className="hover:text-zinc-950 transition">Security</a>
+            <a href="#faq" className="hover:text-zinc-950 transition">FAQ</a>
           </nav>
 
           {/* Right Action Controls */}
           <div className="flex items-center gap-2.5">
             {/* Language Switcher Pill */}
-            <div className="flex items-center p-1 rounded-full bg-slate-100 border border-slate-200 text-xs">
+            <div className="flex items-center p-1 rounded-full bg-zinc-100 border border-zinc-200 text-xs">
               <button
                 onClick={() => handleLanguageChange('en')}
                 className={`px-3 py-1 rounded-full font-bold transition text-xs ${
-                  lang === 'en' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                  lang === 'en' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'
                 }`}
                 aria-label="Switch to English"
               >
@@ -134,7 +134,7 @@ export const App: React.FC = () => {
               <button
                 onClick={() => handleLanguageChange('hi')}
                 className={`px-3 py-1 rounded-full font-bold transition text-xs ${
-                  lang === 'hi' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                  lang === 'hi' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'
                 }`}
                 aria-label="हिंदी में बदलें"
               >
@@ -143,7 +143,7 @@ export const App: React.FC = () => {
               <button
                 onClick={() => handleLanguageChange('ar')}
                 className={`px-3 py-1 rounded-full font-bold transition text-xs ${
-                  lang === 'ar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                  lang === 'ar' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'
                 }`}
                 aria-label="التبديل إلى العربية"
               >
@@ -154,11 +154,11 @@ export const App: React.FC = () => {
             {/* Audio Earcon Toggle */}
             <button
               onClick={handleToggleSound}
-              className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+              className="p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 transition"
               title={soundEnabled ? t.soundOn : t.soundOff}
               aria-label={soundEnabled ? t.soundOn : t.soundOff}
             >
-              {soundEnabled ? <Volume2 className="w-4 h-4 text-[#00A850]" /> : <VolumeX className="w-4 h-4" />}
+              {soundEnabled ? <Volume2 className="w-4 h-4 text-[#FF5500]" /> : <VolumeX className="w-4 h-4" />}
             </button>
 
             {/* Launch App Button */}
@@ -167,7 +167,7 @@ export const App: React.FC = () => {
                 audioCues.playSuccess();
                 setActiveView('wallet');
               }}
-              className="hidden sm:inline-flex px-4 py-2 rounded-full btn-lime text-xs font-bold tracking-wide shadow-sm hover:scale-105 transition"
+              className="hidden sm:inline-flex px-4 py-2 rounded-full btn-orange text-xs font-bold tracking-wide shadow-sm hover:scale-105 transition"
             >
               Launch Wallet
             </button>
@@ -175,25 +175,25 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* 2. Hero Section (Trust Wallet Clean Minimalist Style) */}
-      <section className="pt-16 pb-20 px-4 sm:px-8 text-center relative overflow-hidden bg-gradient-to-b from-white via-slate-50 to-[#F8FAFC]">
+      {/* 2. Hero Section (Industrial Minimalist Style) */}
+      <section className="pt-16 pb-20 px-4 sm:px-8 text-center relative overflow-hidden bg-gradient-to-b from-white via-zinc-50 to-[#FAFAFA]">
         <div className="max-w-3xl mx-auto space-y-6">
           {/* Eyebrow Pill */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#00E575]/15 border border-[#00E575]/30 text-[#008A42] text-xs font-bold tracking-wide">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#FF5500]/10 border border-[#FF5500]/25 text-[#FF5500] text-xs font-bold tracking-wide">
             <Radio className="w-3.5 h-3.5 animate-pulse" />
             <span>Voice-First Crypto Smart Wallet</span>
           </div>
 
           {/* Hero Headline */}
-          <h1 className="text-4xl sm:text-6xl font-black text-slate-900 tracking-tight leading-[1.1]">
+          <h1 className="text-4xl sm:text-6xl font-black text-zinc-900 tracking-tight leading-[1.1]">
             The crypto wallet you control{' '}
-            <span className="text-[#00C853] underline decoration-[#00E575]/40 decoration-wavy">
+            <span className="text-[#FF5500] underline decoration-[#FF5500]/40 decoration-wavy">
               with your voice
             </span>
           </h1>
 
           {/* Hero Subtitle */}
-          <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto font-normal leading-relaxed">
+          <p className="text-base sm:text-lg text-zinc-600 max-w-2xl mx-auto font-normal leading-relaxed">
             Built from accessibility research for blind and visually impaired users. Speak naturally in Arabic,
             English, or Hindi: zero seed phrases, zero silent popups, and zero hexadecimal addresses.
           </p>
@@ -205,7 +205,7 @@ export const App: React.FC = () => {
                 audioCues.playSuccess();
                 setActiveView('wallet');
               }}
-              className="px-6 py-3 rounded-full btn-lime text-sm font-bold shadow-md shadow-emerald-500/20 inline-flex items-center gap-2 transition hover:scale-105"
+              className="px-6 py-3 rounded-full btn-orange text-sm font-bold shadow-md shadow-orange-500/20 inline-flex items-center gap-2 transition hover:scale-105"
             >
               <span>Launch Functional Wallet</span>
               <ArrowRight className="w-4 h-4" />
@@ -274,7 +274,7 @@ export const App: React.FC = () => {
             {/* Card 1: Multilingual Voice Control */}
             <div className="tw-card p-8 md:col-span-2 flex flex-col justify-between">
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-[#00E575]/20 text-[#00A850] flex items-center justify-center mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-[#FF5500]/10 text-[#FF5500] flex items-center justify-center mb-6">
                   <Mic className="w-6 h-6" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 tracking-tight mb-2">
@@ -291,7 +291,7 @@ export const App: React.FC = () => {
                 <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700">English</span>
                 <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700">हिंदी (Hinglish)</span>
                 <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700">العربية (Arabic)</span>
-                <span className="px-3 py-1 rounded-full bg-[#00E575]/20 text-[#008A42] font-semibold">
+                <span className="px-3 py-1 rounded-full bg-[#FF5500]/10 text-[#FF5500] font-semibold">
                   Auto Language Detection
                 </span>
               </div>
@@ -301,7 +301,7 @@ export const App: React.FC = () => {
             <div className="tw-card p-8 flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center mb-6">
-                  <Shield className="w-6 h-6 text-[#00A850]" />
+                  <Shield className="w-6 h-6 text-[#FF5500]" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">
                   Seedless Social Recovery
@@ -311,7 +311,7 @@ export const App: React.FC = () => {
                 </p>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-slate-100 text-xs font-semibold text-[#008A42] flex items-center gap-1">
+              <div className="mt-6 pt-4 border-t border-slate-100 text-xs font-semibold text-[#FF5500] flex items-center gap-1">
                 <span>Account Abstraction</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </div>
@@ -321,7 +321,7 @@ export const App: React.FC = () => {
             <div className="tw-card p-8 flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center mb-6">
-                  <Volume2 className="w-6 h-6 text-[#00A850]" />
+                  <Volume2 className="w-6 h-6 text-[#FF5500]" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">
                   Zero Silent State Changes
@@ -339,7 +339,7 @@ export const App: React.FC = () => {
             {/* Card 4: Human Contact Book */}
             <div className="tw-card p-8 md:col-span-2 flex flex-col justify-between">
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-[#00E575]/20 text-[#00A850] flex items-center justify-center mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-[#FF5500]/10 text-[#FF5500] flex items-center justify-center mb-6">
                   <UserCheck className="w-6 h-6" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 tracking-tight mb-2">
@@ -387,7 +387,7 @@ export const App: React.FC = () => {
             </div>
 
             <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm">
-              <span className="text-5xl font-black text-[#00C853] tracking-tight block tabular-nums">
+              <span className="text-5xl font-black text-[#FF5500] tracking-tight block tabular-nums">
                 0
               </span>
               <h3 className="font-bold text-slate-800 text-sm mt-2">Silent Popups in SayPay</h3>
@@ -409,11 +409,11 @@ export const App: React.FC = () => {
         </div>
       </section>
 
-      {/* 5. Section: Security Architecture (Trust Wallet Style Split Layout) */}
+      {/* 5. Section: Security Architecture (Industrial Split Layout) */}
       <section id="security" className="py-20 px-4 sm:px-8 bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto">
           <div className="max-w-xl mb-12">
-            <span className="text-xs uppercase font-extrabold tracking-widest text-[#00A850]">
+            <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5500]">
               Deliberate Architecture
             </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-2">
@@ -423,7 +423,7 @@ export const App: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 text-[#00E575] flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-xl bg-zinc-950 text-[#FF5500] flex items-center justify-center font-bold">
                 <Lock className="w-5 h-5" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">AI Never Moves Money</h3>
@@ -433,7 +433,7 @@ export const App: React.FC = () => {
             </div>
 
             <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 text-[#00E575] flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-xl bg-zinc-950 text-[#FF5500] flex items-center justify-center font-bold">
                 <Shield className="w-5 h-5" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">No Voice Passwords</h3>
@@ -443,7 +443,7 @@ export const App: React.FC = () => {
             </div>
 
             <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 text-[#00E575] flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-xl bg-zinc-950 text-[#FF5500] flex items-center justify-center font-bold">
                 <UserCheck className="w-5 h-5" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">Zero On-Chain PII</h3>
@@ -504,17 +504,17 @@ export const App: React.FC = () => {
         </div>
       </section>
 
-      {/* 7. Bottom CTA Banner (Trust Wallet Blue Style -> Deep Forest with Lime Green) */}
+      {/* 7. Bottom CTA Banner (Industrial High-Contrast Hardware Style) */}
       <section className="py-20 px-4 sm:px-8">
-        <div className="max-w-6xl mx-auto rounded-[2.5rem] bg-[#0A1C14] text-white p-10 sm:p-16 flex flex-col md:flex-row items-center justify-between gap-10 shadow-2xl relative overflow-hidden">
+        <div className="max-w-6xl mx-auto rounded-[2.5rem] bg-[#09090B] text-white p-10 sm:p-16 flex flex-col md:flex-row items-center justify-between gap-10 shadow-2xl relative overflow-hidden border border-zinc-800">
           <div className="max-w-xl space-y-4">
-            <span className="text-xs uppercase font-extrabold tracking-widest text-[#00E575]">
+            <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5500]">
               Accessibility First Web3
             </span>
             <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
               The crypto wallet you control with your voice.
             </h2>
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+            <p className="text-sm sm:text-base text-zinc-300 leading-relaxed">
               Try the testnet prototype. No seed phrases, zero silent popups, and complete independence.
             </p>
 
@@ -524,7 +524,7 @@ export const App: React.FC = () => {
                   audioCues.playSuccess();
                   setActiveView('wallet');
                 }}
-                className="px-7 py-3.5 rounded-full btn-lime text-slate-950 font-bold text-sm tracking-wide shadow-lg inline-flex items-center gap-2 hover:scale-105 transition"
+                className="px-7 py-3.5 rounded-full btn-orange text-white font-black text-sm tracking-wide shadow-lg inline-flex items-center gap-2 hover:scale-105 transition"
               >
                 <span>Launch Smart Wallet</span>
                 <ArrowRight className="w-4 h-4" />
@@ -532,20 +532,20 @@ export const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="w-48 h-48 rounded-full bg-[#00E575]/20 flex items-center justify-center shrink-0 border border-[#00E575]/30">
-            <Mic className="w-20 h-20 text-[#00E575]" />
+          <div className="w-48 h-48 rounded-full bg-[#FF5500]/15 flex items-center justify-center shrink-0 border border-[#FF5500]/30 shadow-[0_0_50px_rgba(255,85,0,0.2)]">
+            <Mic className="w-20 h-20 text-[#FF5500]" />
           </div>
         </div>
       </section>
 
       {/* 8. Corporate Minimal Footer */}
-      <footer className="bg-white border-t border-slate-200 py-12 px-4 sm:px-8 text-xs text-slate-500">
+      <footer className="bg-white border-t border-zinc-200 py-12 px-4 sm:px-8 text-xs text-zinc-500">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-[#00E575] flex items-center justify-center font-black text-slate-950 text-xs">
+            <div className="w-7 h-7 rounded-lg bg-[#FF5500] flex items-center justify-center font-black text-white text-xs">
               S
             </div>
-            <span className="font-extrabold text-sm text-slate-900">SayPay</span>
+            <span className="font-extrabold text-sm text-zinc-900">SayPay</span>
             <span>- Voice-First Smart Wallet Prototype</span>
           </div>
 

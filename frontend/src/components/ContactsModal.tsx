@@ -83,27 +83,27 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="contacts-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-sm animate-fade-in"
     >
-      <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-zinc-200 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
+        <div className="flex items-center justify-between pb-4 border-b border-zinc-100 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#00E575]/15 text-emerald-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-[#FF5500]/10 text-[#FF5500] flex items-center justify-center">
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
                 Human-Readable Book
               </span>
-              <h2 id="contacts-modal-title" className="text-xl font-black text-slate-900 font-display">
+              <h2 id="contacts-modal-title" className="text-xl font-black text-zinc-900 font-display">
                 Address Book ({contacts.length})
               </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-sm font-bold transition"
+            className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 flex items-center justify-center text-sm font-bold transition"
             aria-label="Close dialog"
           >
             ✕
@@ -111,25 +111,25 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
         </div>
 
         {/* Subhead / Blind-Accessibility explanation */}
-        <div className="text-xs text-slate-600 mt-3 mb-3 leading-relaxed shrink-0">
+        <div className="text-xs text-zinc-600 mt-3 mb-3 leading-relaxed shrink-0">
           SayPay replaces complicated 42-character hex addresses with human names. Blind users can select recipients by voice or tap without verifying raw hexadecimal strings.
         </div>
 
         {/* Search & Add Action Bar */}
         <div className="flex items-center gap-2 mb-4 shrink-0">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search by name, relation, or address..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 text-xs font-semibold text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs"
               >
                 ✕
               </button>
@@ -138,9 +138,9 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
 
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="px-3.5 py-2.5 rounded-xl btn-lime text-xs font-black transition flex items-center gap-1.5 shrink-0 shadow-sm"
+            className="px-3.5 py-2.5 rounded-xl btn-orange text-white text-xs font-black transition flex items-center gap-1.5 shrink-0 shadow-sm"
           >
-            <UserPlus className="w-4 h-4 text-slate-950" />
+            <UserPlus className="w-4 h-4 text-white" />
             <span>{showAddForm ? 'Cancel' : 'Add Contact'}</span>
           </button>
         </div>
@@ -149,16 +149,16 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
         {showAddForm && (
           <form
             onSubmit={handleSaveContact}
-            className="mb-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 shrink-0 animate-fade-in"
+            className="mb-4 p-4 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-3 shrink-0 animate-fade-in"
           >
-            <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5 font-display">
-              <Plus className="w-4 h-4 text-emerald-600" />
+            <div className="text-xs font-bold text-zinc-900 flex items-center gap-1.5 font-display">
+              <Plus className="w-4 h-4 text-[#FF5500]" />
               <span>Add New Trusted Contact</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                <label className="block text-[11px] font-bold text-zinc-600 mb-1">
                   Name / Spoken Label:
                 </label>
                 <input
@@ -167,18 +167,18 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                   placeholder="e.g. Amma, Rahul, Sister"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                  className="w-full px-3 py-2 bg-white rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                <label className="block text-[11px] font-bold text-zinc-600 mb-1">
                   Relationship:
                 </label>
                 <select
                   value={newRelationship}
                   onChange={(e) => setNewRelationship(e.target.value)}
-                  className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                  className="w-full px-3 py-2 bg-white rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
                 >
                   <option value="Family">Family</option>
                   <option value="Friend">Friend</option>
@@ -190,7 +190,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              <label className="block text-[11px] font-bold text-zinc-600 mb-1">
                 Sepolia Address:
               </label>
               <input
@@ -199,7 +199,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                 placeholder="0x..."
                 value={newAddress}
                 onChange={(e) => setNewAddress(e.target.value)}
-                className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                className="w-full px-3 py-2 bg-white rounded-xl border border-zinc-200 font-mono text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
               />
             </div>
 
@@ -207,13 +207,13 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
-                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-100"
+                className="px-3 py-1.5 rounded-lg bg-white border border-zinc-200 text-zinc-600 text-xs font-semibold hover:bg-zinc-100"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-lg btn-lime text-xs font-black shadow-sm"
+                className="px-4 py-1.5 rounded-lg btn-orange text-white text-xs font-black shadow-sm"
               >
                 Save Contact
               </button>
@@ -224,14 +224,14 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
         {/* Contacts Scrollable List */}
         <div className="space-y-2.5 overflow-y-auto pr-1 flex-1 min-h-[220px]">
           {filteredContacts.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 text-xs font-medium">
+            <div className="text-center py-10 text-zinc-400 text-xs font-medium">
               No contacts found matching &quot;{searchQuery}&quot;
             </div>
           ) : (
             filteredContacts.map((contact) => (
               <div
                 key={contact.id}
-                className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 bg-white hover:border-[#00E575] hover:shadow-sm transition group"
+                className="flex items-center justify-between p-3.5 rounded-2xl border border-zinc-200 bg-white hover:border-[#FF5500] hover:shadow-sm transition group"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div
@@ -241,19 +241,19 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-black text-sm text-slate-900 truncate">
+                      <span className="font-black text-sm text-zinc-900 truncate">
                         {contact.name}
                       </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold shrink-0">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-bold shrink-0">
                         {contact.relationship}
                       </span>
                       {contact.isRecent && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#00E575]/15 text-emerald-800 font-bold shrink-0">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#FF5500]/10 text-[#FF5500] font-bold shrink-0">
                           Recent
                         </span>
                       )}
                     </div>
-                    <span className="text-xs font-mono text-slate-500 block truncate max-w-[200px] sm:max-w-xs mt-0.5">
+                    <span className="text-xs font-mono text-zinc-500 block truncate max-w-[200px] sm:max-w-xs mt-0.5">
                       {contact.address}
                     </span>
                   </div>
@@ -269,11 +269,11 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                         currentLang
                       );
                     }}
-                    className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
+                    className="p-2 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition"
                     title="Read details aloud"
                     aria-label={`Read details for ${contact.name}`}
                   >
-                    <Volume2 className="w-4 h-4 text-emerald-600" />
+                    <Volume2 className="w-4 h-4 text-[#FF5500]" />
                   </button>
 
                   {/* Send Button */}
@@ -282,7 +282,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                       audioCues.playSuccess();
                       onSelectForSend(contact);
                     }}
-                    className="px-3.5 py-2 rounded-xl btn-lime text-xs font-black transition flex items-center gap-1.5 shadow-sm"
+                    className="px-3.5 py-2 rounded-xl btn-orange text-white text-xs font-black transition flex items-center gap-1.5 shadow-sm"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>Send</span>
@@ -295,7 +295,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                         audioCues.playWarning();
                         onDeleteContact(contact.id);
                       }}
-                      className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                      className="p-2 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition"
                       title="Delete contact"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -308,13 +308,13 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between shrink-0">
-          <span className="text-[11px] text-slate-500 font-medium">
+        <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between shrink-0">
+          <span className="text-[11px] text-zinc-500 font-medium">
             Phonetic Name Matching Active &bull; Zero Hex Verification
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition"
+            className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold transition"
           >
             Done
           </button>

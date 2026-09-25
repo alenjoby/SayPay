@@ -50,20 +50,20 @@ export const ModeOnboardingModal: React.FC<ModeOnboardingModalProps> = ({
       >
         {/* Header Icon + Label */}
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-2xl bg-[#00E575]/15 text-emerald-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-2xl bg-[#FF5500]/10 text-[#FF5500] flex items-center justify-center">
             <Volume2 className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
               Accessibility Setup
             </span>
-            <h2 id="onboarding-title" className="text-xl sm:text-2xl font-black text-slate-900 font-display">
+            <h2 id="onboarding-title" className="text-xl sm:text-2xl font-black text-zinc-950 font-display">
               Welcome to SayPay
             </h2>
           </div>
         </div>
 
-        <p id="onboarding-desc" className="text-sm text-slate-600 mb-6 leading-relaxed">
+        <p id="onboarding-desc" className="text-sm text-zinc-600 mb-6 leading-relaxed">
           Choose your preferred interaction style. You can switch between these modes anytime with a single tap or voice command.
         </p>
 
@@ -76,28 +76,28 @@ export const ModeOnboardingModal: React.FC<ModeOnboardingModalProps> = ({
               speakText('Voice-Assisted Mode activated. All screen actions and balances will be spoken aloud.', currentLang);
               onSelectMode('blind');
             }}
-            className="w-full text-left p-5 rounded-2xl border-2 border-[#00E575] bg-[#00E575]/10 hover:bg-[#00E575]/15 transition relative group shadow-sm focus:outline-none focus:ring-4 focus:ring-[#00E575]/30"
+            className="w-full text-left p-5 rounded-2xl border-2 border-[#FF5500] bg-[#FF5500]/10 hover:bg-[#FF5500]/15 transition relative group shadow-sm focus:outline-none focus:ring-4 focus:ring-[#FF5500]/30"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-[#00E575] text-slate-950 flex items-center justify-center shrink-0 shadow-md">
+                <div className="w-12 h-12 rounded-2xl bg-[#FF5500] text-white flex items-center justify-center shrink-0 shadow-md">
                   <Mic className="w-6 h-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-base text-slate-900 font-display">
+                    <span className="font-extrabold text-base text-zinc-950 font-display">
                       Voice-Assisted Mode
                     </span>
-                    <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-[#00E575] text-slate-950">
+                    <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-[#FF5500] text-white">
                       Recommended
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 mt-1 leading-normal font-medium">
+                  <p className="text-xs text-zinc-600 mt-1 leading-normal font-medium">
                     Designed for blind and low-vision users. Auto-reads balances, speaks every transaction step, provides audible earcons, and activates spacebar speech trigger.
                   </p>
                 </div>
               </div>
-              <ArrowRight className="w-5 h-5 text-emerald-700 shrink-0 mt-2 transition group-hover:translate-x-1" />
+              <ArrowRight className="w-5 h-5 text-[#FF5500] shrink-0 mt-2 transition group-hover:translate-x-1" />
             </div>
           </button>
 
@@ -108,31 +108,31 @@ export const ModeOnboardingModal: React.FC<ModeOnboardingModalProps> = ({
               speakText('Visual Standard Mode activated.', currentLang);
               onSelectMode('visual');
             }}
-            className="w-full text-left p-5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition relative group shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200"
+            className="w-full text-left p-5 rounded-2xl border border-zinc-200 bg-white hover:bg-zinc-50 transition relative group shadow-sm focus:outline-none focus:ring-4 focus:ring-zinc-200"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-100 text-zinc-700 flex items-center justify-center shrink-0">
                   <Eye className="w-6 h-6" />
                 </div>
                 <div>
-                  <span className="font-extrabold text-base text-slate-900 block font-display">
+                  <span className="font-extrabold text-base text-zinc-950 block font-display">
                     Visual Standard Mode
                   </span>
-                  <p className="text-xs text-slate-500 mt-1 leading-normal font-medium">
+                  <p className="text-xs text-zinc-500 mt-1 leading-normal font-medium">
                     Modern visual crypto dashboard. Voice control and read-aloud buttons are available on-demand, without automatic screen reading.
                   </p>
                 </div>
               </div>
-              <ArrowRight className="w-5 h-5 text-slate-400 shrink-0 mt-2 transition group-hover:translate-x-1" />
+              <ArrowRight className="w-5 h-5 text-zinc-400 shrink-0 mt-2 transition group-hover:translate-x-1" />
             </div>
           </button>
         </div>
 
         {/* Footer info note */}
-        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
           <div className="flex items-center gap-1.5 font-medium">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <ShieldCheck className="w-4 h-4 text-[#FF5500]" />
             <span>WCAG AAA Accessible &bull; Voice Hotkey Enabled</span>
           </div>
 
@@ -140,7 +140,7 @@ export const ModeOnboardingModal: React.FC<ModeOnboardingModalProps> = ({
             onClick={() => {
               onClose();
             }}
-            className="text-xs font-semibold text-slate-700 hover:text-slate-900"
+            className="text-xs font-semibold text-zinc-700 hover:text-zinc-900"
           >
             Dismiss
           </button>

@@ -171,7 +171,7 @@ export const InteractiveWalletDemo: React.FC<InteractiveWalletDemoProps> = ({
   return (
     <div className="relative w-full max-w-[340px] sm:max-w-[360px] mx-auto">
       {/* Soft Ambient Shadow */}
-      <div className="absolute inset-0 bg-[#00E575]/15 rounded-[3rem] blur-2xl -z-10" />
+      <div className="absolute inset-0 bg-[#FF5500]/15 rounded-[3rem] blur-2xl -z-10" />
 
       {/* Trust Wallet Style Sleek Phone (Light inner UI, dark bezel) */}
       <div className="tw-phone p-3 text-slate-900 overflow-hidden relative">
@@ -183,11 +183,11 @@ export const InteractiveWalletDemo: React.FC<InteractiveWalletDemoProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-[#00E575] flex items-center justify-center font-bold text-slate-950 text-xs">
+              <div className="w-6 h-6 rounded-lg bg-[#FF5500] flex items-center justify-center font-bold text-white text-xs">
                 S
               </div>
               <span className="font-bold text-xs text-slate-900">SayPay Vault</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00E575]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500]" />
             </div>
 
             <button
@@ -195,7 +195,7 @@ export const InteractiveWalletDemo: React.FC<InteractiveWalletDemoProps> = ({
               className="flex items-center gap-1 text-[10px] font-mono text-slate-500 hover:text-slate-900"
             >
               <span>0x71C8...4E92</span>
-              {copied ? <Check className="w-3 h-3 text-[#00A850]" /> : <Copy className="w-3 h-3" />}
+              {copied ? <Check className="w-3 h-3 text-[#FF5500]" /> : <Copy className="w-3 h-3" />}
             </button>
           </div>
 
@@ -208,7 +208,7 @@ export const InteractiveWalletDemo: React.FC<InteractiveWalletDemoProps> = ({
               </h3>
             </div>
             <div className="flex items-center justify-center gap-2 mt-1">
-              <span className="text-xs font-mono font-bold text-[#00A850]">
+              <span className="text-xs font-mono font-bold text-[#FF5500]">
                 {balance.toFixed(4)} ETH
               </span>
               <button
@@ -231,7 +231,7 @@ export const InteractiveWalletDemo: React.FC<InteractiveWalletDemoProps> = ({
               }}
               className="flex flex-col items-center gap-1 group"
             >
-              <div className="w-11 h-11 rounded-full bg-[#00E575] hover:bg-[#00C853] text-slate-950 flex items-center justify-center shadow-sm transition">
+              <div className="w-11 h-11 rounded-full bg-[#FF5500] hover:bg-[#E04B00] text-white flex items-center justify-center shadow-sm transition">
                 <ArrowUpRight className="w-5 h-5" />
               </div>
               <span className="text-[11px] font-semibold text-slate-700">Send</span>
@@ -274,7 +274,7 @@ export const InteractiveWalletDemo: React.FC<InteractiveWalletDemoProps> = ({
               onClick={handleToggleListening}
               className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center transition shadow-md ${
                 isListening
-                  ? 'bg-[#00E575] text-slate-950 animate-pulse'
+                  ? 'bg-[#FF5500] text-white animate-pulse'
                   : 'bg-slate-900 hover:bg-slate-800 text-white'
               }`}
               aria-label="Tap to speak"

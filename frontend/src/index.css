@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --primary-lime: #00E575;
-  --primary-dark: #00C853;
-  --bg-canvas: #F8FAFC;
+  --primary-orange: #FF5500;
+  --primary-hover: #E04B00;
+  --bg-canvas: #FAFAFA;
   --card-bg: #FFFFFF;
-  --text-dark: #0F172A;
+  --text-dark: #09090B;
 }
 
 @layer base {
@@ -25,9 +25,9 @@
     letter-spacing: -0.03em;
   }
 
-  /* High contrast accessible focus rings using primary-lime */
+  /* High contrast accessible focus rings using primary-orange */
   *:focus-visible {
-    outline: 2px solid var(--primary-lime);
+    outline: 2px solid var(--primary-orange);
     outline-offset: 3px;
   }
 }
@@ -35,57 +35,52 @@
 /* Luxury Web3 Card Style */
 .tw-card {
   background-color: #FFFFFF;
-  border: 1px solid #E2E8F0;
+  border: 1px solid #E4E4E7;
   border-radius: 1.5rem;
-  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.02);
+  box-shadow: 0 4px 20px -2px rgba(9, 9, 11, 0.04), 0 2px 4px -2px rgba(9, 9, 11, 0.02);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .tw-card:hover {
-  border-color: rgba(0, 229, 117, 0.4);
-  box-shadow: 0 12px 28px -6px rgba(0, 229, 117, 0.12);
+  border-color: rgba(255, 85, 0, 0.4);
+  box-shadow: 0 12px 28px -6px rgba(255, 85, 0, 0.12);
   transform: translateY(-1px);
 }
 
-/* Signature Electric Lime Button */
-.btn-lime {
-  background-color: #00E575;
-  color: #022c22;
+/* Signature Solar Orange Button */
+.btn-orange, .btn-lime {
+  background-color: #FF5500;
+  color: #FFFFFF;
   font-weight: 800;
   transition: all 0.2s ease;
 }
 
-.btn-lime:hover {
-  background-color: #00C853;
-  color: #022c22;
+.btn-orange:hover, .btn-lime:hover {
+  background-color: #E04B00;
+  color: #FFFFFF;
   transform: translateY(-1px);
 }
 
-/* Dark Slate Button */
+/* Pitch Black Button */
 .btn-dark {
-  background-color: #0F172A;
+  background-color: #09090B;
   color: #FFFFFF;
   font-weight: 700;
   transition: all 0.2s ease;
 }
 
 .btn-dark:hover {
-  background-color: #1E293B;
+  background-color: #18181B;
   color: #FFFFFF;
-  transform: translateY(-1px);
-}
-
-.btn-dark:hover {
-  background-color: #1E293B;
   transform: translateY(-1px);
 }
 
 /* Minimalist Phone Container */
 .tw-phone {
-  background-color: #0F172A;
+  background-color: #09090B;
   border-radius: 2.75rem;
-  border: 8px solid #1E293B;
-  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  border: 8px solid #18181B;
+  box-shadow: 0 25px 60px -15px rgba(9, 9, 11, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 /* Subtle Animated Waveform */
@@ -115,15 +110,15 @@
 @keyframes voiceAura {
   0% {
     transform: scale(0.96);
-    box-shadow: 0 0 0 0 rgba(0, 229, 117, 0.45);
+    box-shadow: 0 0 0 0 rgba(255, 85, 0, 0.45);
   }
   70% {
     transform: scale(1.04);
-    box-shadow: 0 0 0 22px rgba(0, 229, 117, 0);
+    box-shadow: 0 0 0 22px rgba(255, 85, 0, 0);
   }
   100% {
     transform: scale(0.96);
-    box-shadow: 0 0 0 0 rgba(0, 229, 117, 0);
+    box-shadow: 0 0 0 0 rgba(255, 85, 0, 0);
   }
 }
 
