@@ -38,8 +38,14 @@ def rss_mb() -> float:
 
         pmc = PMC()
         pmc.cb = ctypes.sizeof(PMC)
-        handle = ctypes.windll.kernel32.GetCurrentProcess()
-        ctypes.windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(pmc), pmc.cb)
+        # HANDLE is pointer-sized: without explicit types ctypes truncates it to 32 bits.
+        get_proc = ctypes.windll.kernel32.GetCurrentProcess
+        get_proc.restype = wintypes.HANDLE
+        get_info = ctypes.windll.psapi.GetProcessMemoryInfo
+        get_info.argtypes = [wintypes.HANDLE, ctypes.POINTER(PMC), wintypes.DWORD]
+        get_info.restype = wintypes.BOOL
+        if not get_info(get_proc(), ctypes.byref(pmc), pmc.cb):
+            return float("nan")
         return pmc.WorkingSetSize / 1e6
     try:
         for line in open("/proc/self/status"):
