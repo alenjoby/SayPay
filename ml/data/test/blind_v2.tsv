@@ -1,0 +1,123 @@
+# BLIND test set v2. Written and frozen BEFORE the v4 data changes; never used for
+# training, tuning or error analysis. Report it as the headline blind number.
+# Columns: intent<TAB>script<TAB>text<TAB>amount<TAB>unit<TAB>contact
+check_balance	ar	طيب كم باقي لي في الحساب الحين	-	-	-
+check_balance	ar	ودي اعرف كم عندي بالضبط	-	-	-
+check_balance	ar	الرصيد وصل كم	-	-	-
+check_balance	ar	فيه فلوس عندي ولا صفر	-	-	-
+check_balance	ar	قديش صار معي هلق	-	-	-
+check_balance	ar	الفلوس اللي معايا كام دلوقتي	-	-	-
+check_balance	ar+en	كم فيه في الaccount	-	-	-
+check_balance	arabizi	9ar 3indi kam	-	-	-
+check_balance	en	what's my wallet holding right now	-	-	-
+check_balance	en	quick balance check	-	-	-
+check_balance	en	am i running low on funds	-	-	-
+check_balance	en	how much eth is left	-	-	-
+check_balance	hi_latin	mere account ka balance kya hai abhi	-	-	-
+check_balance	hi_latin	kitne paise reh gaye	-	-	-
+check_balance	hi_deva	अभी मेरे पास कितना बैलेंस है	-	-	-
+send	ar	ابغاك تحول لأخوي مية وخمسين	150	-	Brother
+send	ar	ادفع لفاطمة عشرين دولار الحين	20	USD	Fatima
+send	ar	حط لخالد نص ايث	0.5	ETH	Khalid
+send	ar	ارسل ثلاثة ريال لسارة لو سمحت	3	SAR	Sara
+send	ar	عطي ابوي الف درهم	1000	AED	Dad
+send	ar	بدي ادفع لأحمد خمسين	50	-	Ahmed
+send	ar	حول لماما ميتين	200	-	Amma
+send	ar	عايز احول لسارة عشرة دولار	10	USD	Sara
+send	ar+en	ابي اpay لخالد 40	40	-	Khalid
+send	arabizi	7awlili 50 l sara	50	-	Sara
+send	arabizi	ab3at l ahmed khamsa eth	5	ETH	Ahmed
+send	en	sara needs 15 dollars, send it over	15	USD	Sara
+send	en	let's get mom 0.25 eth	0.25	ETH	Amma
+send	en	transfer a hundred to khalid	100	-	Khalid
+send	en	pay rahul back 2 eth	2	ETH	Rahul
+send	en	shoot dad 60 bucks	60	USD	Dad
+send	hi_latin	Priya ko 250 rupaye transfer kar do	250	INR	Priya
+send	hi_latin	bhai ko teen sau bhej	300	-	Brother
+send	hi_latin	Rahul ke wallet me 0.2 eth daal	0.2	ETH	Rahul
+send	hi_deva	मम्मी को पांच सौ भेजो	500	-	Amma
+history	ar	وش آخر فلوس طلعت مني	-	-	-
+history	ar	عرض لي الحركات اللي صارت هالاسبوع	-	-	-
+history	ar	لمين حولت هالشهر	-	-	-
+history	ar	كم دفعت لأحمد الشهر اللي فات	-	-	Ahmed
+history	ar	عايز اشوف المعاملات القديمة	-	-	-
+history	arabizi	warini el 7arakat	-	-	-
+history	en	what did i pay for yesterday	-	-	-
+history	en	list my last three transfers	-	-	-
+history	en	who have i sent money to recently	-	-	-
+history	en	transaction log please	-	-	-
+history	hi_latin	pichle mahine ke payments dikhao	-	-	-
+history	hi_deva	मैंने कल किसको पैसे भेजे थे	-	-	-
+tx_status	ar	اخوي يقول ما وصله شي	-	-	Brother
+tx_status	ar	الفلوس اللي ارسلتها لسارة وصلت ولا لا	-	-	Sara
+tx_status	ar	ليش التحويل الأخير متأخر	-	-	-
+tx_status	ar	هل وصلت الحوالة	-	-	-
+tx_status	ar	التحويل لسه ما وصل ليه	-	-	-
+tx_status	ar+en	الtransfer اللي سويته completed ولا لا	-	-	-
+tx_status	arabizi	el flous wesalat l ahmed wala la	-	-	Ahmed
+tx_status	en	has the money reached priya	-	-	Priya
+tx_status	en	is my payment still pending	-	-	-
+tx_status	en	why hasn't khalid received it yet	-	-	Khalid
+tx_status	en	did that go through ok	-	-	-
+tx_status	hi_latin	Priya ko paise mil gaye ki nahi	-	-	Priya
+tx_status	hi_deva	राहुल को पैसे पहुंचे क्या	-	-	Rahul
+receive	ar	ابي اطلب من خالد ثلاثين	30	-	Khalid
+receive	ar	خل سارة ترسل لي خمسين	50	-	Sara
+receive	ar	كيف الناس يحولون لي	-	-	-
+receive	ar	اعطني عنوان محفظتي عشان ارسله لأبوي	-	-	Dad
+receive	ar	ارسل لأحمد طلب فلوس	-	-	Ahmed
+receive	ar+en	ابي الQR code حقي	-	-	-
+receive	arabizi	abi a6lub flous min ahmed	-	-	Ahmed
+receive	en	ask sara to pay me 20	20	-	Sara
+receive	en	request money from dad	-	-	Dad
+receive	en	send khalid a request for 100	100	-	Khalid
+receive	en	what should i give people so they can pay me	-	-	-
+receive	en	show my receiving qr	-	-	-
+receive	hi_latin	Rahul se 200 mangwao	200	-	Rahul
+receive	hi_latin	mujhe paise receive karne ka qr dikhao	-	-	-
+receive	hi_deva	प्रिया से 100 रुपये मांगो	100	INR	Priya
+add_contact	ar	اللي حول لي امس احفظه باسم يوسف	-	-	-
+add_contact	ar	ضيف نورة عندي بالأسماء	-	-	-
+add_contact	ar	احفظ الرقم هذا باسم سالم	-	-	-
+add_contact	ar	خزن هالمحفظة باسم مريم	-	-	-
+add_contact	ar+en	save الaddress هذا باسم عمر	-	-	-
+add_contact	arabizi	e7fa6 hatha b esm yousef	-	-	-
+add_contact	en	add the person who just paid me as noura	-	-	-
+add_contact	en	put this address in my contacts as salem	-	-	-
+add_contact	en	save maryam	-	-	-
+add_contact	hi_latin	Vikram ka address save kar do	-	-	-
+add_contact	hi_deva	अंजलि को कॉन्टैक्ट में डाल दो	-	-	-
+recovery_help	ar	جوالي ضاع بالمطار	-	-	-
+recovery_help	ar	أحد سرق تلفوني وش اسوي بمحفظتي	-	-	-
+recovery_help	ar	ما اقدر ادخل على محفظتي من الجوال الجديد	-	-	-
+recovery_help	ar	التلفون تكسر وابي ارجع حسابي	-	-	-
+recovery_help	arabizi	telephoni ensara8	-	-	-
+recovery_help	en	lost my phone at the mall	-	-	-
+recovery_help	en	how do i get my wallet back on a new phone	-	-	-
+recovery_help	en	my phone died for good and my money is on it	-	-	-
+recovery_help	hi_latin	mera mobile chori ho gaya ab kya	-	-	-
+recovery_help	hi_deva	फोन टूट गया वॉलेट कैसे वापस मिलेगा	-	-	-
+cancel	ar	لا لا خلاص وقف	-	-	-
+cancel	ar	غيرت رأيي لا ترسل	-	-	-
+cancel	ar	الغي اللي قلته	-	-	-
+cancel	ar	بطل	-	-	-
+cancel	arabizi	la 5alas	-	-	-
+cancel	en	no stop, don't send that	-	-	-
+cancel	en	cancel it	-	-	-
+cancel	en	changed my mind	-	-	-
+cancel	en	hold it, no	-	-	-
+cancel	hi_latin	ruk jao mat bhejo	-	-	-
+cancel	hi_deva	रुको कैंसल करो	-	-	-
+unknown	ar	ارسل لسارة رسالة صوتية	-	-	Sara
+unknown	ar	اتصل على ابوي	-	-	Dad
+unknown	ar	وش الجو بكرة	-	-	-
+unknown	ar	شغل لي اغنية عبدالمجيد	-	-	-
+unknown	ar	كم سعر الدولار اليوم	-	-	-
+unknown	arabizi	kaif 7alak	-	-	-
+unknown	en	send mom a photo	-	-	Amma
+unknown	en	remind me to call ahmed	-	-	Ahmed
+unknown	en	what's the time in dubai	-	-	-
+unknown	en	play the news	-	-	-
+unknown	hi_latin	Rahul ko video bhejo	-	-	Rahul
+unknown	hi_latin	kal ka mausam kaisa hai	-	-	-
+unknown	hi_deva	पापा को कॉल करो	-	-	Dad
