@@ -94,7 +94,8 @@ such as `cloudflared tunnel --url http://localhost:8000`.
 { "text": "ارسل خمسمية درهم لأحمد", "contacts": ["Amma", "Ahmed", "Rahul"] }
 ```
 
-`contacts` are the names saved on the device. Addresses never leave the phone.
+`contacts` are the names saved on the device. Optional `reply_lang` (`ar`, `en`, `hi`)
+sets the language of `readback`; by default it is the language the user spoke. Addresses never leave the phone.
 
 ```json
 {
@@ -114,6 +115,7 @@ such as `cloudflared tunnel --url http://localhost:8000`.
   "tx_ref": null,
   "lang_mix": ["ar"],
   "normalized_text": "ارسل خمسميه درهم لاحمد",
+  "readback": {"text": "حوّل خمسمية درهم إلى Ahmed. أكّد ببصمتك.", "lang": "ar"},
   "engine": "rules-v1",
   "scores": null
 }
@@ -136,6 +138,12 @@ Add `?debug=true` to get the raw per-intent `scores`.
 | `unknown` | nothing matched: ask the user to repeat |
 
 ### How the app should use the response
+
+- **`readback`**: the sentence to announce before anything happens. Put `readback.text`
+  in the aria-live region with `lang` set to `readback.lang` (the screen reader switches
+  voice), or pass it to `speechSynthesis` when no screen reader is running. Amounts are in
+  words ("zero point one test ETH"), phone numbers digit by digit, and clarifications are
+  phrased as questions ("How much should I send to Ahmed?").
 
 - **`needs_clarification: true` → ask, never act.** `clarification` says what to ask:
   - `{"type": "choose_intent", "options": ["send", "receive"]}`: "Did you mean send or receive?"

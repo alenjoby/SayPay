@@ -15,6 +15,8 @@ class IntentRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=500, examples=["حول 0.1 إيثيريوم لأمي"])
     contacts: list[str] = Field(default_factory=list, max_length=1000,
                                 examples=[["Amma", "Ahmed", "Rahul"]])
+    reply_lang: Literal["ar", "en", "hi"] | None = Field(
+        None, description="language of readback.text; default: the language the user spoke")
 
 
 class RecipientOut(BaseModel):
@@ -44,6 +46,11 @@ class Alternative(BaseModel):
     score: float
 
 
+class Readback(BaseModel):
+    text: str = Field(description="sentence to announce (aria-live) / speak before acting")
+    lang: Literal["ar", "en", "hi"] = Field(description="BCP-47 base language for lang= / TTS")
+
+
 class IntentResponse(BaseModel):
     intent: Intent
     confidence: float
@@ -64,5 +71,6 @@ class IntentResponse(BaseModel):
     tx_ref: TxRef | None = None
     lang_mix: list[str]
     normalized_text: str
+    readback: Readback
     engine: str
     scores: dict[str, float] | None = None
