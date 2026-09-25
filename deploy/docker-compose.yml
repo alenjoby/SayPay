@@ -1,0 +1,38 @@
+# SayPay on one VPS: Caddy (HTTPS + frontend) in front of the intent API.
+#
+#   cp .env.example .env    # set SAYPAY_DOMAIN (e.g. 203-0-113-7.sslip.io)
+#   docker compose up -d --build
+#
+# https://$SAYPAY_DOMAIN/        -> frontend (FRONTEND_DIST, default: ./placeholder test page)
+# https://$SAYPAY_DOMAIN/api/... -> intent API (/api/intent, /api/health)
+services:
+  api:
+    build: ../ml
+    restart: unless-stopped
+    environment:
+      SAYPAY_ENGINE: ${SAYPAY_ENGINE:-auto}   # auto | ensemble | v3 | rules
+      SAYPAY_CORS_ORIGINS: https://${SAYPAY_DOMAIN}
+    expose:
+      - "8000"
+    mem_limit: ${API_MEM_LIMIT:-1500m}
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SAYPAY_DOMAIN: ${SAYPAY_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${FRONTEND_DIST:-./placeholder}:/srv/frontend:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
