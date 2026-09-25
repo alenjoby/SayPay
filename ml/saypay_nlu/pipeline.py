@@ -47,8 +47,12 @@ def get_model():
             if want in ("auto", "ensemble") and v3 is not None:
                 try:
                     from .transformer import OnnxIntentModel
-                    onnx = OnnxIntentModel.load(Path(os.getenv(
-                        "SAYPAY_TRANSFORMER", _MODELS_DIR / "mmbert_int8")))
+                    # First model found wins: SAYPAY_TRANSFORMER, then fp32, then int8.
+                    for cand in (os.getenv("SAYPAY_TRANSFORMER"), _MODELS_DIR / "mmbert_fp32",
+                                 _MODELS_DIR / "mmbert_int8"):
+                        onnx = OnnxIntentModel.load(Path(cand)) if cand else None
+                        if onnx is not None:
+                            break
                 except ImportError:  # onnxruntime / tokenizers not installed
                     onnx = None
             if onnx is not None:

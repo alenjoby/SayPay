@@ -64,6 +64,25 @@ Docker (VPS): `docker build -t saypay-nlu . && docker run -p 8000:8000 saypay-nl
 The browser mic only works on HTTPS, so put the API behind a TLS reverse proxy
 (e.g. Caddy) and set `SAYPAY_CORS_ORIGINS=https://your-frontend-domain`.
 
+## Demo on a local PC (recommended: full-precision model)
+
+On a machine with 8 GB+ RAM, use the **fp32** mmBERT export: no quantization loss
+(the numbers in `reports/compare.md` for v3+mmbert). Export it on Colab with
+`python scripts/export_onnx.py --model preds/mmbert/hf --out models/mmbert_fp32 --fp32`
+and unzip it to `ml/models/mmbert_fp32/`. The API prefers `mmbert_fp32`, then `mmbert_int8`.
+
+```bash
+cd ml
+python -m venv .venv && .venv\Scripts\activate      # Windows (Linux/macOS: source .venv/bin/activate)
+pip install -r requirements.txt
+python scripts/check_deploy.py                       # engine, RAM, latency
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+The browser microphone works on `http://localhost` without HTTPS. To demo from a
+phone (mic + fingerprint need HTTPS), expose the frontend and API through a tunnel
+such as `cloudflared tunnel --url http://localhost:8000`.
+
 ## API
 
 ### `POST /intent`
