@@ -55,6 +55,8 @@ python -m saypay_nlu "حول 0.1 لأمي" --contacts Amma,Ahmed   # try from th
 pytest -q
 ```
 
+On a 2 GB VPS run a single worker (the Dockerfile does) and add swap as a safety net
+(`fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile`).
 The mmBERT model (~300 MB) is too large for git: export it with the last cell of
 `notebooks/compare_models.ipynb` and unzip it to `models/mmbert_int8/` on the server.
 
