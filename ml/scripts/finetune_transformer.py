@@ -90,6 +90,8 @@ def main() -> None:
     ap.add_argument("--max-len", type=int, default=64)
     ap.add_argument("--seed", type=int, default=13)
     ap.add_argument("--limit", type=int, default=0, help="debug: use only N training rows")
+    ap.add_argument("--allow-cpu", action="store_true",
+                    help="train without a GPU (hours for a base-size model; for debugging)")
     ap.add_argument("--export", default="", help="dir to write a deployable int8 ONNX model "
                     "(e.g. models/mmbert_int8); needs `pip install onnx onnxruntime`")
     args = ap.parse_args()
@@ -97,6 +99,9 @@ def main() -> None:
     rng = random.Random(args.seed)
     torch.manual_seed(args.seed)
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    if device == "cpu" and not args.allow_cpu:
+        sys.exit("No GPU found. On Colab: Runtime -> Change runtime type -> T4 GPU, then re-run. "
+                 "(Pass --allow-cpu to train on CPU anyway: very slow.)")
     train, dev = load("train"), load("dev")
     if args.limit:
         train = rng.sample(train, min(args.limit, len(train)))
