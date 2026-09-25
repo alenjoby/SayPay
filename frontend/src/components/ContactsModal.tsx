@@ -54,7 +54,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
     e.preventDefault();
     if (!newName.trim() || !newAddress.trim()) return;
 
-    const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-rose-500', 'bg-teal-500'];
+    const colors = ['bg-[#119da4]', 'bg-[#0c7489]', 'bg-[#13505b]', 'bg-[#040404]'];
     const randomBg = colors[Math.floor(Math.random() * colors.length)];
 
     const created: Contact = {
@@ -83,27 +83,27 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="contacts-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040404]/80 backdrop-blur-sm animate-fade-in"
     >
-      <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[rgba(19,80,91,0.2)] flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
+        <div className="flex items-center justify-between pb-4 border-b border-[#d7d9ce]/60 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#00E575]/15 text-[#00A850] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-[#119da4]/15 text-[#119da4] flex items-center justify-center">
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#00A850]">
-                Address Book
+              <span className="text-xs font-bold uppercase tracking-wider text-[#0c7489]">
+                Human-Readable Book
               </span>
-              <h2 id="contacts-modal-title" className="text-xl font-black text-slate-900">
-                Trusted Contacts ({contacts.length})
+              <h2 id="contacts-modal-title" className="text-xl font-black text-[#040404] font-display">
+                Address Book ({contacts.length})
               </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-bold transition"
+            className="w-8 h-8 rounded-full bg-[#d7d9ce]/40 hover:bg-[#d7d9ce] text-[#040404] flex items-center justify-center text-sm font-bold transition"
             aria-label="Close dialog"
           >
             ✕
@@ -111,7 +111,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
         </div>
 
         {/* Subhead / Blind-Accessibility explanation */}
-        <div className="text-xs text-slate-600 mt-3 mb-3 leading-relaxed shrink-0">
+        <div className="text-xs text-[#13505b] mt-3 mb-3 leading-relaxed shrink-0">
           SayPay replaces complicated 42-character hex addresses with human names. Blind users can select recipients by voice or tap without verifying raw hexadecimal strings.
         </div>
 
@@ -124,7 +124,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
               placeholder="Search by name, relation, or address..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-[#d7d9ce] bg-[#d7d9ce]/10 text-xs font-semibold text-[#040404] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#119da4]"
             />
             {searchQuery && (
               <button
@@ -138,9 +138,9 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
 
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-sm"
+            className="px-3.5 py-2.5 rounded-xl btn-teal text-white text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-sm"
           >
-            <UserPlus className="w-4 h-4 text-[#00E575]" />
+            <UserPlus className="w-4 h-4 text-[#119da4]" />
             <span>{showAddForm ? 'Cancel' : 'Add Contact'}</span>
           </button>
         </div>
@@ -149,16 +149,16 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
         {showAddForm && (
           <form
             onSubmit={handleSaveContact}
-            className="mb-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 shrink-0 animate-fade-in"
+            className="mb-4 p-4 rounded-2xl bg-[#d7d9ce]/20 border border-[#d7d9ce] space-y-3 shrink-0 animate-fade-in"
           >
-            <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-              <Plus className="w-4 h-4 text-[#00A850]" />
+            <div className="text-xs font-bold text-[#040404] flex items-center gap-1.5 font-display">
+              <Plus className="w-4 h-4 text-[#119da4]" />
               <span>Add New Trusted Contact</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                <label className="block text-[11px] font-bold text-[#13505b] mb-1">
                   Name / Spoken Label:
                 </label>
                 <input
@@ -167,18 +167,18 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                   placeholder="e.g. Amma, Rahul, Sister"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                  className="w-full px-3 py-2 bg-white rounded-xl border border-[#d7d9ce] text-xs font-semibold text-[#040404] focus:outline-none focus:ring-2 focus:ring-[#119da4]"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                <label className="block text-[11px] font-bold text-[#13505b] mb-1">
                   Relationship:
                 </label>
                 <select
                   value={newRelationship}
                   onChange={(e) => setNewRelationship(e.target.value)}
-                  className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                  className="w-full px-3 py-2 bg-white rounded-xl border border-[#d7d9ce] text-xs font-semibold text-[#040404] focus:outline-none focus:ring-2 focus:ring-[#119da4]"
                 >
                   <option value="Family">Family</option>
                   <option value="Friend">Friend</option>
@@ -190,7 +190,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
+              <label className="block text-[11px] font-bold text-[#13505b] mb-1">
                 Sepolia Address:
               </label>
               <input
@@ -199,7 +199,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                 placeholder="0x..."
                 value={newAddress}
                 onChange={(e) => setNewAddress(e.target.value)}
-                className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                className="w-full px-3 py-2 bg-white rounded-xl border border-[#d7d9ce] font-mono text-xs text-[#040404] focus:outline-none focus:ring-2 focus:ring-[#119da4]"
               />
             </div>
 
@@ -207,13 +207,13 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
-                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-100"
+                className="px-3 py-1.5 rounded-lg bg-white border border-[#d7d9ce] text-[#13505b] text-xs font-semibold hover:bg-slate-100"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 rounded-lg btn-lime text-xs font-black shadow-sm"
+                className="px-4 py-1.5 rounded-lg btn-cyan text-xs font-black shadow-sm"
               >
                 Save Contact
               </button>
@@ -231,7 +231,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
             filteredContacts.map((contact) => (
               <div
                 key={contact.id}
-                className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 bg-white hover:border-[#00E575] hover:shadow-sm transition group"
+                className="flex items-center justify-between p-3.5 rounded-2xl border border-[#d7d9ce]/80 bg-white hover:border-[#119da4] hover:shadow-sm transition group"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div
@@ -241,19 +241,19 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-black text-sm text-slate-900 truncate">
+                      <span className="font-black text-sm text-[#040404] truncate">
                         {contact.name}
                       </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold shrink-0">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#d7d9ce]/40 text-[#13505b] font-bold shrink-0">
                         {contact.relationship}
                       </span>
                       {contact.isRecent && (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-bold shrink-0">
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#119da4]/15 text-[#0c7489] font-bold shrink-0">
                           Recent
                         </span>
                       )}
                     </div>
-                    <span className="text-xs font-mono text-slate-500 block truncate max-w-[200px] sm:max-w-xs mt-0.5">
+                    <span className="text-xs font-mono text-[#13505b]/70 block truncate max-w-[200px] sm:max-w-xs mt-0.5">
                       {contact.address}
                     </span>
                   </div>
@@ -269,11 +269,11 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                         currentLang
                       );
                     }}
-                    className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
+                    className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-[#d7d9ce]/30 transition"
                     title="Read details aloud"
                     aria-label={`Read details for ${contact.name}`}
                   >
-                    <Volume2 className="w-4 h-4 text-[#00A850]" />
+                    <Volume2 className="w-4 h-4 text-[#119da4]" />
                   </button>
 
                   {/* Send Button */}
@@ -282,7 +282,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                       audioCues.playSuccess();
                       onSelectForSend(contact);
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-[#00E575] hover:bg-[#00C853] text-slate-950 text-xs font-black transition flex items-center gap-1.5 shadow-sm"
+                    className="px-3.5 py-2 rounded-xl btn-cyan text-white text-xs font-black transition flex items-center gap-1.5 shadow-sm"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>Send</span>
@@ -308,13 +308,13 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between shrink-0">
-          <span className="text-[11px] text-slate-500 font-medium">
+        <div className="mt-4 pt-3 border-t border-[#d7d9ce]/60 flex items-center justify-between shrink-0">
+          <span className="text-[11px] text-[#13505b] font-medium">
             Phonetic Name Matching Active &bull; Zero Hex Verification
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition"
+            className="px-4 py-2 rounded-xl btn-teal text-white text-xs font-bold transition"
           >
             Done
           </button>

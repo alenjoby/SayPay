@@ -60,27 +60,27 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="guardians-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040404]/80 backdrop-blur-sm animate-fade-in"
     >
-      <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200">
+      <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-[rgba(19,80,91,0.2)]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div className="flex items-center justify-between pb-4 border-b border-[#d7d9ce]/60">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#00E575]/15 text-[#00A850] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-[#119da4]/15 text-[#119da4] flex items-center justify-center">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#00A850]">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#0c7489]">
                 Seedless Security
               </span>
-              <h2 id="guardians-title" className="text-xl font-black text-slate-900">
+              <h2 id="guardians-title" className="text-xl font-black text-[#040404] font-display">
                 Guardians & Recovery
               </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-bold"
+            className="w-8 h-8 rounded-full bg-[#d7d9ce]/40 hover:bg-[#d7d9ce] text-[#040404] flex items-center justify-center text-sm font-bold"
             aria-label="Close dialog"
           >
             ✕
@@ -88,11 +88,11 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
         </div>
 
         {/* Tab switcher */}
-        <div className="flex gap-2 p-1 mt-4 bg-slate-100 rounded-xl text-xs font-bold">
+        <div className="flex gap-2 p-1 mt-4 bg-[#d7d9ce]/30 rounded-xl text-xs font-bold">
           <button
             onClick={() => setActiveTab('status')}
             className={`flex-1 py-2 rounded-lg transition ${
-              activeTab === 'status' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-600'
+              activeTab === 'status' ? 'bg-white text-[#040404] shadow-sm font-black' : 'text-[#13505b]'
             }`}
           >
             Guardian Health (2-of-3)
@@ -100,7 +100,7 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
           <button
             onClick={() => setActiveTab('recovery')}
             className={`flex-1 py-2 rounded-lg transition ${
-              activeTab === 'recovery' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-600'
+              activeTab === 'recovery' ? 'bg-white text-[#040404] shadow-sm font-black' : 'text-[#13505b]'
             }`}
           >
             Lost-Phone Recovery
@@ -108,7 +108,7 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
           <button
             onClick={() => setActiveTab('inheritance')}
             className={`flex-1 py-2 rounded-lg transition ${
-              activeTab === 'inheritance' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-600'
+              activeTab === 'inheritance' ? 'bg-white text-[#040404] shadow-sm font-black' : 'text-[#13505b]'
             }`}
           >
             Inheritance Switch
@@ -118,10 +118,10 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
         {/* Tab 1: Guardian Health */}
         {activeTab === 'status' && (
           <div className="mt-5 space-y-3">
-            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3">
-              <UserCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-slate-700">
-                <span className="font-bold text-slate-900 block">Smart Contract Quorum Active</span>
+            <div className="p-3.5 rounded-xl bg-[#119da4]/10 border border-[#119da4]/30 flex items-start gap-3">
+              <UserCheck className="w-5 h-5 text-[#0c7489] shrink-0 mt-0.5" />
+              <div className="text-xs text-[#13505b]">
+                <span className="font-bold text-[#040404] block">Smart Contract Quorum Active</span>
                 Requires 2 of 3 guardian signatures to recover access. Zero seed phrases required.
               </div>
             </div>
@@ -130,18 +130,18 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
               {guardians.map((g, idx) => (
                 <div
                   key={g.id}
-                  className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition"
+                  className="flex items-center justify-between p-3.5 rounded-xl border border-[#d7d9ce]/80 bg-white hover:border-[#119da4] transition"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-[#d7d9ce]/40 text-[#040404] font-bold text-xs flex items-center justify-center font-mono">
                       {idx + 1}
                     </div>
                     <div>
-                      <div className="text-sm font-extrabold text-slate-900">{g.name}</div>
-                      <div className="text-xs text-slate-500 font-mono">{g.address} &bull; {g.role}</div>
+                      <div className="text-sm font-extrabold text-[#040404]">{g.name}</div>
+                      <div className="text-xs text-[#13505b]/80 font-mono">{g.address} &bull; {g.role}</div>
                     </div>
                   </div>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#119da4]/15 text-[#0c7489]">
                     Active
                   </span>
                 </div>
@@ -153,20 +153,20 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
         {/* Tab 2: Recovery Simulator */}
         {activeTab === 'recovery' && (
           <div className="mt-5 space-y-4">
-            <div className="text-xs text-slate-600 leading-relaxed">
+            <div className="text-xs text-[#13505b] leading-relaxed">
               If your phone is lost or damaged, your trusted guardians sign a recovery transaction on Sepolia testnet. A 2-minute safety delay allows you to veto in case of foul play.
             </div>
 
             {recoveryState === 'idle' && (
-              <div className="p-4 rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
-                <Clock className="w-8 h-8 text-slate-400 mx-auto" />
-                <div className="text-sm font-bold text-slate-800">Test Recovery Flow Simulation</div>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              <div className="p-4 rounded-2xl border border-dashed border-[#d7d9ce] text-center space-y-3 bg-[#d7d9ce]/10">
+                <Clock className="w-8 h-8 text-[#13505b] mx-auto" />
+                <div className="text-sm font-bold text-[#040404] font-display">Test Recovery Flow Simulation</div>
+                <p className="text-xs text-[#13505b] max-w-sm mx-auto">
                   Simulate an incoming recovery request from Guardian 1 to see the delay window and owner veto protection.
                 </p>
                 <button
                   onClick={handleStartRecoverySimulation}
-                  className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-sm"
+                  className="px-4 py-2.5 rounded-xl btn-teal text-white text-xs font-bold transition shadow-sm"
                 >
                   Simulate Guardian Recovery Request
                 </button>
@@ -175,11 +175,11 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
 
             {recoveryState === 'in_progress' && (
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 space-y-3 animate-pulse-gentle">
-                <div className="flex items-center gap-2 text-amber-800 font-bold text-sm">
+                <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
                   <AlertTriangle className="w-4 h-4 text-amber-600" />
                   <span>Recovery in Progress (2-Minute Delay Active)</span>
                 </div>
-                <div className="text-xs text-slate-700">
+                <div className="text-xs text-slate-800">
                   Guardian &quot;Amma&quot; has requested account key rotation. You have {countdown}s to cancel if this was unauthorized.
                 </div>
                 <div className="pt-2 flex gap-2">
@@ -195,15 +195,15 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
             )}
 
             {recoveryState === 'vetoed' && (
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-center space-y-2">
-                <ShieldCheck className="w-8 h-8 text-[#00A850] mx-auto" />
-                <div className="text-sm font-bold text-emerald-950">Recovery Successfully Vetoed</div>
-                <p className="text-xs text-emerald-800">
+              <div className="p-4 rounded-2xl bg-[#119da4]/10 border border-[#119da4]/40 text-center space-y-2">
+                <ShieldCheck className="w-8 h-8 text-[#0c7489] mx-auto" />
+                <div className="text-sm font-bold text-[#040404]">Recovery Successfully Vetoed</div>
+                <p className="text-xs text-[#13505b]">
                   The unauthorized recovery was cancelled and the smart vault remains fully under your control.
                 </p>
                 <button
                   onClick={() => setRecoveryState('idle')}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-bold"
+                  className="px-3 py-1.5 rounded-lg btn-cyan text-white text-xs font-bold"
                 >
                   Reset Demo
                 </button>
@@ -215,37 +215,37 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
         {/* Tab 3: Inheritance Switch */}
         {activeTab === 'inheritance' && (
           <div className="mt-5 space-y-4">
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
-              <Lock className="w-5 h-5 text-slate-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-slate-700">
-                <span className="font-bold text-slate-900 block">Dead-Man&apos;s Switch (Inactivity Timer)</span>
+            <div className="p-3.5 rounded-xl bg-[#d7d9ce]/25 border border-[#d7d9ce] flex items-start gap-3">
+              <Lock className="w-5 h-5 text-[#13505b] shrink-0 mt-0.5" />
+              <div className="text-xs text-[#13505b]">
+                <span className="font-bold text-[#040404] block">Dead-Man&apos;s Switch (Inactivity Timer)</span>
                 If wallet sees zero activity for 180 days, vault custody automatically transfers to your primary guardian (Amma).
               </div>
             </div>
 
-            <div className="p-4 rounded-xl border border-slate-200 space-y-2">
+            <div className="p-4 rounded-xl border border-[#d7d9ce] space-y-2">
               <div className="flex justify-between text-xs">
-                <span className="text-slate-500 font-medium">Inactivity Threshold</span>
-                <span className="font-bold text-slate-800">180 Days</span>
+                <span className="text-[#13505b] font-medium">Inactivity Threshold:</span>
+                <span className="font-bold text-[#040404]">180 Days</span>
               </div>
               <div className="flex justify-between text-xs">
-                <span className="text-slate-500 font-medium">Designated Heir</span>
-                <span className="font-bold text-slate-800">Amma (0x892a...12bc)</span>
+                <span className="text-[#13505b] font-medium">Designated Heir:</span>
+                <span className="font-bold text-[#040404]">Amma (0x892a...12bc)</span>
               </div>
               <div className="flex justify-between text-xs">
-                <span className="text-slate-500 font-medium">Heartbeat Check</span>
-                <span className="font-bold text-emerald-700">Active (Refreshed today)</span>
+                <span className="text-[#13505b] font-medium">Heartbeat Check:</span>
+                <span className="font-bold text-[#0c7489]">Active (Refreshed today)</span>
               </div>
             </div>
           </div>
         )}
 
         {/* Footer */}
-        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-          <span className="text-xs text-slate-500">ERC-4337 Smart Account Abstraction</span>
+        <div className="mt-6 pt-4 border-t border-[#d7d9ce]/60 flex items-center justify-between">
+          <span className="text-xs text-[#13505b]">ERC-4337 Smart Account Abstraction</span>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
+            className="px-4 py-2 rounded-xl btn-teal text-white text-xs font-bold"
           >
             Done
           </button>

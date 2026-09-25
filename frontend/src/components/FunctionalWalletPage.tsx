@@ -30,7 +30,8 @@ import {
   ArrowLeft,
   Info,
   Settings,
-  Flame,
+  ChevronDown,
+  Layers,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audioCues } from '../utils/audioCues';
@@ -63,9 +64,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   onBackToLanding,
   initialLang = 'en',
 }) => {
-  // 1. User & Wallet Identity (Instant switching between "You (Alen)" and "Friend (Rahul)")
+  // 1. User & Wallet Identity (Clean Web3 Multi-Account Selector)
   const [activeUserId, setActiveUserId] = useState<'user_main' | 'user_friend'>('user_main');
   const [userState, setUserState] = useState<WalletUser>(() => getStoredUser('user_main'));
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
 
   // 2. Mode & Accessibility Preferences
   const [accessibilityMode, setAccessibilityMode] = useState<'blind' | 'visual'>(() => {
@@ -200,7 +202,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             particleCount: 90,
             spread: 75,
             origin: { y: 0.6 },
-            colors: ['#00E575', '#00C853', '#FFFFFF'],
+            colors: ['#119da4', '#0c7489', '#d7d9ce'],
           });
 
           // Credit balance directly in database & memory
@@ -480,10 +482,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const handleConfirmSend = (recipient: string, address: string, amount: number) => {
     if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
     confetti({
-      particleCount: 60,
-      spread: 65,
+      particleCount: 70,
+      spread: 70,
       origin: { y: 0.7 },
-      colors: ['#00E575', '#00C853', '#FFFFFF'],
+      colors: ['#119da4', '#0c7489', '#d7d9ce'],
     });
 
     const newBalance = Math.max(0, userState.balanceETH - amount);
@@ -570,7 +572,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   return (
     <div
       dir={isRTL ? 'rtl' : 'ltr'}
-      className={`min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-[#00E575] selection:text-slate-950 ${
+      className={`min-h-screen bg-[#d7d9ce] text-[#040404] font-sans selection:bg-[#119da4] selection:text-white ${
         accessibilitySettings.fontSize === 'extra_large'
           ? 'text-xl'
           : accessibilitySettings.fontSize === 'large'
@@ -584,65 +586,99 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       </div>
 
       {/* 1. Global Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3 transition-all">
+      <header className="sticky top-0 z-40 bg-[#FFFFFF]/90 backdrop-blur-md border-b border-[rgba(19,80,91,0.18)] px-4 sm:px-8 py-3.5 transition-all shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          {/* Brand + Switcher */}
+          {/* Brand + Network Indicator */}
           <div className="flex items-center gap-3">
             <button
               onClick={onBackToLanding}
-              className="flex items-center gap-2 group focus:outline-none"
+              className="flex items-center gap-2.5 group focus:outline-none"
               title="Return to Landing Page"
             >
-              <div className="w-8 h-8 rounded-xl bg-[#00E575] flex items-center justify-center font-black text-slate-950 text-sm shadow-sm group-hover:scale-105 transition">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#119da4] to-[#0c7489] flex items-center justify-center font-black text-white text-sm shadow-md group-hover:scale-105 transition">
                 S
               </div>
-              <span className="font-extrabold text-base text-slate-900 tracking-tight font-display">
+              <span className="font-extrabold text-lg text-[#040404] tracking-tight font-display">
                 SayPay
               </span>
             </button>
 
-            {/* Testnet Badge */}
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-mono font-bold text-slate-600">
-              <span className="w-2 h-2 rounded-full bg-[#00E575] animate-ping" />
+            {/* Sepolia Live Badge */}
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#d7d9ce]/40 border border-[#13505b]/20 text-[11px] font-mono font-bold text-[#13505b]">
+              <span className="w-2 h-2 rounded-full bg-[#119da4] animate-ping" />
               <span>Sepolia Testnet</span>
             </span>
           </div>
 
-          {/* Right Controls: User Switcher, Blind Rules, Settings, Mode Toggle */}
+          {/* Right Controls: Web3 Account Dropdown, Blind Rules, Settings, Mode Toggle */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Live Dual-User Switcher (Demo Phone-To-Phone) */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-full border border-slate-200">
+            {/* Real Web3 Account Selector (Clean Trust Wallet / MetaMask Style) */}
+            <div className="relative">
               <button
-                onClick={() => {
-                  audioCues.playSuccess();
-                  setActiveUserId('user_main');
-                }}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 ${
-                  activeUserId === 'user_main'
-                    ? 'bg-white text-slate-950 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title="Switch to Alen's Wallet"
+                onClick={() => setShowAccountDropdown(!showAccountDropdown)}
+                className="px-3.5 py-1.5 rounded-2xl bg-[#d7d9ce]/30 hover:bg-[#d7d9ce]/60 border border-[rgba(19,80,91,0.2)] text-xs font-bold text-[#040404] transition flex items-center gap-2 shadow-sm"
               >
-                <User className="w-3 h-3 text-[#00A850]" />
-                <span>You (Alen)</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-[#119da4]" />
+                <span className="font-display">{userState.name}</span>
+                <span className="font-mono text-[10px] text-[#13505b]">({userState.address.slice(0, 4)}...{userState.address.slice(-3)})</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-[#13505b] transition-transform ${showAccountDropdown ? 'rotate-180' : ''}`} />
               </button>
 
-              <button
-                onClick={() => {
-                  audioCues.playSuccess();
-                  setActiveUserId('user_friend');
-                }}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 ${
-                  activeUserId === 'user_friend'
-                    ? 'bg-white text-slate-950 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title="Switch to Friend Rahul's Wallet"
-              >
-                <Radio className="w-3 h-3 text-blue-500" />
-                <span>Friend (Rahul)</span>
-              </button>
+              {/* Dropdown Menu */}
+              {showAccountDropdown && (
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-[rgba(19,80,91,0.2)] p-2 z-50 animate-fade-in">
+                  <div className="px-3 py-2 text-[10px] font-bold text-[#13505b] uppercase tracking-wider border-b border-[#d7d9ce]/60">
+                    Switch Testnet Identity
+                  </div>
+                  <button
+                    onClick={() => {
+                      audioCues.playSuccess();
+                      setActiveUserId('user_main');
+                      setShowAccountDropdown(false);
+                    }}
+                    className={`w-full text-left p-2.5 rounded-xl transition flex items-center justify-between text-xs mt-1 ${
+                      activeUserId === 'user_main'
+                        ? 'bg-[#119da4]/15 text-[#040404] font-black'
+                        : 'hover:bg-[#d7d9ce]/30 text-[#13505b]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-[#119da4] text-white flex items-center justify-center text-[10px] font-bold">
+                        A
+                      </div>
+                      <div>
+                        <div className="font-bold">Alen (Primary Account)</div>
+                        <div className="text-[10px] font-mono text-[#13505b]">0x71C8...4E92</div>
+                      </div>
+                    </div>
+                    {activeUserId === 'user_main' && <Check className="w-4 h-4 text-[#119da4]" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      audioCues.playSuccess();
+                      setActiveUserId('user_friend');
+                      setShowAccountDropdown(false);
+                    }}
+                    className={`w-full text-left p-2.5 rounded-xl transition flex items-center justify-between text-xs mt-1 ${
+                      activeUserId === 'user_friend'
+                        ? 'bg-[#119da4]/15 text-[#040404] font-black'
+                        : 'hover:bg-[#d7d9ce]/30 text-[#13505b]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-[#0c7489] text-white flex items-center justify-center text-[10px] font-bold">
+                        R
+                      </div>
+                      <div>
+                        <div className="font-bold">Rahul (Simulated Peer)</div>
+                        <div className="text-[10px] font-mono text-[#13505b]">0x3A9F...05d1</div>
+                      </div>
+                    </div>
+                    {activeUserId === 'user_friend' && <Check className="w-4 h-4 text-[#119da4]" />}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Blind Mode Rules & Protocols Button */}
@@ -651,10 +687,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 audioCues.playIntentRecognized();
                 setShowBlindRules(!showBlindRules);
               }}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+              className="px-3 py-1.5 rounded-2xl border border-[rgba(19,80,91,0.2)] bg-white hover:bg-[#d7d9ce]/30 text-[#040404] text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
               title="Blind Accessibility Protocols"
             >
-              <BookOpen className="w-3.5 h-3.5 text-[#00A850]" />
+              <BookOpen className="w-3.5 h-3.5 text-[#119da4]" />
               <span className="hidden md:inline">Blind Protocols</span>
             </button>
 
@@ -664,11 +700,11 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 audioCues.playIntentRecognized();
                 setIsSettingsOpen(true);
               }}
-              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition flex items-center gap-1.5 shadow-sm"
+              className="p-2 rounded-2xl border border-[rgba(19,80,91,0.2)] bg-white hover:bg-[#d7d9ce]/30 text-[#040404] transition flex items-center gap-1.5 shadow-sm"
               title="Accessibility Settings"
               aria-label="Open Accessibility Settings"
             >
-              <Settings className="w-4 h-4 text-[#00A850]" />
+              <Settings className="w-4 h-4 text-[#119da4]" />
               <span className="hidden lg:inline text-xs font-bold">Settings</span>
             </button>
 
@@ -678,22 +714,22 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 const next = accessibilityMode === 'blind' ? 'visual' : 'blind';
                 handleSelectMode(next);
               }}
-              className={`p-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 ${
+              className={`p-2 rounded-2xl border text-xs font-bold transition flex items-center gap-1.5 ${
                 accessibilityMode === 'blind'
-                  ? 'border-[#00E575] bg-emerald-50 text-emerald-900 shadow-sm'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  ? 'border-[#119da4] bg-[#119da4]/15 text-[#040404] shadow-sm'
+                  : 'border-[rgba(19,80,91,0.2)] bg-white text-[#13505b] hover:bg-[#d7d9ce]/30'
               }`}
               title={accessibilityMode === 'blind' ? 'Voice-Assisted Mode' : 'Visual Standard Mode'}
               aria-label="Toggle Accessibility Mode"
             >
               {accessibilityMode === 'blind' ? (
                 <>
-                  <Mic className="w-4 h-4 text-[#00A850]" />
+                  <Mic className="w-4 h-4 text-[#119da4]" />
                   <span className="hidden sm:inline font-bold">Voice-Assisted</span>
                 </>
               ) : (
                 <>
-                  <Eye className="w-4 h-4 text-slate-500" />
+                  <Eye className="w-4 h-4 text-[#13505b]" />
                   <span className="hidden sm:inline">Visual Mode</span>
                 </>
               )}
@@ -707,7 +743,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 setLang(newL);
                 audioCues.playIntentRecognized();
               }}
-              className="bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-2 py-1.5 focus:outline-none"
+              className="bg-white border border-[rgba(19,80,91,0.2)] text-xs font-bold text-[#040404] rounded-2xl px-2.5 py-1.5 focus:outline-none"
               aria-label="Select language"
             >
               <option value="en">EN</option>
@@ -720,42 +756,42 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
       {/* 2. Blind Mode Operating Rules Drawer */}
       {showBlindRules && (
-        <section className="bg-slate-900 text-white border-b border-slate-800 px-4 py-5 animate-fade-in">
+        <section className="bg-[#13505b] text-white border-b border-[#0c7489] px-4 py-5 animate-fade-in shadow-xl">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start justify-between gap-6">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full bg-[#00E575] text-slate-950 font-black text-[10px] uppercase">
+                <span className="px-2 py-0.5 rounded-full bg-[#119da4] text-white font-black text-[10px] uppercase">
                   W3C WCAG AAA Standards
                 </span>
                 <h3 className="text-base font-black font-display">SayPay Blind User Operating Rules</h3>
               </div>
-              <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+              <p className="text-xs text-[#d7d9ce] max-w-2xl leading-relaxed">
                 Blind users navigate 100% through earcon audio chimes, verbal read-backs, and zero hexadecimal verification. Here are the 5 core rules built into this wallet:
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full md:w-auto">
-              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-xs space-y-1">
-                <span className="font-extrabold text-[#00E575] block">1. Zero Silent Changes</span>
-                <span className="text-slate-300 text-[11px] block">
+              <div className="p-3 rounded-xl bg-[#0c7489]/50 border border-[#119da4]/30 text-xs space-y-1">
+                <span className="font-extrabold text-[#d7d9ce] block">1. Zero Silent Changes</span>
+                <span className="text-white/80 text-[11px] block">
                   Every state change or deposit triggers both an audible chime and speech readout.
                 </span>
               </div>
-              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-xs space-y-1">
-                <span className="font-extrabold text-[#00E575] block">2. Spoken Read-Back</span>
-                <span className="text-slate-300 text-[11px] block">
+              <div className="p-3 rounded-xl bg-[#0c7489]/50 border border-[#119da4]/30 text-xs space-y-1">
+                <span className="font-extrabold text-[#d7d9ce] block">2. Spoken Read-Back</span>
+                <span className="text-white/80 text-[11px] block">
                   AI reads exact recipient, amount in words, and fees before user authorizes.
                 </span>
               </div>
-              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-xs space-y-1">
-                <span className="font-extrabold text-[#00E575] block">3. Human Names Only</span>
-                <span className="text-slate-300 text-[11px] block">
+              <div className="p-3 rounded-xl bg-[#0c7489]/50 border border-[#119da4]/30 text-xs space-y-1">
+                <span className="font-extrabold text-[#d7d9ce] block">3. Human Names Only</span>
+                <span className="text-white/80 text-[11px] block">
                   42-character hex addresses are never spoken or required to be typed.
                 </span>
               </div>
-              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-xs space-y-1">
-                <span className="font-extrabold text-[#00E575] block">4. Seedless Recovery</span>
-                <span className="text-slate-300 text-[11px] block">
+              <div className="p-3 rounded-xl bg-[#0c7489]/50 border border-[#119da4]/30 text-xs space-y-1">
+                <span className="font-extrabold text-[#d7d9ce] block">4. Seedless Recovery</span>
+                <span className="text-white/80 text-[11px] block">
                   2-of-3 social guardians replace 12-word seed phrases with 2-minute veto window.
                 </span>
               </div>
@@ -763,7 +799,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
             <button
               onClick={() => setShowBlindRules(false)}
-              className="text-xs text-slate-400 hover:text-white shrink-0 font-bold self-end md:self-start"
+              className="text-xs text-[#d7d9ce] hover:text-white shrink-0 font-bold self-end md:self-start"
             >
               ✕ Close
             </button>
@@ -775,13 +811,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       <main className="max-w-7xl mx-auto px-4 sm:px-8 py-6 space-y-6">
         {/* Incoming Payment Banner (Live Real-Time Notification) */}
         {incomingAlert && (
-          <div className="p-4 rounded-3xl bg-emerald-500 text-slate-950 font-bold shadow-xl border-2 border-emerald-400 flex items-center justify-between animate-bounce-short">
+          <div className="p-4 rounded-3xl bg-[#119da4] text-white font-bold shadow-xl border-2 border-white/40 flex items-center justify-between animate-bounce-short">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white text-slate-950 flex items-center justify-center font-black">
-                <CheckCircle2 className="w-6 h-6 text-[#00A850]" />
+              <div className="w-10 h-10 rounded-2xl bg-white text-[#119da4] flex items-center justify-center font-black">
+                <CheckCircle2 className="w-6 h-6 text-[#119da4]" />
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wider font-extrabold text-emerald-950">
+                <div className="text-xs uppercase tracking-wider font-extrabold text-[#d7d9ce]">
                   Real-Time Payment Received!
                 </div>
                 <div className="text-base font-black font-display">
@@ -791,7 +827,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             </div>
             <button
               onClick={() => setIncomingAlert(null)}
-              className="px-3.5 py-1.5 rounded-xl bg-slate-950 text-white text-xs font-bold"
+              className="px-3.5 py-1.5 rounded-xl bg-[#040404] text-white text-xs font-bold"
             >
               Dismiss
             </button>
@@ -802,34 +838,34 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LEFT COLUMN: Portfolio Hero Card + Voice Center (7 Cols on Desktop) */}
           <div className="lg:col-span-7 space-y-6">
-            {/* Portfolio Card (Trust Wallet Light Aesthetics) */}
+            {/* Portfolio Card */}
             <section
               aria-labelledby="portfolio-heading"
-              className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm relative overflow-hidden group"
+              className="tw-card p-6 sm:p-8 relative overflow-hidden group"
             >
-              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#00E575] via-emerald-400 to-[#00E575]" />
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#119da4] via-[#0c7489] to-[#13505b]" />
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span id="portfolio-heading" className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                    <span id="portfolio-heading" className="text-xs font-extrabold text-[#13505b] uppercase tracking-wider">
                       Account Vault Balance
                     </span>
-                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                      Active On Sepolia
+                    <span className="text-[11px] font-bold text-[#0c7489] bg-[#119da4]/15 px-2.5 py-0.5 rounded-full border border-[#119da4]/30">
+                      Sepolia Testnet
                     </span>
                   </div>
 
                   {/* Numerical Balance */}
                   <div className="flex items-baseline gap-2.5">
-                    <span className="text-4xl sm:text-5xl font-black text-slate-950 tracking-tight font-mono">
+                    <span className="text-4xl sm:text-5xl font-black text-[#040404] tracking-tight font-mono">
                       {userState.balanceETH.toFixed(4)}
                     </span>
-                    <span className="text-xl sm:text-2xl font-black text-[#00A850] font-display">ETH</span>
+                    <span className="text-xl sm:text-2xl font-black text-[#119da4] font-display">ETH</span>
                   </div>
 
                   {/* Fiat conversion */}
-                  <div className="text-sm font-semibold text-slate-500 mt-1.5">
+                  <div className="text-sm font-semibold text-[#13505b] mt-1.5">
                     &asymp; ${(userState.balanceETH * userState.ethRateUSD).toLocaleString(undefined, {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
@@ -848,11 +884,11 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                       setVoiceFeedback(copiedMsg);
                       speakText(copiedMsg, lang);
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-mono text-xs font-semibold flex items-center gap-2 transition"
+                    className="px-3.5 py-2 rounded-xl bg-[#d7d9ce]/30 hover:bg-[#d7d9ce]/60 border border-[rgba(19,80,91,0.2)] text-[#040404] font-mono text-xs font-semibold flex items-center gap-2 transition"
                     title="Copy Address"
                   >
                     <span>{userState.address.slice(0, 8)}...{userState.address.slice(-6)}</span>
-                    <Copy className="w-3.5 h-3.5 text-slate-400" />
+                    <Copy className="w-3.5 h-3.5 text-[#13505b]" />
                   </button>
 
                   <button
@@ -864,7 +900,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                       setVoiceFeedback(readout);
                       speakText(readout, lang);
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[#00A850] text-xs font-bold flex items-center gap-1.5 transition self-start sm:self-end"
+                    className="px-3.5 py-2 rounded-xl bg-[#119da4]/15 hover:bg-[#119da4]/25 border border-[#119da4]/30 text-[#0c7489] text-xs font-bold flex items-center gap-1.5 transition self-start sm:self-end"
                   >
                     <Volume2 className="w-3.5 h-3.5" />
                     <span>Read Balance Aloud</span>
@@ -873,7 +909,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               </div>
 
               {/* 4 Primary Action Squircles */}
-              <div className="grid grid-cols-4 gap-3 sm:gap-4 mt-8 pt-6 border-t border-slate-100">
+              <div className="grid grid-cols-4 gap-3 sm:gap-4 mt-8 pt-6 border-t border-[#d7d9ce]/60">
                 {/* Action 1: Send */}
                 <button
                   onClick={() => {
@@ -881,12 +917,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     setSendPreFill({});
                     setIsSendOpen(true);
                   }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#d7d9ce]/25 transition group focus:outline-none focus:ring-2 focus:ring-[#119da4]"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-[#00E575] text-slate-950 flex items-center justify-center shadow-md shadow-emerald-500/25 group-hover:scale-105 transition">
+                  <div className="w-14 h-14 rounded-2xl btn-cyan text-white flex items-center justify-center shadow-lg group-hover:scale-105 transition">
                     <Send className="w-6 h-6" />
                   </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Send</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-[#040404] font-display">Send</span>
                 </button>
 
                 {/* Action 2: Receive */}
@@ -895,12 +931,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     audioCues.playIntentRecognized();
                     setIsReceiveOpen(true);
                   }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#d7d9ce]/25 transition group focus:outline-none focus:ring-2 focus:ring-[#119da4]"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
-                    <ArrowDownLeft className="w-6 h-6 text-[#00A850]" />
+                  <div className="w-14 h-14 rounded-2xl bg-white border-2 border-[rgba(19,80,91,0.2)] text-[#0c7489] flex items-center justify-center shadow-sm group-hover:scale-105 transition">
+                    <ArrowDownLeft className="w-6 h-6 text-[#119da4]" />
                   </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Receive</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-[#040404] font-display">Receive</span>
                 </button>
 
                 {/* Action 3: Contacts */}
@@ -909,12 +945,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     audioCues.playIntentRecognized();
                     setIsContactsOpen(true);
                   }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#d7d9ce]/25 transition group focus:outline-none focus:ring-2 focus:ring-[#119da4]"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
-                    <Users className="w-6 h-6 text-slate-700" />
+                  <div className="w-14 h-14 rounded-2xl bg-white border-2 border-[rgba(19,80,91,0.2)] text-[#13505b] flex items-center justify-center shadow-sm group-hover:scale-105 transition">
+                    <Users className="w-6 h-6 text-[#13505b]" />
                   </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Contacts</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-[#040404] font-display">Contacts</span>
                 </button>
 
                 {/* Action 4: Guardians */}
@@ -923,25 +959,25 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     audioCues.playIntentRecognized();
                     setIsGuardiansOpen(true);
                   }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-[#d7d9ce]/25 transition group focus:outline-none focus:ring-2 focus:ring-[#119da4]"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
-                    <ShieldCheck className="w-6 h-6 text-emerald-600" />
+                  <div className="w-14 h-14 rounded-2xl bg-white border-2 border-[rgba(19,80,91,0.2)] text-[#0c7489] flex items-center justify-center shadow-sm group-hover:scale-105 transition">
+                    <ShieldCheck className="w-6 h-6 text-[#119da4]" />
                   </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Guardians</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-[#040404] font-display">Guardians</span>
                 </button>
               </div>
             </section>
 
-            {/* Giant Voice Command Center (Core Accessibility Feature) */}
+            {/* Giant Voice Command Center */}
             <section
               aria-labelledby="voice-center-title"
-              className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm text-center relative overflow-hidden"
+              className="tw-card p-6 sm:p-8 text-center relative overflow-hidden"
             >
               <div className="flex items-center justify-center gap-2 mb-3">
-                <Sparkles className="w-4 h-4 text-[#00A850]" />
-                <h2 id="voice-center-title" className="text-xs font-extrabold uppercase tracking-wider text-[#00A850]">
-                  Voice Command & Natural Language Center
+                <Sparkles className="w-4 h-4 text-[#119da4]" />
+                <h2 id="voice-center-title" className="text-xs font-extrabold uppercase tracking-wider text-[#0c7489]">
+                  Continuous Voice Command Center
                 </h2>
               </div>
 
@@ -950,10 +986,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 <button
                   onClick={toggleMic}
                   aria-label={isListening ? 'Stop listening' : 'Start listening'}
-                  className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center mx-auto transition shadow-xl relative focus:outline-none focus:ring-4 focus:ring-[#00E575]/50 ${
+                  className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center mx-auto transition shadow-xl relative focus:outline-none focus:ring-4 focus:ring-[#119da4]/50 ${
                     isListening
                       ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40 ring-4 ring-rose-300'
-                      : 'btn-lime text-slate-950 shadow-emerald-500/30 hover:scale-105'
+                      : 'btn-cyan text-white shadow-[#119da4]/30 hover:scale-105'
                   }`}
                 >
                   {isListening ? (
@@ -964,7 +1000,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   ) : (
                     <>
                       <Mic className="w-10 h-10" />
-                      <span className="text-[10px] font-black uppercase mt-1">Tap or Space</span>
+                      <span className="text-[10px] font-black uppercase mt-1 font-display">Tap or Space</span>
                     </>
                   )}
                 </button>
@@ -972,45 +1008,45 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
               {/* Live Status / Speech Transcript Pill */}
               <div className="mt-4 max-w-lg mx-auto">
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 min-h-[48px] flex items-center justify-center">
+                <div className="p-3.5 rounded-2xl bg-[#d7d9ce]/25 border border-[#d7d9ce] text-xs sm:text-sm font-semibold text-[#040404] min-h-[48px] flex items-center justify-center">
                   {transcript ? (
-                    <span className="text-slate-900 font-bold">&quot;{transcript}&quot;</span>
+                    <span className="text-[#040404] font-bold">&quot;{transcript}&quot;</span>
                   ) : (
-                    <span className="text-slate-500">{voiceFeedback}</span>
+                    <span className="text-[#13505b]">{voiceFeedback}</span>
                   )}
                 </div>
               </div>
 
               {/* Quick Clickable Voice Samples */}
-              <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2">
-                <span className="text-xs text-slate-500 font-bold">Try saying:</span>
+              <div className="mt-5 pt-4 border-t border-[#d7d9ce]/60 flex flex-wrap items-center justify-center gap-2">
+                <span className="text-xs text-[#13505b] font-bold">Try saying:</span>
                 <button
                   onClick={() => simulateSpokenInput('Send 0.1 ETH to Rahul')}
-                  className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
+                  className="px-3 py-1.5 rounded-full bg-[#d7d9ce]/30 hover:bg-[#119da4] hover:text-white border border-[rgba(19,80,91,0.2)] text-xs font-semibold text-[#13505b] transition"
                 >
                   &quot;Send 0.1 ETH to Rahul&quot;
                 </button>
                 <button
                   onClick={() => simulateSpokenInput('Check my balance')}
-                  className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
+                  className="px-3 py-1.5 rounded-full bg-[#d7d9ce]/30 hover:bg-[#119da4] hover:text-white border border-[rgba(19,80,91,0.2)] text-xs font-semibold text-[#13505b] transition"
                 >
                   &quot;Check my balance&quot;
                 </button>
                 <button
                   onClick={() => simulateSpokenInput('Show my QR code')}
-                  className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
+                  className="px-3 py-1.5 rounded-full bg-[#d7d9ce]/30 hover:bg-[#119da4] hover:text-white border border-[rgba(19,80,91,0.2)] text-xs font-semibold text-[#13505b] transition"
                 >
                   &quot;Show my QR code&quot;
                 </button>
                 <button
                   onClick={() => simulateSpokenInput('Show contacts')}
-                  className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
+                  className="px-3 py-1.5 rounded-full bg-[#d7d9ce]/30 hover:bg-[#119da4] hover:text-white border border-[rgba(19,80,91,0.2)] text-xs font-semibold text-[#13505b] transition"
                 >
                   &quot;Show contacts&quot;
                 </button>
                 <button
                   onClick={() => simulateSpokenInput('Who are my guardians')}
-                  className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
+                  className="px-3 py-1.5 rounded-full bg-[#d7d9ce]/30 hover:bg-[#119da4] hover:text-white border border-[rgba(19,80,91,0.2)] text-xs font-semibold text-[#13505b] transition"
                 >
                   &quot;Who are my guardians&quot;
                 </button>
@@ -1023,13 +1059,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             {/* Dedicated Trusted Contacts Widget */}
             <section
               aria-labelledby="contacts-widget-heading"
-              className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm"
+              className="tw-card p-6"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#d7d9ce]/60 mb-4">
                 <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#00A850]" />
-                  <h2 id="contacts-widget-heading" className="text-sm font-extrabold text-slate-900 uppercase tracking-wider font-display">
-                    Trusted Contacts ({userState.contacts.length})
+                  <Users className="w-4 h-4 text-[#119da4]" />
+                  <h2 id="contacts-widget-heading" className="text-sm font-extrabold text-[#040404] uppercase tracking-wider font-display">
+                    Address Book ({userState.contacts.length})
                   </h2>
                 </div>
                 <button
@@ -1037,7 +1073,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     audioCues.playIntentRecognized();
                     setIsContactsOpen(true);
                   }}
-                  className="text-xs font-bold text-[#00A850] hover:text-[#008A42] flex items-center gap-1"
+                  className="text-xs font-bold text-[#0c7489] hover:text-[#119da4] flex items-center gap-1"
                 >
                   <span>Manage</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -1049,7 +1085,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 {userState.contacts.slice(0, 4).map((c) => (
                   <div
                     key={c.id}
-                    className="p-3 rounded-2xl border border-slate-100 hover:border-[#00E575] hover:bg-slate-50/50 transition flex items-center justify-between group"
+                    className="p-3 rounded-2xl border border-[rgba(19,80,91,0.12)] hover:border-[#119da4] hover:bg-[#d7d9ce]/20 transition flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-3">
                       <div
@@ -1059,12 +1095,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-extrabold text-xs text-slate-900">{c.name}</span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 font-semibold">
+                          <span className="font-extrabold text-xs text-[#040404]">{c.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#d7d9ce]/50 text-[#13505b] font-semibold">
                             {c.relationship}
                           </span>
                         </div>
-                        <span className="text-[11px] font-mono text-slate-400 block truncate max-w-[130px] sm:max-w-[160px]">
+                        <span className="text-[11px] font-mono text-[#13505b]/70 block truncate max-w-[130px] sm:max-w-[160px]">
                           {c.address}
                         </span>
                       </div>
@@ -1076,10 +1112,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                           audioCues.playIntentRecognized();
                           speakText(`Contact ${c.name}, ${c.relationship}.`, lang);
                         }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                        className="p-1.5 rounded-lg text-[#13505b] hover:text-[#040404] hover:bg-[#d7d9ce]/40 transition"
                         title="Read aloud"
                       >
-                        <Volume2 className="w-3.5 h-3.5 text-[#00A850]" />
+                        <Volume2 className="w-3.5 h-3.5 text-[#119da4]" />
                       </button>
 
                       <button
@@ -1088,9 +1124,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                           setSendPreFill({ contact: c.name });
                           setIsSendOpen(true);
                         }}
-                        className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold transition flex items-center gap-1 shadow-sm"
+                        className="px-2.5 py-1.5 rounded-xl btn-teal text-white text-[11px] font-bold transition flex items-center gap-1 shadow-sm"
                       >
-                        <Send className="w-3 h-3 text-[#00E575]" />
+                        <Send className="w-3 h-3 text-[#119da4]" />
                         <span>Pay</span>
                       </button>
                     </div>
@@ -1104,9 +1140,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   audioCues.playIntentRecognized();
                   setIsContactsOpen(true);
                 }}
-                className="w-full mt-3 py-2.5 rounded-2xl border border-dashed border-slate-300 hover:border-slate-400 text-slate-600 hover:text-slate-900 text-xs font-bold transition flex items-center justify-center gap-1.5 bg-slate-50/50"
+                className="w-full mt-3 py-2.5 rounded-2xl border border-dashed border-[#13505b]/30 hover:border-[#119da4] text-[#13505b] hover:text-[#040404] text-xs font-bold transition flex items-center justify-center gap-1.5 bg-[#d7d9ce]/15"
               >
-                <UserPlus className="w-3.5 h-3.5 text-[#00A850]" />
+                <UserPlus className="w-3.5 h-3.5 text-[#119da4]" />
                 <span>Add / View All Contacts</span>
               </button>
             </section>
@@ -1114,46 +1150,46 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             {/* Recent Activity Feed */}
             <section
               aria-labelledby="activity-heading"
-              className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm"
+              className="tw-card p-6"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#d7d9ce]/60 mb-4">
                 <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-slate-500" />
-                  <h2 id="activity-heading" className="text-sm font-extrabold text-slate-900 uppercase tracking-wider font-display">
+                  <Clock className="w-4 h-4 text-[#13505b]" />
+                  <h2 id="activity-heading" className="text-sm font-extrabold text-[#040404] uppercase tracking-wider font-display">
                     Recent Activity
                   </h2>
                 </div>
-                <span className="text-[11px] font-mono text-slate-400">Sepolia Network</span>
+                <span className="text-[11px] font-mono text-[#13505b]">Sepolia Network</span>
               </div>
 
               <div className="space-y-3">
                 {transactions.map((tx) => (
                   <div
                     key={tx.id}
-                    className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 hover:border-slate-200 transition bg-white"
+                    className="flex items-center justify-between p-3 rounded-2xl border border-[rgba(19,80,91,0.1)] hover:border-[#119da4]/40 transition bg-white"
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold ${
                           tx.type === 'send'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-[#13505b]/10 text-[#13505b]'
+                            : 'bg-[#119da4]/15 text-[#0c7489]'
                         }`}
                       >
                         {tx.type === 'send' ? (
-                          <ArrowUpRight className="w-4 h-4 text-amber-700" />
+                          <ArrowUpRight className="w-4 h-4 text-[#13505b]" />
                         ) : (
-                          <ArrowDownLeft className="w-4 h-4 text-emerald-700" />
+                          <ArrowDownLeft className="w-4 h-4 text-[#119da4]" />
                         )}
                       </div>
                       <div>
-                        <div className="text-xs font-extrabold text-slate-900">
+                        <div className="text-xs font-extrabold text-[#040404]">
                           {tx.type === 'send' ? `Sent to ${tx.counterparty}` : `Received from ${tx.counterparty}`}
                         </div>
-                        <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+                        <div className="text-[11px] font-mono text-[#13505b]/80 flex items-center gap-1.5">
                           <span>{new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           <span>&bull;</span>
-                          <span className="text-emerald-700 font-bold">Confirmed</span>
+                          <span className="text-[#0c7489] font-bold">Confirmed</span>
                         </div>
                       </div>
                     </div>
@@ -1161,13 +1197,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     <div className="text-right">
                       <div
                         className={`text-xs sm:text-sm font-extrabold font-mono ${
-                          tx.type === 'send' ? 'text-slate-900' : 'text-emerald-700'
+                          tx.type === 'send' ? 'text-[#040404]' : 'text-[#0c7489]'
                         }`}
                       >
                         {tx.type === 'send' ? '-' : '+'}
                         {tx.amount.toFixed(4)} ETH
                       </div>
-                      <div className="text-[10px] font-mono text-slate-400 truncate max-w-[90px] sm:max-w-[120px]">
+                      <div className="text-[10px] font-mono text-[#13505b]/60 truncate max-w-[90px] sm:max-w-[120px]">
                         {tx.txHash}
                       </div>
                     </div>
