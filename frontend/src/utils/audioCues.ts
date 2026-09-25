@@ -133,6 +133,33 @@ class AudioCueSystem {
     osc.start(now);
     osc.stop(now + 0.35);
   }
+
+  /**
+   * Sound 5: Incoming Payment Received (Distinct bright cash register/bell chime)
+   */
+  public playIncomingPayment() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    // Two fast bell rings: E6 (1318.5) and G6 (1567.98)
+    [1318.5, 1567.98, 2093.0].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+
+      gain.gain.setValueAtTime(0.15, now + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.4);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + idx * 0.08);
+      osc.stop(now + idx * 0.08 + 0.4);
+    });
+  }
 }
 
 export const audioCues = new AudioCueSystem();
