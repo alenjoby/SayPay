@@ -1,0 +1,25 @@
+# One HTTPS origin for the frontend and the API. Caddy gets and renews the
+# Let's Encrypt certificate for $SAYPAY_DOMAIN automatically.
+{$SAYPAY_DOMAIN} {
+	encode zstd gzip
+
+	# /api/intent -> api:8000/intent
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	# Single-page app: unknown paths fall back to index.html.
+	handle {
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		# The app needs the microphone on its own origin.
+		Permissions-Policy "microphone=(self)"
+	}
+}
