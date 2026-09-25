@@ -28,12 +28,13 @@ from collections import Counter, defaultdict
 import numpy as np
 from sklearn.metrics import f1_score
 
-from common import EXTERNAL_TEST, MODELS, REPORTS, load_external, load_unseen
+from common import EXTERNAL_TEST, MODELS, REPORTS, load_external, load_handwritten_tests
 from saypay_nlu.classifier import IntentModel
 from saypay_nlu.pipeline import CONFIDENCE_THRESHOLD, parse
 
 TEST_LABELS = {
-    "unseen": "Hand-written, never-seen phrasings (all 3 languages)",
+    "blind_v2": "**BLIND hand-written v2** (frozen before v4 changes)",
+    "unseen": "Hand-written v1 (errors studied: now a dev set)",
     "arbanking77_saudi_test": "ArBanking77 Saudi dialect (real speakers)",
     "arbanking77_msa_test": "ArBanking77 MSA (real)",
     "arbanking77_pal_test": "ArBanking77 Levantine (real)",
@@ -72,6 +73,9 @@ class Ensemble:
     def predict_one(self, text, contacts=None):
         ps = [m.predict_one(text, contacts) for m in self.members]
         return {k: sum(p[k] for p in ps) / len(ps) for k in ps[0]}
+
+
+HEAD = "blind_v2"  # the headline hand-written set used for the detailed sections
 
 
 def ece(conf: np.ndarray, correct: np.ndarray, bins: int = 10) -> float:
@@ -164,24 +168,30 @@ def main() -> None:
         extra_meta[name] = systems[name].meta
         if systems[name].meta.get("kind") != "zeroshot":
             systems[f"v3+{name}"] = Ensemble(systems["v3"], systems[name])
-    tests = {"unseen": load_unseen(), **{n: load_external(n) for n in EXTERNAL_TEST}}
+    tests = {**load_handwritten_tests(), **{n: load_external(n) for n in EXTERNAL_TEST}}
     report: dict = {"generated": time.strftime("%Y-%m-%d %H:%M"), "sets": {},
                     "models": extra_meta}
     unseen_preds = {}
     for tname, rows in tests.items():
         report["sets"][tname] = {}
         for sname, sys_ in systems.items():
-            preds = run(sys_, rows)
+            try:
+                preds = run(sys_, rows)
+            except KeyError:  # precomputed predictions do not cover this set
+                report["sets"][tname][sname] = None
+                continue
             report["sets"][tname][sname] = metrics(rows, preds)
-            if tname == "unseen":
-                unseen_preds[sname] = preds
+            if tname in ("blind_v2", "unseen"):
+                if tname == HEAD:
+                    unseen_preds[sname] = preds
                 report["sets"][tname][sname]["slots"] = slot_metrics(rows, preds)
                 report["sets"][tname][sname]["by_script"] = by_script(rows, preds)
         print(f"{tname:28}", "  ".join(
-            f"{s}={report['sets'][tname][s]['accuracy']:.3f}" for s in systems))
+            f"{s}={report['sets'][tname][s]['accuracy']:.3f}" for s in systems
+            if report["sets"][tname][s]))
 
     # Confusions of v3 on the hand-written set
-    rows = tests["unseen"]
+    rows = tests[HEAD]
     conf = Counter((r["intent"], p["pred"]) for r, p in zip(rows, unseen_preds["v3"])
                    if r["intent"] != p["pred"])
     errors = [(r["text"], r["intent"], p["pred"], p["conf"])
@@ -214,37 +224,40 @@ def render(report: dict, systems) -> str:
           "|---|---|" + "---|" * len(systems)]
     for t, res in report["sets"].items():
         L.append(f"| {TEST_LABELS.get(t, t)} | {res[systems[0]]['n']} | " +
-                 " | ".join(pct(res[s]["accuracy"]) for s in systems) + " |")
-    L += ["", "## Safety on the hand-written set", "",
+                 " | ".join(pct(res[s]["accuracy"]) if res[s] else "–" for s in systems) + " |")
+    L += ["", "## Safety on the blind hand-written set", "",
           "| system | acted without asking | right when it acted | confident wrong **send** | macro-F1 | ECE |",
           "|---|---|---|---|---|---|"]
     for s in systems:
-        m = report["sets"]["unseen"][s]
+        m = report["sets"][HEAD][s]
+        if not m:
+            continue
         L.append(f"| {s} | {pct(m['auto_rate'])} | {pct(m['auto_acc'])} | {pct(m['unsafe_send'])} "
                  f"| {m['macro_f1']:.3f} | {m['ece']:.3f} |")
     L += ["", "Below 0.8 confidence the app asks a clarifying question instead of acting; "
           "every send is still read back and approved with a fingerprint.", "",
-          "## Slots on the hand-written set (rules, identical for all systems)", ""]
-    sl = report["sets"]["unseen"]["v3"]["slots"]
+          "## Slots on the blind hand-written set (rules, identical for all systems)", ""]
+    sl = report["sets"][HEAD]["v3"]["slots"]
     L += [f"- amount: {pct(sl['amount_acc'])} of {sl['n_amount']}",
           f"- unit: {pct(sl['unit_acc'])} of {sl['n_unit']}",
           f"- contact: {pct(sl['contact_acc'])} of {sl['n_contact']}", "",
-          "## Accuracy by script / language (hand-written set)", "",
+          "## Accuracy by script / language (blind hand-written set)", "",
           "| script | n | " + " | ".join(systems) + " |", "|---|---|" + "---|" * len(systems)]
-    scripts = report["sets"]["unseen"]["v3"]["by_script"]
+    scripts = report["sets"][HEAD]["v3"]["by_script"]
     for sc, (_, n) in scripts.items():
         L.append(f"| {sc} | {n} | " + " | ".join(
-            pct(report["sets"]["unseen"][s]["by_script"][sc][0]) for s in systems) + " |")
+            pct(report["sets"][HEAD][s]["by_script"][sc][0]) if report["sets"][HEAD][s] else "–"
+            for s in systems) + " |")
     L += ["", "## Real-speaker sets: calibration and safety (v3)", "",
           "| test set | acted without asking | right when it acted | confident wrong send |",
           "|---|---|---|---|"]
     for t, res in report["sets"].items():
-        if t == "unseen":
+        if t in ("unseen", HEAD):
             continue
         m = res["v3"]
         L.append(f"| {TEST_LABELS.get(t, t)} | {pct(m['auto_rate'])} | {pct(m['auto_acc'])} | "
                  f"{pct(m['unsafe_send'])} |")
-    L += ["", "## v3 errors on the hand-written set", "", "| text | gold | predicted | conf |",
+    L += ["", "## v3 errors on the blind hand-written set", "", "| text | gold | predicted | conf |",
           "|---|---|---|---|"]
     for text, gold, pred, c in report["v3_unseen_errors"]:
         L.append(f"| {text} | {gold} | {pred} | {c:.2f} |")

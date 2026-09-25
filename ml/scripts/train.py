@@ -22,7 +22,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
 
 from common import (EXTERNAL_TEST, EXTERNAL_TRAIN, MODELS, lang_of, load_external,
-                    load_synthetic, load_unseen, near_duplicates)
+                    load_synthetic, load_handwritten_tests, load_unseen, near_duplicates)
 from saypay_nlu.classifier import IntentModel
 
 
@@ -101,7 +101,7 @@ def main() -> None:
     rows = load_synthetic()
     for name in EXTERNAL_TRAIN:
         rows += load_external(name)
-    tests = load_unseen()
+    tests = [r for rs in load_handwritten_tests().values() for r in rs]
     for name in EXTERNAL_TEST:
         tests += load_external(name)
     hand_dev = load_unseen("dev_handwritten.tsv")

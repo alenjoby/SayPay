@@ -54,12 +54,11 @@ OUT_OF_SCOPE = {
     "getting_spare_card", "order_physical_card", "virtual_card_not_working",
     "get_disposable_virtual_card", "activate_my_card", "card_about_to_expire",
     "apple_pay_or_google_pay", "verify_my_identity", "country_support",
-    "declined_cash_withdrawal", "cash_withdrawal_charge", "pending_cash_withdrawal",
-    "wrong_exchange_rate_for_cash_withdrawal", "cash_withdrawal_not_recognised",
-    "card_payment_fee_charged", "declined_card_payment", "pending_card_payment",
-    "card_payment_not_recognised", "card_payment_wrong_exchange_rate",
-    "reverted_card_payment?", "wrong_amount_of_cash_received",
+    "cash_withdrawal_charge", "card_payment_fee_charged",
 }
+# Payment/withdrawal *status* questions ("why is my payment still pending?") are
+# close to tx_status for a wallet, so they are dropped rather than called unknown.
+# (Until v4 they were mapped to unknown, which taught the model the wrong thing.)
 # Keep "unknown" from dominating: at most this many per source split.
 UNKNOWN_CAP = {"train": 700, "test": 400}
 
