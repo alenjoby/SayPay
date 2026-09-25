@@ -3,9 +3,10 @@
  * 
  * Supports:
  * 1. Dual-user demo: "You (0x71C8)" and "Friend (Rahul 0x3A9F)"
- * 2. Real-time cross-tab & cross-device communication via BroadcastChannel
+ * 2. Real-time cross-tab and cross-device communication via BroadcastChannel
  * 3. 100% voice command execution and screen reader announcements
- * 4. Zero em-dashes anywhere in text or UI
+ * 4. Full Contacts management: Add, View, Search, Delete contacts
+ * 5. Zero em-dashes anywhere in text or UI
  */
 
 export interface TransactionRecord {
@@ -28,6 +29,7 @@ export interface Contact {
   avatarBg: string;
   relationship: string;
   phone?: string;
+  isRecent?: boolean;
 }
 
 export interface Guardian {
@@ -63,10 +65,11 @@ export const DEMO_USERS: Record<'user_main' | 'user_friend', WalletUser> = {
       { id: 'g3', name: 'Legal Counsel', role: 'Institutional Backup', status: 'active', address: '0x44B1...90FA' },
     ],
     contacts: [
-      { id: 'c1', name: 'Amma', address: '0x892aF8165b4c41498bF349547514dD8c12bC8821', avatarBg: 'bg-emerald-500', relationship: 'Mother' },
-      { id: 'c2', name: 'Rahul', address: '0x3A9F6370B3428987d65609B53580554288D105d1', avatarBg: 'bg-blue-500', relationship: 'Friend' },
-      { id: 'c3', name: 'Zaid', address: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8', avatarBg: 'bg-purple-500', relationship: 'Colleague' },
-      { id: 'c4', name: 'Fatima', address: '0x90F79bf6EB2c4f870365E785982E1f101E93b906', avatarBg: 'bg-amber-500', relationship: 'Sister' },
+      { id: 'c1', name: 'Amma', address: '0x892aF8165b4c41498bF349547514dD8c12bC8821', avatarBg: 'bg-emerald-500', relationship: 'Mother', isRecent: true },
+      { id: 'c2', name: 'Rahul', address: '0x3A9F6370B3428987d65609B53580554288D105d1', avatarBg: 'bg-blue-500', relationship: 'Friend', isRecent: true },
+      { id: 'c3', name: 'Zaid', address: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8', avatarBg: 'bg-purple-500', relationship: 'Colleague', isRecent: false },
+      { id: 'c4', name: 'Fatima', address: '0x90F79bf6EB2c4f870365E785982E1f101E93b906', avatarBg: 'bg-amber-500', relationship: 'Sister', isRecent: false },
+      { id: 'c5', name: 'Sara', address: '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65', avatarBg: 'bg-rose-500', relationship: 'Designer', isRecent: false },
     ],
   },
   user_friend: {
@@ -81,8 +84,8 @@ export const DEMO_USERS: Record<'user_main' | 'user_friend', WalletUser> = {
       { id: 'g2', name: 'Sister Priya', role: 'Family', status: 'active', address: '0x55B2...77C1' },
     ],
     contacts: [
-      { id: 'c1', name: 'Alen', address: '0x71C8A904B8E42c5B2d1b82E72E77D34e8e194E92', avatarBg: 'bg-emerald-500', relationship: 'Friend' },
-      { id: 'c2', name: 'Amma', address: '0x892aF8165b4c41498bF349547514dD8c12bC8821', avatarBg: 'bg-purple-500', relationship: 'Aunt' },
+      { id: 'c1', name: 'Alen', address: '0x71C8A904B8E42c5B2d1b82E72E77D34e8e194E92', avatarBg: 'bg-emerald-500', relationship: 'Friend', isRecent: true },
+      { id: 'c2', name: 'Amma', address: '0x892aF8165b4c41498bF349547514dD8c12bC8821', avatarBg: 'bg-purple-500', relationship: 'Aunt', isRecent: false },
     ],
   },
 };
@@ -104,7 +107,6 @@ class WalletSyncService {
         console.warn('BroadcastChannel not available, falling back to local storage event', err);
       }
 
-      // Also listen to storage events as cross-window fallback
       window.addEventListener('storage', (ev) => {
         if (ev.key === 'saypay_sync_event' && ev.newValue) {
           try {
@@ -136,7 +138,6 @@ class WalletSyncService {
     if (typeof window !== 'undefined') {
       localStorage.setItem('saypay_sync_event', JSON.stringify({ ...event, _t: Date.now() }));
     }
-    // Also notify self
     this.notifyListeners(event);
   }
 }

@@ -23,6 +23,12 @@ import {
   Radio,
   ShieldAlert,
   CheckCircle2,
+  BookOpen,
+  Headphones,
+  UserPlus,
+  AlertTriangle,
+  ArrowLeft,
+  Info,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audioCues } from '../utils/audioCues';
@@ -64,6 +70,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   });
   const [lang, setLang] = useState<SupportedLanguage>(initialLang);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [showBlindRules, setShowBlindRules] = useState<boolean>(false);
 
   // 3. Modals & Dialogs
   const [isSendOpen, setIsSendOpen] = useState(false);
@@ -143,17 +150,31 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     }
   };
 
+  // Add Contact Handler
+  const handleAddContact = (newContact: Contact) => {
+    setUserState((prev) => ({
+      ...prev,
+      contacts: [newContact, ...prev.contacts],
+    }));
+  };
+
+  // Delete Contact Handler
+  const handleDeleteContact = (contactId: string) => {
+    setUserState((prev) => ({
+      ...prev,
+      contacts: prev.contacts.filter((c) => c.id !== contactId),
+    }));
+  };
+
   // Real-Time Cross-Device / Cross-Tab Listener
   useEffect(() => {
     const unsubscribe = walletSync.subscribe((event: SyncEvent) => {
       if (event.type === 'PAYMENT_SENT') {
-        // If this payment was sent to me or my alias
         const isForMe =
           (activeUserId === 'user_friend' && event.fromUser === 'user_main') ||
           (activeUserId === 'user_main' && event.fromUser === 'user_friend');
 
         if (isForMe) {
-          // Play loud incoming chime!
           audioCues.playIncomingPayment();
           confetti({
             particleCount: 80,
@@ -162,13 +183,11 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             colors: ['#00E575', '#00C853', '#FFFFFF'],
           });
 
-          // Credit balance in real time
           setUserState((prev) => ({
             ...prev,
             balanceETH: prev.balanceETH + event.amount,
           }));
 
-          // Add to transactions
           const newTx: TransactionRecord = {
             id: `tx_${Date.now()}`,
             type: 'receive',
@@ -182,7 +201,6 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           };
           setTransactions((prev) => [newTx, ...prev]);
 
-          // Set alert popup
           setIncomingAlert({
             show: true,
             from: event.fromName,
@@ -190,7 +208,6 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             txHash: event.txHash,
           });
 
-          // Spoken notification for blind user
           const incomingSpeech =
             lang === 'hi'
               ? `आपको ${event.fromName} से ${event.amount} टेस्ट ईथर प्राप्त हुए हैं!`
@@ -358,7 +375,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       case 'help': {
         audioCues.playIntentRecognized();
         const helpMsg =
-          'You can say: Check balance, Send 0.1 ETH to Rahul, Show my QR code, View guardians, or What was my last transaction.';
+          'You can say: Check balance, Send 0.1 ETH to Rahul, Show my QR code, View guardians, Show contacts, or What was my last transaction.';
         setVoiceFeedback(helpMsg);
         speakText(helpMsg, detected);
         break;
@@ -407,18 +424,15 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         try {
           recognitionRef.current.start();
         } catch (e) {
-          // If already running, restart
           recognitionRef.current.stop();
           setTimeout(() => recognitionRef.current.start(), 100);
         }
       } else {
-        // Fallback simulation for unsupported browsers
         simulateSpokenInput('Send 0.1 ETH to Rahul');
       }
     }
   };
 
-  // Simulator helper for instant testing
   const simulateSpokenInput = (text: string) => {
     setTranscript(text);
     audioCues.playListeningStarted();
@@ -428,7 +442,6 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     }, 700);
   };
 
-  // Final execution of send transaction
   const handleConfirmSend = (recipient: string, address: string, amount: number) => {
     audioCues.playSuccess();
     confetti({
@@ -438,13 +451,11 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       colors: ['#00E575', '#00C853', '#FFFFFF'],
     });
 
-    // Debit balance
     setUserState((prev) => ({
       ...prev,
       balanceETH: Math.max(0, prev.balanceETH - amount),
     }));
 
-    // Add local transaction record
     const txHash = `0x${Math.random().toString(16).slice(2, 10)}...${Math.random()
       .toString(16)
       .slice(2, 6)}`;
@@ -461,7 +472,6 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     };
     setTransactions((prev) => [newTx, ...prev]);
 
-    // Broadcast in real-time across tabs/phones!
     walletSync.broadcast({
       type: 'PAYMENT_SENT',
       fromUser: activeUserId,
@@ -475,7 +485,6 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
     setIsSendOpen(false);
 
-    // Spoken announcement
     const successSpeech =
       lang === 'hi'
         ? `${recipient} को ${amount} ईथर सफलतापूर्वक भेजे गए।`
@@ -503,8 +512,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       </div>
 
       {/* 1. Global Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3.5">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3 transition-all">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           {/* Brand + Switcher */}
           <div className="flex items-center gap-3">
             <button
@@ -525,7 +534,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             </span>
           </div>
 
-          {/* Right Controls: User Switcher, Mode Toggle, Sound */}
+          {/* Right Controls: User Switcher, Blind Rules, Mode Toggle, Sound */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Live Dual-User Switcher (Demo Phone-To-Phone) */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded-full border border-slate-200">
@@ -534,7 +543,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   audioCues.playSuccess();
                   setActiveUserId('user_main');
                 }}
-                className={`px-2.5 py-1 rounded-full text-xs font-bold transition flex items-center gap-1 ${
+                className={`px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 ${
                   activeUserId === 'user_main'
                     ? 'bg-white text-slate-950 shadow-sm'
                     : 'text-slate-500 hover:text-slate-800'
@@ -550,7 +559,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   audioCues.playSuccess();
                   setActiveUserId('user_friend');
                 }}
-                className={`px-2.5 py-1 rounded-full text-xs font-bold transition flex items-center gap-1 ${
+                className={`px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 ${
                   activeUserId === 'user_friend'
                     ? 'bg-white text-slate-950 shadow-sm'
                     : 'text-slate-500 hover:text-slate-800'
@@ -561,6 +570,19 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 <span>Friend (Rahul)</span>
               </button>
             </div>
+
+            {/* Blind Mode Rules & Protocols Button */}
+            <button
+              onClick={() => {
+                audioCues.playIntentRecognized();
+                setShowBlindRules(!showBlindRules);
+              }}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+              title="Blind Accessibility Protocols"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-[#00A850]" />
+              <span className="hidden md:inline">Blind Protocols</span>
+            </button>
 
             {/* Accessibility Mode Switcher */}
             <button
@@ -579,12 +601,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               {accessibilityMode === 'blind' ? (
                 <>
                   <Mic className="w-4 h-4 text-[#00A850]" />
-                  <span className="hidden md:inline">Voice Mode</span>
+                  <span className="hidden sm:inline font-bold">Voice-Assisted</span>
                 </>
               ) : (
                 <>
                   <Eye className="w-4 h-4 text-slate-500" />
-                  <span className="hidden md:inline">Visual Mode</span>
+                  <span className="hidden sm:inline">Visual Mode</span>
                 </>
               )}
             </button>
@@ -618,8 +640,61 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         </div>
       </header>
 
-      {/* 2. Main Content Container */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      {/* 2. Blind Mode Operating Rules Drawer / Modal */}
+      {showBlindRules && (
+        <section className="bg-slate-900 text-white border-b border-slate-800 px-4 py-5 animate-fade-in">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start justify-between gap-6">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full bg-[#00E575] text-slate-950 font-black text-[10px] uppercase">
+                  W3C WCAG AAA Standards
+                </span>
+                <h3 className="text-base font-black">SayPay Blind User Operating Rules</h3>
+              </div>
+              <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                Blind users navigate 100% through earcon audio chimes, verbal read-backs, and zero hexadecimal verification. Here are the 5 core rules built into this wallet:
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full md:w-auto">
+              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-xs space-y-1">
+                <span className="font-extrabold text-[#00E575] block">1. Zero Silent Changes</span>
+                <span className="text-slate-300 text-[11px] block">
+                  Every state change or deposit triggers both an audible chime and speech readout.
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-xs space-y-1">
+                <span className="font-extrabold text-[#00E575] block">2. Spoken Read-Back</span>
+                <span className="text-slate-300 text-[11px] block">
+                  AI reads exact recipient, amount in words, and fees before user authorizes.
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-xs space-y-1">
+                <span className="font-extrabold text-[#00E575] block">3. Human Names Only</span>
+                <span className="text-slate-300 text-[11px] block">
+                  42-character hex addresses are never spoken or required to be typed.
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-xs space-y-1">
+                <span className="font-extrabold text-[#00E575] block">4. Seedless Recovery</span>
+                <span className="text-slate-300 text-[11px] block">
+                  2-of-3 social guardians replace 12-word seed phrases with 2-minute veto window.
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowBlindRules(false)}
+              className="text-xs text-slate-400 hover:text-white shrink-0 font-bold self-end md:self-start"
+            >
+              ✕ Close
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* 3. Main Full-Width Responsive Workspace (Eliminating empty side spaces) */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-8 py-6 space-y-6">
         {/* Incoming Payment Banner (Live Real-Time Notification) */}
         {incomingAlert && (
           <div className="p-4 rounded-3xl bg-emerald-500 text-slate-950 font-bold shadow-xl border-2 border-emerald-400 flex items-center justify-between animate-bounce-short">
@@ -645,280 +720,385 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           </div>
         )}
 
-        {/* 3. Hero Portfolio Card (Trust Wallet Light Aesthetics) */}
-        <section
-          aria-labelledby="portfolio-heading"
-          className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm relative overflow-hidden group"
-        >
-          {/* Subtle gradient accent bar */}
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#00E575] via-emerald-400 to-[#00E575]" />
+        {/* 2-Column Responsive Bento Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* LEFT COLUMN: Portfolio Hero Card + Voice Center (7 Cols on Desktop) */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* Portfolio Card (Trust Wallet Light Aesthetics) */}
+            <section
+              aria-labelledby="portfolio-heading"
+              className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm relative overflow-hidden group"
+            >
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#00E575] via-emerald-400 to-[#00E575]" />
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span id="portfolio-heading" className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Total Smart Vault Balance
-                </span>
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  +4.2% (24h)
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span id="portfolio-heading" className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                      Account Vault Balance
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                      Active On Sepolia
+                    </span>
+                  </div>
+
+                  {/* Numerical Balance */}
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="text-4xl sm:text-5xl font-black text-slate-950 tracking-tight font-mono">
+                      {userState.balanceETH.toFixed(4)}
+                    </span>
+                    <span className="text-xl sm:text-2xl font-black text-[#00A850]">ETH</span>
+                  </div>
+
+                  {/* Fiat conversion */}
+                  <div className="text-sm font-semibold text-slate-500 mt-1.5">
+                    &asymp; ${(userState.balanceETH * userState.ethRateUSD).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    USD &bull; Testnet Funds
+                  </div>
+                </div>
+
+                {/* Address Pill + Read Aloud */}
+                <div className="flex flex-col sm:items-end gap-2">
+                  <button
+                    onClick={() => {
+                      audioCues.playSuccess();
+                      navigator.clipboard.writeText(userState.address);
+                      const copiedMsg = 'Account address copied.';
+                      setVoiceFeedback(copiedMsg);
+                      speakText(copiedMsg, lang);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-mono text-xs font-semibold flex items-center gap-2 transition"
+                    title="Copy Address"
+                  >
+                    <span>{userState.address.slice(0, 8)}...{userState.address.slice(-6)}</span>
+                    <Copy className="w-3.5 h-3.5 text-slate-400" />
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      audioCues.playIntentRecognized();
+                      const readout = `Your balance is ${userState.balanceETH.toFixed(4)} test Ether, equivalent to ${(
+                        userState.balanceETH * userState.ethRateUSD
+                      ).toFixed(2)} dollars.`;
+                      setVoiceFeedback(readout);
+                      speakText(readout, lang);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[#00A850] text-xs font-bold flex items-center gap-1.5 transition self-start sm:self-end"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                    <span>Read Balance Aloud</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Numerical Balance */}
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl sm:text-5xl font-black text-slate-950 tracking-tight font-mono">
-                  {userState.balanceETH.toFixed(4)}
-                </span>
-                <span className="text-xl sm:text-2xl font-black text-[#00A850]">ETH</span>
+              {/* 4 Primary Action Squircles */}
+              <div className="grid grid-cols-4 gap-3 sm:gap-4 mt-8 pt-6 border-t border-slate-100">
+                {/* Action 1: Send */}
+                <button
+                  onClick={() => {
+                    audioCues.playIntentRecognized();
+                    setSendPreFill({});
+                    setIsSendOpen(true);
+                  }}
+                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-[#00E575] text-slate-950 flex items-center justify-center shadow-md shadow-emerald-500/25 group-hover:scale-105 transition">
+                    <Send className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900">Send</span>
+                </button>
+
+                {/* Action 2: Receive */}
+                <button
+                  onClick={() => {
+                    audioCues.playIntentRecognized();
+                    setIsReceiveOpen(true);
+                  }}
+                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
+                    <ArrowDownLeft className="w-6 h-6 text-[#00A850]" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900">Receive</span>
+                </button>
+
+                {/* Action 3: Contacts */}
+                <button
+                  onClick={() => {
+                    audioCues.playIntentRecognized();
+                    setIsContactsOpen(true);
+                  }}
+                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
+                    <Users className="w-6 h-6 text-slate-700" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900">Contacts</span>
+                </button>
+
+                {/* Action 4: Guardians */}
+                <button
+                  onClick={() => {
+                    audioCues.playIntentRecognized();
+                    setIsGuardiansOpen(true);
+                  }}
+                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
+                    <ShieldCheck className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900">Guardians</span>
+                </button>
+              </div>
+            </section>
+
+            {/* Giant Voice Command Center (Core Accessibility Feature) */}
+            <section
+              aria-labelledby="voice-center-title"
+              className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm text-center relative overflow-hidden"
+            >
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-[#00A850]" />
+                <h2 id="voice-center-title" className="text-xs font-extrabold uppercase tracking-wider text-[#00A850]">
+                  Voice Command & Natural Language Center
+                </h2>
               </div>
 
-              {/* Fiat conversion */}
-              <div className="text-sm font-semibold text-slate-500 mt-1">
-                &asymp; ${(userState.balanceETH * userState.ethRateUSD).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}{' '}
-                USD &bull; Sepolia Testnet
+              {/* Central Pulsing Microphone Button */}
+              <div className="py-2">
+                <button
+                  onClick={toggleMic}
+                  aria-label={isListening ? 'Stop listening' : 'Start listening'}
+                  className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center mx-auto transition shadow-xl relative focus:outline-none focus:ring-4 focus:ring-[#00E575]/50 ${
+                    isListening
+                      ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40 ring-4 ring-rose-300'
+                      : 'btn-lime text-slate-950 shadow-emerald-500/30 hover:scale-105'
+                  }`}
+                >
+                  {isListening ? (
+                    <>
+                      <MicOff className="w-10 h-10" />
+                      <span className="text-[10px] font-black uppercase mt-1">Listening</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-10 h-10" />
+                      <span className="text-[10px] font-black uppercase mt-1">Tap or Space</span>
+                    </>
+                  )}
+                </button>
               </div>
-            </div>
 
-            {/* Address Pill + Read Aloud */}
-            <div className="flex flex-col sm:items-end gap-2">
-              <button
-                onClick={() => {
-                  audioCues.playSuccess();
-                  navigator.clipboard.writeText(userState.address);
-                  const copiedMsg = 'Account address copied.';
-                  setVoiceFeedback(copiedMsg);
-                  speakText(copiedMsg, lang);
-                }}
-                className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-mono text-xs font-semibold flex items-center gap-2 transition"
-                title="Copy Address"
-              >
-                <span>{userState.address.slice(0, 6)}...{userState.address.slice(-4)}</span>
-                <Copy className="w-3.5 h-3.5 text-slate-400" />
-              </button>
+              {/* Live Status / Speech Transcript Pill */}
+              <div className="mt-4 max-w-lg mx-auto">
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 min-h-[48px] flex items-center justify-center">
+                  {transcript ? (
+                    <span className="text-slate-900 font-bold">&quot;{transcript}&quot;</span>
+                  ) : (
+                    <span className="text-slate-500">{voiceFeedback}</span>
+                  )}
+                </div>
+              </div>
 
+              {/* Quick Clickable Voice Samples */}
+              <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2">
+                <span className="text-xs text-slate-500 font-bold">Try saying:</span>
+                <button
+                  onClick={() => simulateSpokenInput('Send 0.1 ETH to Rahul')}
+                  className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
+                >
+                  &quot;Send 0.1 ETH to Rahul&quot;
+                </button>
+                <button
+                  onClick={() => simulateSpokenInput('Check my balance')}
+                  className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
+                >
+                  &quot;Check my balance&quot;
+                </button>
+                <button
+                  onClick={() => simulateSpokenInput('Show my QR code')}
+                  className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
+                >
+                  &quot;Show my QR code&quot;
+                </button>
+                <button
+                  onClick={() => simulateSpokenInput('Show contacts')}
+                  className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
+                >
+                  &quot;Show contacts&quot;
+                </button>
+                <button
+                  onClick={() => simulateSpokenInput('Who are my guardians')}
+                  className="px-3 py-1.5 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
+                >
+                  &quot;Who are my guardians&quot;
+                </button>
+              </div>
+            </section>
+          </div>
+
+          {/* RIGHT COLUMN: Proper Dedicated Contacts Card + Recent Activity Feed (5 Cols on Desktop) */}
+          <div className="lg:col-span-5 space-y-6">
+            {/* Dedicated Trusted Contacts Widget (Solves "Contacts not proper") */}
+            <section
+              aria-labelledby="contacts-widget-heading"
+              className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#00A850]" />
+                  <h2 id="contacts-widget-heading" className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                    Trusted Contacts ({userState.contacts.length})
+                  </h2>
+                </div>
+                <button
+                  onClick={() => {
+                    audioCues.playIntentRecognized();
+                    setIsContactsOpen(true);
+                  }}
+                  className="text-xs font-bold text-[#00A850] hover:text-[#008A42] flex items-center gap-1"
+                >
+                  <span>Manage</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Contacts Quick List */}
+              <div className="space-y-2.5">
+                {userState.contacts.slice(0, 4).map((c) => (
+                  <div
+                    key={c.id}
+                    className="p-3 rounded-2xl border border-slate-100 hover:border-[#00E575] hover:bg-slate-50/50 transition flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-9 h-9 rounded-xl ${c.avatarBg} text-white flex items-center justify-center font-bold text-xs shadow-sm`}
+                      >
+                        {c.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-extrabold text-xs text-slate-900">{c.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 font-semibold">
+                            {c.relationship}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-mono text-slate-400 block truncate max-w-[130px] sm:max-w-[160px]">
+                          {c.address}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          audioCues.playIntentRecognized();
+                          speakText(`Contact ${c.name}, ${c.relationship}.`, lang);
+                        }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                        title="Read aloud"
+                      >
+                        <Volume2 className="w-3.5 h-3.5 text-[#00A850]" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          audioCues.playSuccess();
+                          setSendPreFill({ contact: c.name });
+                          setIsSendOpen(true);
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold transition flex items-center gap-1 shadow-sm"
+                      >
+                        <Send className="w-3 h-3 text-[#00E575]" />
+                        <span>Pay</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add contact quick button */}
               <button
                 onClick={() => {
                   audioCues.playIntentRecognized();
-                  const readout = `Your balance is ${userState.balanceETH.toFixed(4)} test Ether, equivalent to ${(
-                    userState.balanceETH * userState.ethRateUSD
-                  ).toFixed(2)} dollars.`;
-                  setVoiceFeedback(readout);
-                  speakText(readout, lang);
+                  setIsContactsOpen(true);
                 }}
-                className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[#00A850] text-xs font-bold flex items-center gap-1.5 transition self-start sm:self-end"
+                className="w-full mt-3 py-2.5 rounded-2xl border border-dashed border-slate-300 hover:border-slate-400 text-slate-600 hover:text-slate-900 text-xs font-bold transition flex items-center justify-center gap-1.5 bg-slate-50/50"
               >
-                <Volume2 className="w-3.5 h-3.5" />
-                <span>Read Balance Aloud</span>
+                <UserPlus className="w-3.5 h-3.5 text-[#00A850]" />
+                <span>Add / View All Contacts</span>
               </button>
-            </div>
-          </div>
+            </section>
 
-          {/* 4 Primary Action Squircles (Trust Wallet style) */}
-          <div className="grid grid-cols-4 gap-3 sm:gap-4 mt-8 pt-6 border-t border-slate-100">
-            {/* Action 1: Send */}
-            <button
-              onClick={() => {
-                audioCues.playIntentRecognized();
-                setSendPreFill({});
-                setIsSendOpen(true);
-              }}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
+            {/* Recent Activity Feed */}
+            <section
+              aria-labelledby="activity-heading"
+              className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm"
             >
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-[#00E575] text-slate-950 flex items-center justify-center shadow-md shadow-emerald-500/25 group-hover:scale-105 transition">
-                <Send className="w-6 h-6" />
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-slate-500" />
+                  <h2 id="activity-heading" className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                    Recent Activity
+                  </h2>
+                </div>
+                <span className="text-[11px] font-mono text-slate-400">Sepolia Network</span>
               </div>
-              <span className="text-xs sm:text-sm font-extrabold text-slate-900">Send</span>
-            </button>
 
-            {/* Action 2: Receive */}
-            <button
-              onClick={() => {
-                audioCues.playIntentRecognized();
-                setIsReceiveOpen(true);
-              }}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
-            >
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
-                <ArrowDownLeft className="w-6 h-6 text-[#00A850]" />
-              </div>
-              <span className="text-xs sm:text-sm font-extrabold text-slate-900">Receive</span>
-            </button>
-
-            {/* Action 3: Contacts */}
-            <button
-              onClick={() => {
-                audioCues.playIntentRecognized();
-                setIsContactsOpen(true);
-              }}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
-            >
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
-                <Users className="w-6 h-6 text-slate-700" />
-              </div>
-              <span className="text-xs sm:text-sm font-extrabold text-slate-900">Contacts</span>
-            </button>
-
-            {/* Action 4: Guardians */}
-            <button
-              onClick={() => {
-                audioCues.playIntentRecognized();
-                setIsGuardiansOpen(true);
-              }}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-[#00E575]"
-            >
-              <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
-                <ShieldCheck className="w-6 h-6 text-emerald-600" />
-              </div>
-              <span className="text-xs sm:text-sm font-extrabold text-slate-900">Guardians</span>
-            </button>
-          </div>
-        </section>
-
-        {/* 4. Giant Voice Command Center (Core Accessibility Feature) */}
-        <section
-          aria-labelledby="voice-center-title"
-          className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm text-center relative overflow-hidden"
-        >
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-[#00A850]" />
-            <h2 id="voice-center-title" className="text-xs font-extrabold uppercase tracking-wider text-[#00A850]">
-              Continuous Voice Navigation Center
-            </h2>
-          </div>
-
-          {/* Central Pulsing Microphone Button */}
-          <div className="py-2">
-            <button
-              onClick={toggleMic}
-              aria-label={isListening ? 'Stop listening' : 'Start listening'}
-              className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center mx-auto transition shadow-xl relative focus:outline-none focus:ring-4 focus:ring-[#00E575]/50 ${
-                isListening
-                  ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40 ring-4 ring-rose-300'
-                  : 'btn-lime text-slate-950 shadow-emerald-500/30 hover:scale-105'
-              }`}
-            >
-              {isListening ? (
-                <>
-                  <MicOff className="w-10 h-10" />
-                  <span className="text-[10px] font-black uppercase mt-1">Listening</span>
-                </>
-              ) : (
-                <>
-                  <Mic className="w-10 h-10" />
-                  <span className="text-[10px] font-black uppercase mt-1">Tap or Space</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Live Status / Speech Transcript Pill */}
-          <div className="mt-4 max-w-lg mx-auto">
-            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 min-h-[46px] flex items-center justify-center">
-              {transcript ? (
-                <span className="text-slate-900 font-bold">&quot;{transcript}&quot;</span>
-              ) : (
-                <span className="text-slate-500">{voiceFeedback}</span>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Clickable Voice Samples (for fast interactive testing) */}
-          <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-center gap-2">
-            <span className="text-xs text-slate-500 font-bold">Try saying:</span>
-            <button
-              onClick={() => simulateSpokenInput('Send 0.1 ETH to Rahul')}
-              className="px-3 py-1 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
-            >
-              &quot;Send 0.1 ETH to Rahul&quot;
-            </button>
-            <button
-              onClick={() => simulateSpokenInput('Check my balance')}
-              className="px-3 py-1 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
-            >
-              &quot;Check my balance&quot;
-            </button>
-            <button
-              onClick={() => simulateSpokenInput('Show my QR code')}
-              className="px-3 py-1 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
-            >
-              &quot;Show my QR code&quot;
-            </button>
-            <button
-              onClick={() => simulateSpokenInput('Who are my guardians')}
-              className="px-3 py-1 rounded-full bg-slate-100 hover:bg-[#00E575]/20 hover:text-slate-950 border border-slate-200 text-xs font-medium text-slate-700 transition"
-            >
-              &quot;Who are my guardians&quot;
-            </button>
-          </div>
-        </section>
-
-        {/* 5. Activity & Transaction Feed */}
-        <section
-          aria-labelledby="activity-heading"
-          className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm"
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-slate-500" />
-              <h2 id="activity-heading" className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
-                Recent On-Chain Activity
-              </h2>
-            </div>
-            <span className="text-xs font-mono text-slate-400">Sepolia Testnet</span>
-          </div>
-
-          <div className="space-y-3">
-            {transactions.map((tx) => (
-              <div
-                key={tx.id}
-                className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 hover:border-slate-200 transition bg-white"
-              >
-                <div className="flex items-center gap-3.5">
+              <div className="space-y-3">
+                {transactions.map((tx) => (
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold ${
-                      tx.type === 'send'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-emerald-100 text-emerald-800'
-                    }`}
+                    key={tx.id}
+                    className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 hover:border-slate-200 transition bg-white"
                   >
-                    {tx.type === 'send' ? (
-                      <ArrowUpRight className="w-5 h-5 text-amber-700" />
-                    ) : (
-                      <ArrowDownLeft className="w-5 h-5 text-emerald-700" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="text-xs sm:text-sm font-extrabold text-slate-900">
-                      {tx.type === 'send' ? `Sent to ${tx.counterparty}` : `Received from ${tx.counterparty}`}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold ${
+                          tx.type === 'send'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}
+                      >
+                        {tx.type === 'send' ? (
+                          <ArrowUpRight className="w-4 h-4 text-amber-700" />
+                        ) : (
+                          <ArrowDownLeft className="w-4 h-4 text-emerald-700" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-xs font-extrabold text-slate-900">
+                          {tx.type === 'send' ? `Sent to ${tx.counterparty}` : `Received from ${tx.counterparty}`}
+                        </div>
+                        <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+                          <span>{new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span>&bull;</span>
+                          <span className="text-emerald-700 font-bold">Confirmed</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-[11px] font-mono text-slate-400 flex items-center gap-2">
-                      <span>{new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      <span>&bull;</span>
-                      <span className="text-emerald-700 font-bold">Confirmed</span>
+
+                    <div className="text-right">
+                      <div
+                        className={`text-xs sm:text-sm font-extrabold font-mono ${
+                          tx.type === 'send' ? 'text-slate-900' : 'text-emerald-700'
+                        }`}
+                      >
+                        {tx.type === 'send' ? '-' : '+'}
+                        {tx.amount.toFixed(4)} ETH
+                      </div>
+                      <div className="text-[10px] font-mono text-slate-400 truncate max-w-[90px] sm:max-w-[120px]">
+                        {tx.txHash}
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="text-right">
-                  <div
-                    className={`text-sm sm:text-base font-extrabold font-mono ${
-                      tx.type === 'send' ? 'text-slate-900' : 'text-emerald-700'
-                    }`}
-                  >
-                    {tx.type === 'send' ? '-' : '+'}
-                    {tx.amount.toFixed(4)} ETH
-                  </div>
-                  <div className="text-[11px] font-mono text-slate-400 truncate max-w-[100px] sm:max-w-xs">
-                    {tx.txHash}
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
+            </section>
           </div>
-        </section>
+        </div>
       </main>
 
       {/* Modals */}
@@ -959,6 +1139,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           setSendPreFill({ contact: contact.name });
           setIsSendOpen(true);
         }}
+        onAddContact={handleAddContact}
+        onDeleteContact={handleDeleteContact}
       />
 
       <GuardiansModal
