@@ -8,7 +8,7 @@ and per-request latency of the full pipeline on the hand-written test commands.
 
 from __future__ import annotations
 
-import resource
+import os
 import statistics
 import sys
 import time
@@ -22,13 +22,33 @@ from common import load_unseen  # noqa: E402
 
 
 def rss_mb() -> float:
-    try:  # current RSS from /proc (Linux)
+    """Current resident memory of this process in MB (Linux, macOS, Windows)."""
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        class PMC(ctypes.Structure):
+            _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+                        ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
+                        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                        ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                        ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                        ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
+
+        pmc = PMC()
+        pmc.cb = ctypes.sizeof(PMC)
+        handle = ctypes.windll.kernel32.GetCurrentProcess()
+        ctypes.windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(pmc), pmc.cb)
+        return pmc.WorkingSetSize / 1e6
+    try:
         for line in open("/proc/self/status"):
             if line.startswith("VmRSS:"):
                 return int(line.split()[1]) / 1024
     except OSError:
         pass
-    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+    import resource  # macOS
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
 
 
 def main() -> None:
@@ -52,7 +72,6 @@ def main() -> None:
     print(f"engine            {engine}")
     print(f"load time         {load_s:.1f} s")
     print(f"memory            {loaded:.0f} MB resident ({loaded - base:.0f} MB for models)")
-    print(f"peak memory       {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024:.0f} MB")
     print(f"latency           p50 {statistics.median(lat):.1f} ms, p95 {lat[int(0.95 * len(lat)) - 1]:.1f} ms")
     print(f"hand-written set  {correct}/{len(rows)} correct ({100 * correct / len(rows):.1f}%)")
     for text in ["حوّل 0.1 إيثيريوم لأمي", "Rahul ko 500 bhejo", "send a message to ahmed"]:
