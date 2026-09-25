@@ -25,12 +25,22 @@ class OnnxIntentModel:
         self.tok = Tokenizer.from_file(str(model_dir / "tokenizer.json"))
         self.tok.enable_truncation(self.cfg["max_len"])
         self.tok.no_padding()
+        self._cache: dict = {}
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = int(self.cfg.get("threads", 4))
         self.sess = ort.InferenceSession(str(model_dir / self.cfg.get("file", "model.int8.onnx")),
                                          opts, providers=["CPUExecutionProvider"])
 
     def predict_one(self, text: str, contacts: list[str] | None = None) -> dict[str, float]:
+        key = (text, tuple(contacts or ()))
+        if key in self._cache:
+            return self._cache[key]
+        self._cache[key] = self._predict(text, contacts)
+        if len(self._cache) > 5000:
+            self._cache.pop(next(iter(self._cache)))
+        return self._cache[key]
+
+    def _predict(self, text: str, contacts: list[str] | None) -> dict[str, float]:
         field = make_views(text, contacts).norm if self.cfg["field"] == "masked" else text
         enc = self.tok.encode(field)
         ids = np.array([enc.ids], dtype=np.int64)
