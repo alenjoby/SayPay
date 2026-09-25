@@ -32,7 +32,7 @@ class _Logits(torch.nn.Module):
 
 
 def export(model_dir: Path, out: Path, temperature: float, field: str = "masked",
-           max_len: int = 64) -> None:
+           max_len: int = 64, per_channel: bool = True) -> None:
     import onnxruntime as ort
     from onnxruntime.quantization import QuantType, quantize_dynamic
 
@@ -54,7 +54,10 @@ def export(model_dir: Path, out: Path, temperature: float, field: str = "masked"
     with torch.no_grad():
         torch.onnx.export(_Logits(model), (sample["input_ids"], sample["attention_mask"]),
                           str(fp32), **kwargs)
-    quantize_dynamic(str(fp32), str(out / "model.int8.onnx"), weight_type=QuantType.QInt8)
+    # Per-channel scales (one per output row) keep int8 much closer to fp32 than a
+    # single scale per matrix, at the same file size.
+    quantize_dynamic(str(fp32), str(out / "model.int8.onnx"), weight_type=QuantType.QInt8,
+                     per_channel=per_channel)
     fp32.unlink()
     tok.save_pretrained(out)
 
@@ -72,7 +75,7 @@ def export(model_dir: Path, out: Path, temperature: float, field: str = "masked"
                                 "attention_mask": enc["attention_mask"].numpy()})[0].argmax(-1)[0]
             same += int(a == b)
     cfg = {"labels": LABELS, "temperature": temperature, "field": field, "max_len": max_len,
-           "source_model": str(model_dir),
+           "source_model": str(model_dir), "per_channel": per_channel,
            "int8_agreement_with_fp32": same / len(rows) if rows else None}
     (out / "saypay.json").write_text(json.dumps(cfg, indent=1))
     size = (out / "model.int8.onnx").stat().st_size / 1e6
@@ -83,11 +86,12 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True, help="checkpoint dir, e.g. preds/mmbert/hf")
     ap.add_argument("--out", required=True, help="e.g. models/mmbert_int8")
+    ap.add_argument("--per-tensor", action="store_true", help="one scale per matrix (older, less accurate)")
     args = ap.parse_args()
     model_dir = Path(args.model)
     meta = json.loads((model_dir.parent / "meta.json").read_text())
     export(model_dir, Path(args.out), temperature=meta["temperature"], field=meta["field"],
-           max_len=meta["max_len"])
+           max_len=meta["max_len"], per_channel=not args.per_tensor)
 
 
 if __name__ == "__main__":
