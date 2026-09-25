@@ -11,3 +11,4 @@ preds/
 models/mmbert_int8/
 models/_*/
 preds/*/hf/
+models/mmbert_fp32/
