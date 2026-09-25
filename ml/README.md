@@ -24,6 +24,18 @@ python scripts/train.py             # -> models/intent_v3.joblib (+ English-only
 python scripts/evaluate.py          # -> reports/eval.md
 ```
 
+### Transformer comparison (XLM-R, mmBERT/Laya) on a free GPU
+
+Open `notebooks/compare_models.ipynb` in Colab (T4). It rebuilds the same data, exports the
+same splits (`scripts/export_splits.py`), fine-tunes `xlm-roberta-base` and
+`jhu-clsp/mmBERT-base` (Laya-multilingual's encoder) with `scripts/finetune_transformer.py`,
+runs Laya zero-shot (`scripts/laya_zeroshot.py`), and scores everything with the same
+evaluation, including v3 + transformer ensembles:
+
+```bash
+python scripts/evaluate.py --preds preds/xlmr preds/mmbert preds/laya_zeroshot --out compare
+```
+
 Test sets are never used for training or tuning:
 `data/test/unseen.tsv` (hand-written, frozen), the external `*_test` splits, and
 ArBanking77's Saudi/Moroccan/Tunisian sets (dialects absent from training).

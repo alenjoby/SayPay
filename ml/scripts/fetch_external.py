@@ -6,6 +6,8 @@ Sources (all used under their licenses, not redistributed in this repo):
 - Banking77 (PolyAI, CC BY 4.0): English banking questions.
 - ArBanking77 (SinaLab, CC BY-SA 4.0): Arabic Banking77 in MSA and Palestinian
   (train), with separate test sets in MSA, Palestinian, Saudi, Moroccan, Tunisian.
+- CLINC150 (clinc, CC BY 3.0): English assistant queries incl. balance / transfer /
+  transactions / cancel, 140 other intents and an out-of-scope set -> "unknown".
 - MASSIVE 1.1 (Amazon, CC BY 4.0): assistant commands in ar-SA, hi-IN, en-US.
   None are wallet commands, so they are "unknown" (out-of-scope) examples.
 
@@ -32,6 +34,7 @@ CACHE = ROOT / "data" / "cache"
 
 BANKING77 = "https://raw.githubusercontent.com/PolyAI-LDN/task-specific-datasets/master/banking_data/{}.csv"
 ARBANKING77_GIT = "https://github.com/SinaLab/ArBanking77"
+CLINC150_GIT = "https://github.com/clinc/oos-eval"
 MASSIVE = "https://amazon-massive-nlu-dataset.s3.amazonaws.com/amazon-massive-dataset-1.1.tar.gz"
 
 MAP = {
@@ -131,6 +134,39 @@ def arbanking77(rng: random.Random) -> dict[str, list[dict]]:
     return out
 
 
+CLINC_MAP = {"balance": "check_balance", "transfer": "send", "transactions": "history",
+             "spending_history": "history", "cancel": "cancel", "no": "cancel",
+             "find_phone": "recovery_help"}
+# Finance-adjacent or conversational intents we cannot map cleanly: dropped.
+CLINC_DROP = {"bill_balance", "pay_bill", "bill_due", "credit_limit", "credit_limit_change",
+              "credit_score", "improve_credit_score", "rewards_balance", "redeem_rewards",
+              "pto_balance", "routing", "direct_deposit", "income", "payday", "freeze_account",
+              "account_blocked", "report_lost_card", "report_fraud", "min_payment", "exchange_rate",
+              "interest_rate", "international_fees", "order_checks", "new_card", "card_declined",
+              "damaged_card", "pin_change", "expiration_date", "replacement_card_duration", "apr",
+              "taxes", "w2", "rollover_401k", "insurance", "insurance_change", "yes", "maybe",
+              "repeat", "application_status", "order_status"}
+
+
+def clinc150(rng: random.Random) -> dict[str, list[dict]]:
+    repo = CACHE / "oos-eval"
+    if not repo.exists():
+        subprocess.run(["git", "clone", "--depth", "1", CLINC150_GIT, str(repo)], check=True)
+    d = json.loads((repo / "data" / "data_full.json").read_text())
+    out = {}
+    for split, parts in (("train", ("train", "val", "oos_train", "oos_val")), ("test", ("test", "oos_test"))):
+        rows = []
+        for part in parts:
+            for text, label in d[part]:
+                if label in CLINC_DROP:
+                    continue
+                intent = CLINC_MAP.get(label, "unknown")
+                rows.append({"text": text, "intent": intent, "lang": "en",
+                             "source": f"clinc150_{split}", "orig_label": label})
+        out[f"clinc150_{split}"] = _cap_unknown(rows, split, rng)
+    return out
+
+
 def massive(rng: random.Random) -> dict[str, list[dict]]:
     path = _fetch(MASSIVE, CACHE / "massive-1.1.tar.gz")
     out = {}
@@ -154,7 +190,7 @@ def massive(rng: random.Random) -> dict[str, list[dict]]:
 def main() -> None:
     rng = random.Random(13)
     OUT.mkdir(parents=True, exist_ok=True)
-    all_sets = {**banking77(rng), **arbanking77(rng), **massive(rng)}
+    all_sets = {**banking77(rng), **arbanking77(rng), **clinc150(rng), **massive(rng)}
     for name, rows in all_sets.items():
         with open(OUT / f"{name}.jsonl", "w", encoding="utf-8") as f:
             for r in rows:
