@@ -23,9 +23,11 @@ import { InteractiveWalletDemo } from './components/InteractiveWalletDemo';
 import { FunctionalWalletPage } from './components/FunctionalWalletPage';
 import { audioCues } from './utils/audioCues';
 import { SupportedLanguage, translations, speakText } from './utils/i18n';
+import { hasUserCreatedWallet } from './utils/walletState';
 
 export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<'landing' | 'wallet'>('landing');
+  const [openCreateDirectly, setOpenCreateDirectly] = useState<boolean>(false);
   const [lang, setLang] = useState<SupportedLanguage>('en');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [politeAnnouncement, setPoliteAnnouncement] = useState<string>('SayPay loaded.');
@@ -79,6 +81,7 @@ export const App: React.FC = () => {
     return (
       <FunctionalWalletPage
         initialLang={lang}
+        openCreateWalletDirectly={openCreateDirectly}
         onBackToLanding={() => {
           setActiveView('landing');
           audioCues.playSuccess();
@@ -103,11 +106,6 @@ export const App: React.FC = () => {
               </div>
               <span className="text-xl font-extrabold tracking-tight text-zinc-900">SayPay</span>
             </a>
-
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-zinc-100 text-[11px] font-mono font-medium text-zinc-600">
-              <span className="w-2 h-2 rounded-full bg-[#FF5500]" />
-              <span>Sepolia Testnet</span>
-            </div>
           </div>
 
           {/* Navigation Links */}
@@ -161,15 +159,20 @@ export const App: React.FC = () => {
               {soundEnabled ? <Volume2 className="w-4 h-4 text-[#FF5500]" /> : <VolumeX className="w-4 h-4" />}
             </button>
 
-            {/* Launch App Button */}
+            {/* Launch / Access Wallet Button */}
             <button
               onClick={() => {
                 audioCues.playSuccess();
+                if (!hasUserCreatedWallet()) {
+                  setOpenCreateDirectly(true);
+                } else {
+                  setOpenCreateDirectly(false);
+                }
                 setActiveView('wallet');
               }}
-              className="hidden sm:inline-flex px-4 py-2 rounded-full btn-orange text-xs font-bold tracking-wide shadow-sm hover:scale-105 transition"
+              className="hidden sm:inline-flex px-4 py-2 rounded-full btn-orange text-xs font-bold tracking-wide shadow-sm hover:scale-105 transition cursor-pointer"
             >
-              Launch Wallet
+              {hasUserCreatedWallet() ? 'Access Wallet' : 'Create Wallet'}
             </button>
           </div>
         </div>
@@ -203,30 +206,36 @@ export const App: React.FC = () => {
             <button
               onClick={() => {
                 audioCues.playSuccess();
+                setOpenCreateDirectly(true);
                 setActiveView('wallet');
               }}
-              className="px-6 py-3 rounded-full btn-orange text-sm font-bold shadow-md shadow-orange-500/20 inline-flex items-center gap-2 transition hover:scale-105"
+              className="px-6 py-3 rounded-full btn-orange text-sm font-bold shadow-md shadow-orange-500/20 inline-flex items-center gap-2 transition hover:scale-105 cursor-pointer"
             >
-              <span>Launch Functional Wallet</span>
+              <span>Create Smart Wallet</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
             <button
               onClick={() => {
                 audioCues.playSuccess();
-                speakText(
-                  lang === 'hi'
-                    ? 'से-पे में आपका स्वागत है। दृष्टिबाधित उपयोगकर्ताओं के लिए पहला आवाज-आधारित स्मार्ट वॉलेट।'
-                    : lang === 'ar'
-                    ? 'مرحباً بكم في سي-باي، أول محفظة ذكية صوتية للمكفوفين وضعاف البصر.'
-                    : 'Welcome to SayPay, the voice-first crypto wallet designed for visual accessibility.',
-                  lang
-                );
+                if (!hasUserCreatedWallet()) {
+                  const noWalletMsg =
+                    lang === 'hi'
+                      ? 'कोई सक्रिय वॉलेट नहीं मिला। कृपया पहले अपना स्मार्ट वॉलेट बनाएं।'
+                      : lang === 'ar'
+                      ? 'لم يتم العثور على محفظة نشطة. يرجى إنشاء محفظتك الذكية أولاً.'
+                      : 'No existing wallet found on this device. Opening wallet creation.';
+                  speakText(noWalletMsg, lang);
+                  setOpenCreateDirectly(true);
+                } else {
+                  setOpenCreateDirectly(false);
+                }
+                setActiveView('wallet');
               }}
-              className="px-5 py-3 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold inline-flex items-center gap-2 shadow-sm transition"
+              className="px-5 py-3 rounded-full bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-800 text-sm font-bold inline-flex items-center gap-2 shadow-sm transition cursor-pointer"
             >
-              <Volume2 className="w-4 h-4 text-[#00A850]" />
-              <span>Listen to Overview</span>
+              <Lock className="w-4 h-4 text-[#FF5500]" />
+              <span>Access Existing Wallet</span>
             </button>
           </div>
         </div>
@@ -282,7 +291,7 @@ export const App: React.FC = () => {
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed max-w-xl">
                   Understands code-switched phrases in English, Hindi (Hinglish), and Arabic. You speak naturally:
-                  "Send 0.1 ETH to Amma", "Rahul ko 500 bhejo", or "Arsil 0.1 ila Amma". The app parses amounts and
+                  "Send 0.1 ETH to Amma", "Priya ko 500 bhejo", or "Arsil 0.1 ila Amma". The app parses amounts and
                   contacts with automatic spelling-by-ear normalization.
                 </p>
               </div>
@@ -351,9 +360,9 @@ export const App: React.FC = () => {
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-100 flex items-center gap-4 text-xs font-mono text-slate-600">
-                <span>"Amma" → 0x71C8...4E92</span>
-                <span>•</span>
-                <span>"Rahul" → 0x992B...8731</span>
+                <span>"Amma" &rarr; 0x71C8...4E92</span>
+                <span>&bull;</span>
+                <span>"Priya" &rarr; 0x992B...8731</span>
               </div>
             </div>
           </div>
@@ -551,10 +560,8 @@ export const App: React.FC = () => {
 
           <div className="flex items-center gap-4 text-[11px] font-mono">
             <span>WCAG AAA Accessible</span>
-            <span>•</span>
-            <span>Arabic • English • Hindi</span>
-            <span>•</span>
-            <span>Sepolia Testnet</span>
+            <span>&bull;</span>
+            <span>Arabic &bull; English &bull; Hindi</span>
           </div>
         </div>
       </footer>

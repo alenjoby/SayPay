@@ -219,6 +219,32 @@ export function detectLanguage(text: string): SupportedLanguage {
 }
 
 /**
+ * Speech Synthesis State Observers (Half-Duplex Audio Engine UX-01)
+ */
+let activeSpeechCount = 0;
+const speechListeners: Array<(isSpeaking: boolean) => void> = [];
+
+export function isCurrentlySpeaking(): boolean {
+  return activeSpeechCount > 0 || (typeof window !== 'undefined' && window.speechSynthesis?.speaking === true);
+}
+
+export function onSpeechStateChange(listener: (isSpeaking: boolean) => void): () => void {
+  speechListeners.push(listener);
+  return () => {
+    const idx = speechListeners.indexOf(listener);
+    if (idx >= 0) speechListeners.splice(idx, 1);
+  };
+}
+
+function notifySpeechState(speaking: boolean) {
+  speechListeners.forEach((fn) => {
+    try {
+      fn(speaking);
+    } catch (e) {}
+  });
+}
+
+/**
  * Native Text-To-Speech Synthesis helper with onEnd callback support
  */
 export function speakText(
@@ -229,6 +255,9 @@ export function speakText(
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
   window.speechSynthesis.cancel(); // Cancel any existing speech
+  activeSpeechCount++;
+  notifySpeechState(true);
+
   const utterance = new SpeechSynthesisUtterance(text);
 
   const langMap: Record<SupportedLanguage, string> = {
@@ -241,14 +270,16 @@ export function speakText(
   utterance.rate = 0.95; // Slightly measured rate for maximum intelligibility
   utterance.pitch = 1.0;
 
-  if (onEnd) {
-    utterance.onend = () => {
+  const cleanup = () => {
+    activeSpeechCount = Math.max(0, activeSpeechCount - 1);
+    notifySpeechState(false);
+    if (onEnd) {
       onEnd();
-    };
-    utterance.onerror = () => {
-      onEnd();
-    };
-  }
+    }
+  };
+
+  utterance.onend = cleanup;
+  utterance.onerror = cleanup;
 
   window.speechSynthesis.speak(utterance);
 }

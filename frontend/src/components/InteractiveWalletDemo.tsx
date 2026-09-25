@@ -303,7 +303,7 @@ export const InteractiveWalletDemo: React.FC<InteractiveWalletDemoProps> = ({
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-900">Ethereum</p>
-                  <span className="text-[10px] text-slate-400">Sepolia Testnet</span>
+                  <span className="text-[10px] text-slate-400">Native Asset</span>
                 </div>
               </div>
               <div className="text-right">

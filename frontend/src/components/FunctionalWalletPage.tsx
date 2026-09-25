@@ -17,6 +17,7 @@ import {
   RefreshCw,
   HelpCircle,
   Eye,
+  EyeOff,
   Sliders,
   ChevronRight,
   User,
@@ -35,15 +36,29 @@ import {
   Coins,
   TrendingUp,
   Filter,
+  ArrowDownUp,
+  Award,
+  Plus,
+  Lock,
+  Unlock,
+  Key,
+  RotateCcw,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audioCues } from '../utils/audioCues';
-import { speakText, SupportedLanguage, detectLanguage } from '../utils/i18n';
+import { speakText, SupportedLanguage, detectLanguage, onSpeechStateChange, isCurrentlySpeaking } from '../utils/i18n';
 import { parseVoiceIntent, ParsedIntentResult } from '../utils/intentParser';
 import {
   WalletUser,
   TransactionRecord,
   Contact,
+  TokenItem,
+  NFTItem,
+  TokenApproval,
+  MarketTrend,
+  MARKET_TRENDS,
+  hasUserCreatedWallet,
+  setHasUserCreatedWallet,
   walletSync,
   SyncEvent,
   getStoredUser,
@@ -52,6 +67,9 @@ import {
   saveStoredTransactions,
 } from '../utils/walletState';
 import { ModeOnboardingModal } from './ModeOnboardingModal';
+import { CreateWalletModal } from './CreateWalletModal';
+import { FundWalletModal } from './FundWalletModal';
+import { SwapModal } from './SwapModal';
 import { SendModal } from './SendModal';
 import { ReceiveModal } from './ReceiveModal';
 import { ContactsModal } from './ContactsModal';
@@ -59,37 +77,90 @@ import { GuardiansModal } from './GuardiansModal';
 import { AccessibilitySettingsModal, AccessibilitySettings } from './AccessibilitySettingsModal';
 import { HeadphoneSafetyModal } from './HeadphoneSafetyModal';
 import { headphoneSafety, HeadphoneStatus } from '../utils/headphoneDetector';
-import { PasskeySignatureResult } from '../utils/passkeyAuth';
+import { PasskeySignatureResult, signTransactionWithPasskey } from '../utils/passkeyAuth';
 
 interface FunctionalWalletPageProps {
   onBackToLanding: () => void;
   initialLang?: SupportedLanguage;
+  openCreateWalletDirectly?: boolean;
 }
 
 export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   onBackToLanding,
   initialLang = 'en',
+  openCreateWalletDirectly = false,
 }) => {
   // 1. User & Wallet Identity (Clean Web3 Multi-Account Selector)
-  const [activeUserId, setActiveUserId] = useState<'user_main' | 'user_friend'>('user_main');
-  const [userState, setUserState] = useState<WalletUser>(() => getStoredUser('user_main'));
+  const [activeUserId, setActiveUserId] = useState<string>(() => {
+    if (hasUserCreatedWallet()) {
+      return 'user_created';
+    }
+    return 'user_main';
+  });
+  const [userState, setUserState] = useState<WalletUser>(() => {
+    if (hasUserCreatedWallet()) {
+      return getStoredUser('user_created');
+    }
+    return getStoredUser('user_main');
+  });
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
 
   // 2. Mode & Accessibility Preferences
   const [accessibilityMode, setAccessibilityMode] = useState<'blind' | 'visual'>(() => {
     return (localStorage.getItem('saypay_acc_mode') as 'blind' | 'visual') || 'blind';
   });
-  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
-    return localStorage.getItem('saypay_onboarded') !== 'true';
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [isCreateWalletOpen, setIsCreateWalletOpen] = useState<boolean>(() => {
+    if (openCreateWalletDirectly) return true;
+    return !hasUserCreatedWallet() && localStorage.getItem('saypay_onboarded') !== 'true';
   });
+  const [isFundOpen, setIsFundOpen] = useState<boolean>(false);
+  const [isSwapOpen, setIsSwapOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'crypto' | 'nfts' | 'approvals' | 'trending' | 'activity'>('crypto');
   const [lang, setLang] = useState<SupportedLanguage>(initialLang);
   const [showBlindRules, setShowBlindRules] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+
+  // Vault Security / App Lock State
+  const [isLocked, setIsLocked] = useState<boolean>(() => {
+    if (openCreateWalletDirectly) return false;
+    return true;
+  });
+  const [pinInput, setPinInput] = useState<string>('');
+  const [pinError, setPinError] = useState<string>('');
+  const [pinAttempts, setPinAttempts] = useState<number>(0);
+  const [lockoutTimeRemaining, setLockoutTimeRemaining] = useState<number>(0);
+  const [isAuthenticatingPasskey, setIsAuthenticatingPasskey] = useState<boolean>(false);
+
+  // Custom PIN Setup and Change State
+  const [isSettingNewPin, setIsSettingNewPin] = useState<boolean>(false);
+  const [newPinCode, setNewPinCode] = useState<string>('');
+  const [confirmPinCode, setConfirmPinCode] = useState<string>('');
+  const [pinFormError, setPinFormError] = useState<string>('');
+  const [pinFormSuccess, setPinFormSuccess] = useState<string>('');
+
+  // Rate Limiting and Brute Force Lockout Timer (SEC-02)
+  useEffect(() => {
+    if (lockoutTimeRemaining <= 0) return;
+    const interval = setInterval(() => {
+      setLockoutTimeRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lockoutTimeRemaining]);
 
   // Compulsory Earphone Safety State
   const [headphoneStatus, setHeadphoneStatus] = useState<HeadphoneStatus>(() => headphoneSafety.getStatus());
   const [showHeadphoneModal, setShowHeadphoneModal] = useState<boolean>(false);
   const [modalVoiceTrigger, setModalVoiceTrigger] = useState<'confirm' | 'cancel' | 'fingerprint' | null>(null);
+
+  // Stealth Screen Curtain Privacy Shield State (Shoulder-Surfing Immunity)
+  const [isPrivacyModeActive, setIsPrivacyModeActive] = useState<boolean>(false);
 
   // Full Granular Accessibility Settings (W3C WCAG AAA)
   const [accessibilitySettings, setAccessibilitySettings] = useState<AccessibilitySettings>(() => {
@@ -127,8 +198,20 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
   // 5. Persistent Transaction History (Database)
   const [transactions, setTransactions] = useState<TransactionRecord[]>(() =>
-    getStoredTransactions('user_main')
+    getStoredTransactions(hasUserCreatedWallet() ? 'user_created' : 'user_main')
   );
+
+  // Synchronize state when switching accounts
+  useEffect(() => {
+    const u = getStoredUser(activeUserId);
+    setUserState(u);
+    setTransactions(getStoredTransactions(activeUserId));
+  }, [activeUserId]);
+
+  // Dynamic Total USD Calculation
+  const totalBalanceUSD = (userState.tokens && userState.tokens.length > 0)
+    ? userState.tokens.reduce((acc, tok) => acc + (tok.balance * tok.priceUSD), 0)
+    : userState.balanceETH * userState.ethRateUSD;
 
   // 6. Incoming Notification Banner
   const [incomingAlert, setIncomingAlert] = useState<{
@@ -136,6 +219,16 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     from: string;
     amount: number;
     txHash: string;
+  } | null>(null);
+
+  // 6b. Reversible Payment Grace Window State (NN/g Heuristic #5: Error Prevention)
+  const [pendingUndoTx, setPendingUndoTx] = useState<{
+    id: string;
+    recipient: string;
+    address: string;
+    amount: number;
+    sigResult?: PasskeySignatureResult;
+    countdown: number;
   } | null>(null);
 
   // 7. Interactive UI micro-states
@@ -168,9 +261,17 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     setShowOnboarding(false);
 
     if (mode === 'blind') {
+      const current = headphoneSafety.getStatus();
+      if (!current.isConnected) {
+        setShowHeadphoneModal(true);
+        audioCues.playWarning();
+        speakText('Strict Privacy Gate: Connect wired or Bluetooth earphones to use Voice-Assisted Mode.', lang);
+        return;
+      }
+
       const msg = `Voice-Assisted Mode enabled. Welcome ${userState.name}. Your balance is ${userState.balanceETH.toFixed(
         4
-      )} Sepolia ETH. Tap the mic or press Spacebar anytime to speak.`;
+      )} ETH. Tap the mic or press Spacebar anytime to speak.`;
       setVoiceFeedback(msg);
       setAriaAnnouncement(msg);
       speakText(msg, lang);
@@ -181,14 +282,14 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   useEffect(() => {
     if (accessibilityMode === 'blind') {
       const current = headphoneSafety.getStatus();
-      if (!current.isConnected && !current.isVerified) {
+      if (!current.isConnected) {
         setShowHeadphoneModal(true);
       }
     }
 
     const unsubStatus = headphoneSafety.onStatusChange((status) => {
       setHeadphoneStatus(status);
-      if (status.isConnected || status.isVerified) {
+      if (status.isConnected) {
         setShowHeadphoneModal(false);
       }
     });
@@ -232,11 +333,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     spokenLang: SupportedLanguage = lang,
     shouldPromptListen: boolean = true
   ) => {
-    // If in blind mode and earphones not verified, pause and require earphones
+    // If in blind mode and earphones not connected, pause and require earphones
     if (
       accessibilityMode === 'blind' &&
-      !headphoneSafety.getStatus().isConnected &&
-      !headphoneSafety.getStatus().isVerified
+      !headphoneSafety.getStatus().isConnected
     ) {
       setShowHeadphoneModal(true);
       return;
@@ -358,8 +458,18 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     };
   }, [activeUserId, lang, accessibilitySettings]);
 
-  // Voice Recognition setup
+  // Voice Recognition setup (Active ONLY in Blind / Voice-Assisted Mode)
   useEffect(() => {
+    if (accessibilityMode !== 'blind') {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
+      setIsListening(false);
+      return;
+    }
+
     if (typeof window !== 'undefined') {
       const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRec) {
@@ -399,10 +509,289 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         recognitionRef.current = recognition;
       }
     }
-  }, [lang, transcript, accessibilitySettings]);
+  }, [lang, transcript, accessibilitySettings, accessibilityMode]);
+
+  // Half-Duplex Audio Engine (UX-01): Mute speech recognition while TTS is speaking
+  useEffect(() => {
+    const unsubscribe = onSpeechStateChange((isSpeaking) => {
+      if (isSpeaking && recognitionRef.current && isListening) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {}
+        setIsListening(false);
+      }
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [isListening]);
+
+  // Helper: Revoke smart contract approval
+  const handleRevokeApproval = (approvalId: string, spenderName: string) => {
+    const updatedApprovals = (userState.approvals || []).filter((a) => a.id !== approvalId);
+    const updatedUser = { ...userState, approvals: updatedApprovals };
+    setUserState(updatedUser);
+    saveStoredUser(updatedUser);
+    audioCues.playSuccess();
+    const msg = `Approval revoked for ${spenderName}. Your tokens are secured.`;
+    speakAndFollowUp(msg, lang);
+  };
+
+  // Helper: Claim Pioneer Genesis NFT Badge
+  const handleClaimNFT = () => {
+    const newNFT: NFTItem = {
+      id: `nft_${Date.now()}`,
+      name: 'SayPay Genesis Pioneer #042',
+      collection: 'SayPay Early Access Badges',
+      imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80',
+      description: 'Verifiable proof of participation in voice-first accessibility research on Sepolia.',
+      audioDescription: 'Geometric orange and black hexagonal hologram badge with engraved audio soundwaves, signifying pioneer access to SayPay voice smart wallet.',
+      contractAddress: '0x498a...291b',
+      tokenId: '#042',
+    };
+    const updatedUser = { ...userState, nfts: [newNFT, ...(userState.nfts || [])] };
+    setUserState(updatedUser);
+    saveStoredUser(updatedUser);
+    audioCues.playSuccess();
+    confetti({ particleCount: 40, spread: 60, origin: { y: 0.7 } });
+    speakAndFollowUp('Claimed SayPay Genesis Pioneer NFT badge. Audio description is available.', lang);
+  };
+
+  // Helper: Finalize Wallet Created
+  const handleWalletCreated = (newUser: WalletUser, mode: 'blind' | 'visual') => {
+    setActiveUserId(newUser.id);
+    setUserState(newUser);
+    setTransactions([]);
+    setAccessibilityMode(mode);
+    setIsCreateWalletOpen(false);
+    setIsLocked(false);
+    audioCues.playSuccess();
+    confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+  };
+
+  // Stealth Screen Curtain Privacy Shield Handlers
+  const enablePrivacyMode = () => {
+    setIsPrivacyModeActive(true);
+    audioCues.playSuccess();
+    const msg =
+      lang === 'hi'
+        ? 'गोपनीयता मोड सक्रिय किया गया। स्क्रीन पर्दा चालू है और डिस्प्ले पूरी तरह से बंद है।'
+        : lang === 'ar'
+        ? 'تم تفعيل وضع الخصوصية والستار الأسود لحمايتك من المتطفلين.'
+        : 'Privacy Mode activated. Screen curtain is active. Display is completely dark for shoulder-surfing security. Voice control is listening.';
+    setVoiceFeedback(msg);
+    setAriaAnnouncement(msg);
+    speakText(msg, lang);
+  };
+
+  const disablePrivacyMode = () => {
+    setIsPrivacyModeActive(false);
+    audioCues.playSuccess();
+    const msg =
+      lang === 'hi'
+        ? 'गोपनीयता मोड बंद किया गया। स्क्रीन डिस्प्ले वापस सक्रिय है।'
+        : lang === 'ar'
+        ? 'تم إيقاف وضع الخصوصية واستعادة الشاشة بنجاح.'
+        : 'Privacy Mode deactivated. Visual display restored.';
+    setVoiceFeedback(msg);
+    setAriaAnnouncement(msg);
+    speakText(msg, lang);
+  };
+
+  // Vault Login Security Handlers (SEC-02 Rate Limiting)
+  const handleUnlockWithPasskey = async () => {
+    setIsAuthenticatingPasskey(true);
+    setPinError('');
+    try {
+      const authResult = await signTransactionWithPasskey(
+        'saypay_vault_login',
+        'vault',
+        0
+      );
+      if (authResult.success) {
+        setIsLocked(false);
+        setPinAttempts(0);
+        setLockoutTimeRemaining(0);
+        audioCues.playSuccess();
+        const welcome = `Vault unlocked. Welcome back, ${userState.name}.`;
+        setVoiceFeedback(welcome);
+        setAriaAnnouncement(welcome);
+        speakText(welcome, lang);
+      } else {
+        setPinError(authResult.error || 'Passkey authentication cancelled');
+        audioCues.playWarning();
+      }
+    } catch (err: any) {
+      setPinError('Passkey authentication cancelled. Use PIN 123456.');
+      audioCues.playWarning();
+    } finally {
+      setIsAuthenticatingPasskey(false);
+    }
+  };
+
+  const handleSaveNewPin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPinCode.length !== 6) {
+      setPinFormError('PIN must be exactly 6 digits.');
+      return;
+    }
+    if (newPinCode !== confirmPinCode) {
+      setPinFormError('PINs do not match. Please re-enter.');
+      return;
+    }
+    const updated = { ...userState, pinCode: newPinCode };
+    setUserState(updated);
+    saveStoredUser(updated);
+    audioCues.playSuccess();
+    const msg = 'New 6-digit PIN successfully created and saved.';
+    setPinFormSuccess(msg);
+    setPinFormError('');
+    speakText(msg, lang);
+    setTimeout(() => {
+      setIsSettingNewPin(false);
+      setPinInput(newPinCode);
+      setNewPinCode('');
+      setConfirmPinCode('');
+      setPinFormSuccess('');
+    }, 1000);
+  };
+
+  const handleUnlockWithPin = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (lockoutTimeRemaining > 0) {
+      const msg = `Vault temporarily locked. Wait ${lockoutTimeRemaining} seconds or authenticate with biometric passkey.`;
+      setPinError(msg);
+      speakText(msg, lang);
+      return;
+    }
+
+    const expectedPin = userState.pinCode || '123456';
+    if (pinInput === expectedPin) {
+      setIsLocked(false);
+      setPinInput('');
+      setPinError('');
+      setPinAttempts(0);
+      setLockoutTimeRemaining(0);
+      audioCues.playSuccess();
+      const welcome = `Vault unlocked. Welcome back, ${userState.name}.`;
+      setVoiceFeedback(welcome);
+      setAriaAnnouncement(welcome);
+      speakText(welcome, lang);
+    } else {
+      const nextAttempts = pinAttempts + 1;
+      setPinAttempts(nextAttempts);
+      audioCues.playWarning();
+
+      if (nextAttempts >= 3) {
+        const lockSeconds = nextAttempts >= 5 ? 60 : 30;
+        setLockoutTimeRemaining(lockSeconds);
+        const lockMsg = `Security lockout: ${nextAttempts} failed attempts. Vault locked for ${lockSeconds} seconds. Use biometric passkey to unlock immediately.`;
+        setPinError(lockMsg);
+        setAriaAnnouncement(lockMsg);
+        speakText(lockMsg, lang);
+      } else {
+        const remaining = 3 - nextAttempts;
+        const errMsg = `Invalid PIN. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before security lockout. Test PIN is 123456.`;
+        setPinError(errMsg);
+        setAriaAnnouncement(errMsg);
+        speakText(errMsg, lang);
+      }
+    }
+  };
 
   // Process natural voice commands
   const handleProcessCommand = (spokenText: string) => {
+    const lower = spokenText.toLowerCase();
+
+    // Reversible Payment Cancel / Undo Voice Trigger (UX-04)
+    if (
+      lower.includes('undo') ||
+      lower.includes('cancel payment') ||
+      lower.includes('stop payment') ||
+      lower.includes('रद्द') ||
+      lower.includes('تراجع')
+    ) {
+      if (pendingUndoTx) {
+        handleCancelPendingTx();
+        return;
+      }
+    }
+
+    // Privacy Screen Curtain Voice Commands
+    if (
+      lower.includes('privacy mode') ||
+      lower.includes('curtain mode') ||
+      lower.includes('screen curtain') ||
+      lower.includes('hide screen') ||
+      lower.includes('black screen') ||
+      lower.includes('गोपनीयता मोड') ||
+      lower.includes('وضع الخصوصية')
+    ) {
+      if (
+        lower.includes('off') ||
+        lower.includes('disable') ||
+        lower.includes('stop') ||
+        lower.includes('exit') ||
+        lower.includes('show screen') ||
+        lower.includes('restore') ||
+        lower.includes('बंद') ||
+        lower.includes('إيقاف')
+      ) {
+        disablePrivacyMode();
+      } else {
+        enablePrivacyMode();
+      }
+      return;
+    }
+
+    if (lower.includes('show screen') || lower.includes('restore screen') || lower.includes('exit privacy')) {
+      disablePrivacyMode();
+      return;
+    }
+
+    // Direct voice matchers for new multi-token sections
+    if (lower.includes('fund') || lower.includes('add cash') || lower.includes('deposit') || lower.includes('faucet')) {
+      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+      setIsFundOpen(true);
+      speakAndFollowUp('Opening Fund Wallet window. Select mock cash to deposit.', lang);
+      return;
+    }
+
+    if (lower.includes('swap') || lower.includes('exchange')) {
+      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+      setIsSwapOpen(true);
+      speakAndFollowUp('Opening Swap window. Swap tokens with passkey authorization.', lang);
+      return;
+    }
+
+    if (lower.includes('nft') || lower.includes('collectible')) {
+      setActiveTab('nfts');
+      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+      speakAndFollowUp(`Displaying your NFT collection. You have ${userState.nfts?.length || 0} badges.`, lang);
+      return;
+    }
+
+    if (lower.includes('approval') || lower.includes('permission') || lower.includes('security check')) {
+      setActiveTab('approvals');
+      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+      speakAndFollowUp(`Showing active token approvals. You have ${userState.approvals?.length || 0} approvals.`, lang);
+      return;
+    }
+
+    if (lower.includes('trend') || lower.includes('market') || lower.includes('price')) {
+      setActiveTab('trending');
+      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+      speakAndFollowUp('Showing market trends. Bitcoin is at $88,450, Ethereum is at $2,693.', lang);
+      return;
+    }
+
+    if (lower.includes('crypto') || lower.includes('token') || lower.includes('asset')) {
+      setActiveTab('crypto');
+      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+      speakAndFollowUp(`Showing crypto assets. Total portfolio value is $${totalBalanceUSD.toFixed(2)}.`, lang);
+      return;
+    }
+
     const result = parseVoiceIntent(spokenText);
     const detected = result.detectedLang;
     if (detected !== lang) {
@@ -414,16 +803,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         const balSpeech =
           detected === 'hi'
-            ? `आपका कुल बैलेंस ${userState.balanceETH.toFixed(4)} टेस्ट ईथर है, जिसका मूल्य ${(
-                userState.balanceETH * userState.ethRateUSD
-              ).toFixed(2)} डॉलर है। आप आगे क्या करना चाहते हैं?`
+            ? `आपका कुल पोर्टफोलियो मूल्य $${totalBalanceUSD.toFixed(2)} डॉलर है, जिसमें ${userState.balanceETH.toFixed(4)} टेस्ट ईथर शामिल हैं। आप आगे क्या करना चाहते हैं?`
             : detected === 'ar'
-            ? `رصيدك الإجمالي هو ${userState.balanceETH.toFixed(4)} إيثيريوم تجريبي، بقيمة ${(
-                userState.balanceETH * userState.ethRateUSD
-              ).toFixed(2)} دولار. ماذا تود أن تفعل؟`
-            : `Your total balance is ${userState.balanceETH.toFixed(4)} Sepolia ETH, valued at ${(
-                userState.balanceETH * userState.ethRateUSD
-              ).toFixed(2)} dollars. What would you like to do next? Say Send, Receive, or Contacts.`;
+            ? `إجمالي قيمة محفظتك هو ${totalBalanceUSD.toFixed(2)} دولار، بما في ذلك ${userState.balanceETH.toFixed(4)} إيثيريوم تجريبي. ماذا تود أن تفعل؟`
+            : `Your total portfolio value is $${totalBalanceUSD.toFixed(2)} USD, with ${userState.balanceETH.toFixed(4)} Sepolia ETH. What would you like to do next? Say Send, Receive, Swap, or Fund.`;
 
         speakAndFollowUp(balSpeech, detected);
         break;
@@ -435,10 +818,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         setIsSendOpen(true);
         const sendSpeech =
           detected === 'hi'
-            ? `${result.contact || 'राहुल'} को ${result.amount || 0.1} ईथर भेजने की तैयारी है। गैस फीस प्रायोजित है। हस्ताक्षर करने के लिए "फिंगरप्रिंट" बोलें, या रद्द करने के लिए "रद्द" कहें।`
+            ? `${result.contact || 'प्रिया'} को ${result.amount || 0.1} ईथर भेजने की तैयारी है। गैस फीस प्रायोजित है। हस्ताक्षर करने के लिए "फिंगरप्रिंट" बोलें, या रद्द करने के लिए "रद्द" कहें।`
             : detected === 'ar'
             ? `جاهز لإرسال ${result.amount || 0.1} إيثيريوم إلى ${result.contact || 'صديقي'}. قل "بصمة" للتوقيع بمفتاح المرور، أو قل "إلغاء".`
-            : `Prepared transfer: Sending ${result.amount || 0.1} Sepolia ETH to ${result.contact || 'Rahul'}. Gas is sponsored. Say "Fingerprint" or "Confirm" to sign with your passkey, or say "Cancel".`;
+            : `Prepared transfer: Sending ${result.amount || 0.1} Sepolia ETH to ${result.contact || 'Priya'}. Gas is sponsored. Say "Fingerprint" or "Confirm" to sign with your passkey, or say "Cancel".`;
 
         speakAndFollowUp(sendSpeech, detected);
         break;
@@ -451,7 +834,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           setModalVoiceTrigger('fingerprint');
           setTimeout(() => setModalVoiceTrigger(null), 1500);
         } else {
-          speakAndFollowUp('No transaction is pending signature. Say "Send 0.1 ETH to Rahul" to start a payment.', detected);
+          speakAndFollowUp('No transaction is pending signature. Say "Send 0.1 ETH to Priya" to start a payment.', detected);
         }
         break;
       }
@@ -548,6 +931,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
 
       case 'cancel': {
+        if (pendingUndoTx) {
+          handleCancelPendingTx();
+          break;
+        }
         if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
         setIsSendOpen(false);
         setIsReceiveOpen(false);
@@ -562,7 +949,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       case 'help': {
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         const helpMsg =
-          'You can say: Check balance, Send 0.1 ETH to Rahul, Fingerprint to sign, Copy address, Show QR code, Show contacts, View guardians, or Earphones connected.';
+          'You can say: Check balance, Send 0.1 ETH to Priya, Fingerprint to sign, Privacy mode, Copy address, Show QR code, Show contacts, View guardians, or Earphones connected.';
         speakAndFollowUp(helpMsg, detected);
         break;
       }
@@ -582,12 +969,20 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     }
   };
 
-  // Keyboard shortcut (Spacebar to hold-and-speak for blind users)
+  // Keyboard shortcut (Spacebar to hold-and-speak for blind users ONLY, WCAG 2.1.1 compliant)
   useEffect(() => {
+    if (accessibilityMode !== 'blind') return;
     if (!accessibilitySettings.spacebarHotkey) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes((e.target as any)?.tagName)) {
+      const target = e.target as HTMLElement | null;
+      const isInteractive =
+        target &&
+        (['INPUT', 'TEXTAREA', 'BUTTON', 'SELECT', 'A'].includes(target.tagName) ||
+          target.getAttribute('role') === 'button' ||
+          target.isContentEditable);
+
+      if (e.code === 'Space' && !isInteractive) {
         if (!isListening) {
           e.preventDefault();
           toggleMic();
@@ -597,15 +992,19 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isListening, accessibilitySettings.spacebarHotkey]);
+  }, [isListening, accessibilitySettings.spacebarHotkey, accessibilityMode]);
 
   const toggleMic = () => {
+    if (accessibilityMode !== 'blind') return;
     if (isListening) {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
       setIsListening(false);
     } else {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
       setTranscript('');
       if (recognitionRef.current) {
         try {
@@ -615,7 +1014,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           setTimeout(() => recognitionRef.current?.start(), 100);
         }
       } else {
-        simulateSpokenInput('Send 0.1 ETH to Rahul');
+        simulateSpokenInput('Send 0.1 ETH to Priya');
       }
     }
   };
@@ -629,13 +1028,32 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     }, 700);
   };
 
-  // Real Payment Execution (Debits sender DB, broadcasts to recipient DB, signs with real WebAuthn passkey)
-  const handleConfirmSend = (
-    recipient: string,
-    address: string,
-    amount: number,
-    sigResult?: PasskeySignatureResult
-  ) => {
+  // 5-second Grace Window countdown for reversible payments (NN/g Heuristic #5: Error Prevention)
+  useEffect(() => {
+    if (!pendingUndoTx) return;
+
+    const timer = setInterval(() => {
+      setPendingUndoTx((current) => {
+        if (!current) return null;
+        if (current.countdown <= 1) {
+          finalizeSend(current);
+          return null;
+        }
+        return { ...current, countdown: current.countdown - 1 };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [pendingUndoTx?.id, activeUserId, lang, userState.name, userState.address, accessibilitySettings.earconsEnabled]);
+
+  const finalizeSend = (pending: {
+    id: string;
+    recipient: string;
+    address: string;
+    amount: number;
+    sigResult?: PasskeySignatureResult;
+  }) => {
+    const { recipient, address, amount, sigResult } = pending;
     if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
     confetti({
       particleCount: 70,
@@ -644,22 +1062,22 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       colors: ['#FF5500', '#FF7733', '#09090B', '#3B82F6'],
     });
 
-    const newBalance = Math.max(0, userState.balanceETH - amount);
-
-    // Save updated sender in persistent DB
-    const updatedUser: WalletUser = {
-      ...userState,
-      balanceETH: newBalance,
-    };
-    setUserState(updatedUser);
-    saveStoredUser(updatedUser);
+    setUserState((prev) => {
+      const newBalance = Math.max(0, prev.balanceETH - amount);
+      const updatedUser: WalletUser = {
+        ...prev,
+        balanceETH: newBalance,
+      };
+      saveStoredUser(updatedUser);
+      return updatedUser;
+    });
 
     const txHash =
       sigResult?.signatureHex?.slice(0, 18) ||
       `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`;
 
-    // If recipient is our friend Rahul, update his stored DB record as well
-    if (activeUserId === 'user_main' && recipient.toLowerCase().includes('rahul')) {
+    // If recipient is our secondary savings account or Priya, update stored record as well
+    if (activeUserId === 'user_main' && (recipient.toLowerCase().includes('savings') || recipient.toLowerCase().includes('priya'))) {
       const friendData = getStoredUser('user_friend');
       friendData.balanceETH += amount;
       saveStoredUser(friendData);
@@ -693,11 +1111,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       note: `Hardware Biometrics Approved (${sigResult?.method || 'WebAuthn Passkey'})`,
     };
 
-    const updatedTxs = [newTx, ...transactions];
-    setTransactions(updatedTxs);
-    saveStoredTransactions(activeUserId, updatedTxs);
+    setTransactions((prev) => {
+      const updatedTxs = [newTx, ...prev];
+      saveStoredTransactions(activeUserId, updatedTxs);
+      return updatedTxs;
+    });
 
-    // Broadcast in real-time across tabs/phones!
+    // Broadcast in real-time across tabs/phones
     walletSync.broadcast({
       type: 'PAYMENT_SENT',
       fromUser: activeUserId,
@@ -709,8 +1129,6 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       timestamp: Date.now(),
     });
 
-    setIsSendOpen(false);
-
     const successSpeech =
       lang === 'hi'
         ? `सफलतापूर्वक भेजा गया! ${recipient} को ${amount} ईथर का भुगतान आपके पासकी द्वारा हस्ताक्षरित और सेपोलिया पर पुष्टि कर दिया गया है।`
@@ -721,6 +1139,53 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     speakAndFollowUp(successSpeech, lang);
   };
 
+  const handleCancelPendingTx = () => {
+    if (!pendingUndoTx) return;
+    setPendingUndoTx(null);
+    if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
+    const cancelSpeech =
+      lang === 'hi'
+        ? 'भुगतान रद्द कर दिया गया। आपके खाते से कोई राशि नहीं काटी गई।'
+        : lang === 'ar'
+        ? 'تم إلغاء العملية بنجاح ولم يتم خصم أي رصيد.'
+        : 'Payment cancelled. Zero funds were debited from your vault.';
+    setVoiceFeedback(cancelSpeech);
+    setAriaAnnouncement(cancelSpeech);
+    speakAndFollowUp(cancelSpeech, lang);
+  };
+
+  // Reversible Payment Staging (NN/g Heuristic #5: Error Prevention)
+  const handleConfirmSend = (
+    recipient: string,
+    address: string,
+    amount: number,
+    sigResult?: PasskeySignatureResult
+  ) => {
+    setIsSendOpen(false);
+    if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
+
+    const pending = {
+      id: `pending_${Date.now()}`,
+      recipient,
+      address,
+      amount,
+      sigResult,
+      countdown: 5,
+    };
+    setPendingUndoTx(pending);
+
+    const graceSpeech =
+      lang === 'hi'
+        ? `${recipient} को ${amount} ईथर भेजने की तैयारी है। आपके पास रद्द करने के लिए 5 सेकंड हैं। "रद्द" कहें या अनडू बटन दबाएं।`
+        : lang === 'ar'
+        ? `تمت جدولة إرسال ${amount} إيثيريوم إلى ${recipient}. لديك 5 ثوانٍ للإلغاء. قل "إلغاء" أو اضغط على تراجع.`
+        : `Payment of ${amount} Sepolia ETH scheduled to ${recipient}. 5 seconds to undo. Say "Cancel" or tap Undo.`;
+
+    setVoiceFeedback(graceSpeech);
+    setAriaAnnouncement(graceSpeech);
+    speakAndFollowUp(graceSpeech, lang);
+  };
+
   // Filter transactions based on active filter tab
   const filteredTransactions = transactions.filter((tx) => {
     if (txFilter === 'all') return true;
@@ -728,6 +1193,297 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   });
 
   const isRTL = lang === 'ar';
+
+  // Vault Security / App Lock Gate (Unified Normal Light Theme)
+  if (isLocked && !isCreateWalletOpen) {
+    return (
+      <div
+        dir={isRTL ? 'rtl' : 'ltr'}
+        className="min-h-screen bg-[#FAFAFA] text-zinc-900 flex flex-col justify-between font-sans selection:bg-[#FF5500] selection:text-white"
+      >
+        {/* Top Header */}
+        <header className="p-4 sm:p-6 flex items-center justify-between max-w-4xl mx-auto w-full">
+          <button
+            onClick={onBackToLanding}
+            className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 transition text-xs font-bold cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Home</span>
+          </button>
+
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-zinc-200 text-[11px] font-mono text-zinc-600 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-[#FF5500] animate-ping" />
+            <span>Sepolia Vault Protected</span>
+          </div>
+        </header>
+
+        {/* Central Lock Box */}
+        <main className="max-w-md mx-auto w-full px-4 py-8">
+          <div className="bg-white border border-zinc-200/80 rounded-3xl p-6 sm:p-8 shadow-xl text-center space-y-6">
+            {/* Glowing Lock Ring */}
+            <div className="relative mx-auto w-16 h-16 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-2xl bg-[#FF5500]/15 animate-ping" />
+              <div className="relative w-16 h-16 rounded-2xl bg-orange-50 border border-orange-200 flex items-center justify-center shadow-sm">
+                <Lock className="w-8 h-8 text-[#FF5500]" />
+              </div>
+            </div>
+
+            <div>
+              <h1 className="text-2xl font-black font-display tracking-tight text-zinc-950">
+                SayPay Vault
+              </h1>
+              <p className="text-xs text-zinc-500 mt-1">
+                Hardware passkey and biometric security gate
+              </p>
+            </div>
+
+            {/* Active User Account Badge */}
+            <div className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-between text-left">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#FF5500] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                  {userState.name.charAt(0)}
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-zinc-900">{userState.name}</div>
+                  <div className="text-[10px] font-mono text-zinc-500">
+                    {userState.address.slice(0, 6)}...{userState.address.slice(-4)}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAccountDropdown(!showAccountDropdown)}
+                className="text-[10px] font-bold text-[#FF5500] hover:underline cursor-pointer"
+              >
+                Switch
+              </button>
+            </div>
+
+            {/* Account dropdown if opened on lock screen */}
+            {showAccountDropdown && (
+              <div className="text-left bg-white rounded-2xl border border-zinc-200 p-2 shadow-xl space-y-1">
+                <button
+                  onClick={() => {
+                    setActiveUserId('user_main');
+                    setShowAccountDropdown(false);
+                  }}
+                  className="w-full p-2 text-xs rounded-xl hover:bg-zinc-50 text-zinc-800 flex items-center justify-between cursor-pointer"
+                >
+                  <span className="font-semibold">Primary Vault (Main)</span>
+                  {activeUserId === 'user_main' && <Check className="w-3.5 h-3.5 text-[#FF5500]" />}
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveUserId('user_friend');
+                    setShowAccountDropdown(false);
+                  }}
+                  className="w-full p-2 text-xs rounded-xl hover:bg-zinc-50 text-zinc-800 flex items-center justify-between cursor-pointer"
+                >
+                  <span className="font-semibold">Savings Account (Secondary)</span>
+                  {activeUserId === 'user_friend' && <Check className="w-3.5 h-3.5 text-[#FF5500]" />}
+                </button>
+                {hasUserCreatedWallet() && (
+                  <button
+                    onClick={() => {
+                      setActiveUserId('user_created');
+                      setShowAccountDropdown(false);
+                    }}
+                    className="w-full p-2 text-xs rounded-xl hover:bg-zinc-50 text-zinc-800 flex items-center justify-between cursor-pointer"
+                  >
+                    <span className="font-semibold">{getStoredUser('user_created').name} (My Wallet)</span>
+                    {activeUserId === 'user_created' && <Check className="w-3.5 h-3.5 text-[#FF5500]" />}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Passkey Biometric Button */}
+            <div className="space-y-3">
+              <button
+                onClick={handleUnlockWithPasskey}
+                disabled={isAuthenticatingPasskey}
+                className="w-full py-3.5 px-4 rounded-2xl btn-orange text-white font-bold text-sm shadow-md shadow-orange-500/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Key className="w-4 h-4" />
+                <span>
+                  {isAuthenticatingPasskey ? 'Verifying Passkey...' : 'Unlock with Passkey / Biometrics'}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  audioCues.playIntentRecognized();
+                  speakText('SayPay Vault is locked. Use Face ID, fingerprint, or enter six digit PIN 123456.', lang);
+                }}
+                className="text-xs text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 cursor-pointer"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-[#FF5500]" />
+                <span>Listen to Security Audio Instructions</span>
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 text-zinc-400 text-[11px] font-mono">
+              <div className="h-px bg-zinc-200 flex-1" />
+              <span>OR ENTER PIN</span>
+              <div className="h-px bg-zinc-200 flex-1" />
+            </div>
+
+            {/* PIN Form or Set New PIN Form */}
+            {isSettingNewPin ? (
+              <form onSubmit={handleSaveNewPin} className="space-y-3 text-left">
+                <div className="p-3 rounded-2xl bg-orange-50 border border-orange-200">
+                  <div className="text-xs font-bold text-zinc-900 mb-0.5">Set Your 6-Digit PIN</div>
+                  <div className="text-[11px] text-zinc-600">
+                    Create a personal backup PIN to protect and unlock your vault.
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-zinc-600 uppercase tracking-wider">
+                    New PIN (6 digits)
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={6}
+                    value={newPinCode}
+                    onChange={(e) => setNewPinCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter 6 digits"
+                    className="w-full text-center text-lg tracking-[0.3em] font-mono py-2.5 px-4 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:outline-none focus:border-[#FF5500] focus:bg-white transition"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-zinc-600 uppercase tracking-wider">
+                    Confirm New PIN
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={6}
+                    value={confirmPinCode}
+                    onChange={(e) => setConfirmPinCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Re-enter 6 digits"
+                    className="w-full text-center text-lg tracking-[0.3em] font-mono py-2.5 px-4 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:outline-none focus:border-[#FF5500] focus:bg-white transition"
+                  />
+                </div>
+
+                {pinFormError && (
+                  <div className="text-xs text-red-600 font-semibold">{pinFormError}</div>
+                )}
+                {pinFormSuccess && (
+                  <div className="text-xs text-emerald-600 font-semibold">{pinFormSuccess}</div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSettingNewPin(false);
+                      setPinFormError('');
+                    }}
+                    className="py-2.5 rounded-xl border border-zinc-200 text-zinc-700 font-bold text-xs hover:bg-zinc-50 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={newPinCode.length < 6 || confirmPinCode.length < 6}
+                    className="py-2.5 rounded-xl btn-orange text-white font-bold text-xs transition disabled:opacity-40 cursor-pointer"
+                  >
+                    Save PIN
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleUnlockWithPin} className="space-y-3">
+                {/* Lockout Active Warning Pill */}
+                {lockoutTimeRemaining > 0 && (
+                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-mono font-bold flex items-center justify-center gap-2 animate-pulse">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    <span>Security Lockout: {lockoutTimeRemaining}s</span>
+                  </div>
+                )}
+
+                {/* 6 Visual Masked Bullet Dots */}
+                <div className="flex items-center justify-center gap-3 py-1">
+                  {[0, 1, 2, 3, 4, 5].map((idx) => (
+                    <div
+                      key={idx}
+                      className={`w-3.5 h-3.5 rounded-full transition-all duration-200 ${
+                        idx < pinInput.length
+                          ? 'bg-[#FF5500] border-2 border-[#FF5500] scale-110 shadow-sm shadow-orange-500/50'
+                          : 'border-2 border-zinc-300 bg-transparent'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <input
+                  type="password"
+                  maxLength={6}
+                  disabled={lockoutTimeRemaining > 0}
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                  placeholder="6-digit PIN"
+                  className="w-full text-center text-xl tracking-[0.4em] font-mono py-3 px-4 rounded-2xl bg-zinc-50 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 placeholder:tracking-normal placeholder:text-xs focus:outline-none focus:border-[#FF5500] focus:bg-white disabled:opacity-30 transition"
+                />
+
+                {pinError && (
+                  <div className="text-xs text-red-600 font-semibold">{pinError}</div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={pinInput.length < 6 || lockoutTimeRemaining > 0}
+                  className="w-full py-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 text-white font-bold text-xs transition cursor-pointer"
+                >
+                  {lockoutTimeRemaining > 0 ? `Locked (${lockoutTimeRemaining}s)` : 'Unlock with PIN'}
+                </button>
+                <div className="flex items-center justify-between text-[11px] font-mono text-zinc-500 pt-1">
+                  <span>Default: <strong className="text-zinc-800">123456</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSettingNewPin(true);
+                      setNewPinCode('');
+                      setConfirmPinCode('');
+                      setPinFormError('');
+                    }}
+                    className="text-[#FF5500] font-bold hover:underline cursor-pointer"
+                  >
+                    + Create or Change PIN
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Create New Wallet Link */}
+            <div className="pt-2 border-t border-zinc-100">
+              <button
+                onClick={() => setIsCreateWalletOpen(true)}
+                className="text-xs font-bold text-[#FF5500] hover:underline cursor-pointer"
+              >
+                Do not have a wallet? Create new smart wallet
+              </button>
+            </div>
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="p-4 text-center text-[11px] text-zinc-400 font-mono">
+          EIP-4337 Account Abstraction &bull; WebAuthn Biometrics &bull; Zero Private Keys Exposed
+        </footer>
+
+        {/* Create Wallet Modal if opened from Lock Screen */}
+        <CreateWalletModal
+          isOpen={isCreateWalletOpen}
+          currentLang={lang}
+          onWalletCreated={handleWalletCreated}
+          onClose={() => setIsCreateWalletOpen(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -764,33 +1520,28 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 </span>
               </button>
 
-              {/* Sepolia Live Badge with Gas Indicator */}
-              <div className="hidden sm:inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-[11px] font-mono font-medium text-zinc-600">
-                <span className="w-2 h-2 rounded-full bg-[#FF5500] animate-ping" />
-                <span>Sepolia Testnet</span>
-                <span className="text-[10px] text-zinc-500 border-l border-zinc-300 pl-2 font-mono">12 Gwei</span>
-              </div>
-
-              {/* Compulsory Earphones Privacy Indicator */}
-              <button
-                onClick={() => {
-                  audioCues.playIntentRecognized();
-                  setShowHeadphoneModal(true);
-                }}
-                className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold transition cursor-pointer ${
-                  headphoneStatus.isVerified || headphoneStatus.isConnected
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-orange-50 border-[#FF5500]/40 text-[#FF5500] animate-pulse'
-                }`}
-                title="Earphones Audio Privacy Gate"
-              >
-                <Headphones className="w-3.5 h-3.5" />
-                <span>
-                  {headphoneStatus.isVerified || headphoneStatus.isConnected
-                    ? 'Earphones Active'
-                    : 'Earphones Required'}
-                </span>
-              </button>
+              {/* Compulsory Earphones Privacy Indicator (ONLY in Blind Mode) */}
+              {accessibilityMode === 'blind' && (
+                <button
+                  onClick={() => {
+                    audioCues.playIntentRecognized();
+                    setShowHeadphoneModal(true);
+                  }}
+                  className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold transition cursor-pointer ${
+                    headphoneStatus.isConnected
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-orange-50 border-[#FF5500]/40 text-[#FF5500] animate-pulse'
+                  }`}
+                  title="Earphones Audio Privacy Gate"
+                >
+                  <Headphones className="w-3.5 h-3.5" />
+                  <span>
+                    {headphoneStatus.isConnected
+                      ? 'Earphones Active'
+                      : 'Earphones Required'}
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* Right Controls: Web3 Account Dropdown, Settings, Mode Toggle */}
@@ -827,10 +1578,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     >
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-lg bg-[#FF5500] text-white flex items-center justify-center text-[10px] font-black">
-                          A
+                          V
                         </div>
                         <div>
-                          <div className="font-bold">Alen (Primary Account)</div>
+                          <div className="font-bold">Primary Vault (Smart Account)</div>
                           <div className="text-[10px] font-mono text-zinc-400">0x71C8...4E92</div>
                         </div>
                       </div>
@@ -851,18 +1602,77 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     >
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-lg bg-zinc-900 text-white flex items-center justify-center text-[10px] font-bold">
-                          R
+                          S
                         </div>
                         <div>
-                          <div className="font-bold">Rahul (Simulated Peer)</div>
+                          <div className="font-bold">Savings Account (Secondary Vault)</div>
                           <div className="text-[10px] font-mono text-zinc-400">0x3A9F...05d1</div>
                         </div>
                       </div>
                       {activeUserId === 'user_friend' && <Check className="w-4 h-4 text-[#FF5500]" />}
                     </button>
+
+                    {/* Custom Created Wallet (if active) */}
+                    {hasUserCreatedWallet() && (
+                      <button
+                        onClick={() => {
+                          audioCues.playSuccess();
+                          setActiveUserId('user_created');
+                          setShowAccountDropdown(false);
+                        }}
+                        className={`w-full text-left p-2.5 rounded-xl transition flex items-center justify-between text-xs mt-1 cursor-pointer ${
+                          activeUserId === 'user_created'
+                            ? 'bg-[#FF5500]/10 text-zinc-950 font-bold'
+                            : 'hover:bg-zinc-50 text-zinc-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black">
+                            {getStoredUser('user_created').name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-bold">{getStoredUser('user_created').name} (My Wallet)</div>
+                            <div className="text-[10px] font-mono text-zinc-400">
+                              {getStoredUser('user_created').address.slice(0, 6)}...{getStoredUser('user_created').address.slice(-4)}
+                            </div>
+                          </div>
+                        </div>
+                        {activeUserId === 'user_created' && <Check className="w-4 h-4 text-[#FF5500]" />}
+                      </button>
+                    )}
+
+                    {/* Create New Smart Wallet Trigger */}
+                    <div className="pt-2 mt-1 border-t border-zinc-100">
+                      <button
+                        onClick={() => {
+                          audioCues.playIntentRecognized();
+                          setShowAccountDropdown(false);
+                          setIsCreateWalletOpen(true);
+                        }}
+                        className="w-full text-left p-2 rounded-xl text-xs font-bold text-[#FF5500] hover:bg-orange-50 transition flex items-center gap-2 cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Create New Smart Wallet</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
+
+              {/* Vault Quick Lock Button */}
+              <button
+                onClick={() => {
+                  audioCues.playWarning();
+                  setIsLocked(true);
+                  speakText('SayPay Vault locked.', lang);
+                }}
+                className="p-2 rounded-2xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                title="Lock SayPay Vault"
+                aria-label="Lock SayPay Vault"
+              >
+                <Lock className="w-4 h-4 text-zinc-600" />
+                <span className="hidden sm:inline text-xs font-bold">Lock</span>
+              </button>
 
               {/* Accessibility Settings Trigger */}
               <button
@@ -903,6 +1713,27 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     <span className="hidden sm:inline">Visual Mode</span>
                   </>
                 )}
+              </button>
+
+              {/* Privacy Mode (Screen Curtain) Toggle */}
+              <button
+                onClick={() => {
+                  if (isPrivacyModeActive) {
+                    disablePrivacyMode();
+                  } else {
+                    enablePrivacyMode();
+                  }
+                }}
+                className={`p-2 rounded-2xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  isPrivacyModeActive
+                    ? 'border-[#FF5500] bg-[#FF5500]/10 text-[#FF5500] shadow-xs animate-pulse'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100'
+                }`}
+                title="Privacy Mode (Screen Curtain)"
+                aria-label="Toggle Privacy Screen Curtain"
+              >
+                <EyeOff className="w-4 h-4 text-zinc-600" />
+                <span className="hidden xl:inline text-xs font-bold">Privacy</span>
               </button>
 
               {/* Language Switch */}
@@ -952,51 +1783,93 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           </div>
         )}
 
-        {/* 2-Column Responsive Bento Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* LEFT COLUMN: Hero Balance + Tokens + Voice (7 Cols on Desktop) */}
-          <div className="lg:col-span-7 space-y-6">
-            {/* 1. Hero Balance Card */}
-            <section
-              aria-labelledby="portfolio-heading"
-              className="tw-card p-6 sm:p-8 relative overflow-hidden group shadow-sm bg-white"
-            >
-              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#FF5500] via-orange-400 to-amber-500" />
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span id="portfolio-heading" className="text-xs font-extrabold text-zinc-500 uppercase tracking-wider font-display">
-                      Total Balance
-                    </span>
-                    <span className="text-[11px] font-bold text-zinc-600 bg-zinc-100 px-2.5 py-0.5 rounded-full border border-zinc-200">
-                      Sepolia Testnet
-                    </span>
-                  </div>
-
-                  {/* Primary Monospace Balance */}
-                  <div className="flex items-baseline gap-2.5">
-                    <span className="text-4xl sm:text-5xl font-black text-zinc-900 tracking-tight font-mono">
-                      {userState.balanceETH.toFixed(4)}
-                    </span>
-                    <span className="text-xl sm:text-2xl font-black text-[#FF5500] font-display">ETH</span>
-                  </div>
-
-                  {/* Fiat Conversion + 24h PnL badge */}
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <span className="text-sm font-semibold text-zinc-600">
-                      &asymp; ${(userState.balanceETH * userState.ethRateUSD).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}{' '}
-                      USD
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full shadow-xs">
-                      <TrendingUp className="w-3 h-3 text-emerald-700" />
-                      <span>+$184.20 (+2.24%) Today</span>
-                    </span>
-                  </div>
+        {/* Pending Undo Payment Grace Window Banner (NN/g Heuristic #5: Error Prevention) */}
+        {pendingUndoTx && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="p-4 rounded-3xl bg-amber-500/10 border-2 border-amber-500 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-black animate-pulse flex-shrink-0">
+                <RotateCcw className="w-5 h-5 animate-spin-slow" />
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wider font-extrabold text-amber-700 flex items-center gap-2">
+                  <span>Reversible Transfer Window</span>
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-mono font-black">
+                    {pendingUndoTx.countdown}s
+                  </span>
                 </div>
+                <div className="text-sm sm:text-base font-black font-display text-zinc-900 mt-0.5">
+                  Sending {pendingUndoTx.amount} Sepolia ETH to {pendingUndoTx.recipient}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={handleCancelPendingTx}
+                className="flex-1 sm:flex-none px-4 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-md hover:shadow-lg transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Undo Payment ({pendingUndoTx.countdown}s)</span>
+              </button>
+              <button
+                onClick={() => {
+                  finalizeSend(pendingUndoTx);
+                  setPendingUndoTx(null);
+                }}
+                className="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs transition cursor-pointer"
+              >
+                Send Now
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Responsive Dashboard: Vertical Stack on Mobile (<lg), 2-Column Luxury Grid on Desktop (lg+) */}
+        <div className="max-w-6xl mx-auto pb-24">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left Column (Desktop 5 cols, Mobile Full Width): Portfolio Card & Actions */}
+            <div className="lg:col-span-5 space-y-6">
+              {/* 1. Hero Balance Card */}
+              <section
+                aria-labelledby="portfolio-heading"
+                className="tw-card p-6 sm:p-8 relative overflow-hidden group shadow-sm bg-white"
+              >
+                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#FF5500] via-orange-400 to-amber-500" />
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span id="portfolio-heading" className="text-xs font-extrabold text-zinc-500 uppercase tracking-wider font-display">
+                        Total Balance
+                      </span>
+                    </div>
+
+                    {/* Primary Monospace Balance */}
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-4xl sm:text-5xl font-black text-zinc-900 tracking-tight font-mono">
+                        ${totalBalanceUSD.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                      <span className="text-xs sm:text-sm font-bold text-zinc-500 font-mono">USD</span>
+                    </div>
+
+                    {/* Equivalent in ETH */}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <span className="text-sm font-mono font-bold text-[#FF5500]">
+                        {userState.balanceETH.toFixed(4)} ETH
+                      </span>
+                      <span className="text-zinc-300">&bull;</span>
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full shadow-xs">
+                        <TrendingUp className="w-3 h-3 text-emerald-700" />
+                        <span>+1.00% Today</span>
+                      </span>
+                    </div>
+                  </div>
 
                 {/* Address Pill + Read Aloud Controls */}
                 <div className="flex flex-col sm:items-end gap-2.5">
@@ -1027,9 +1900,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   <button
                     onClick={() => {
                       audioCues.playIntentRecognized();
-                      const readout = `Your balance is ${userState.balanceETH.toFixed(4)} test Ether, valued at ${(
-                        userState.balanceETH * userState.ethRateUSD
-                      ).toFixed(2)} dollars.`;
+                      const readout = `Your portfolio balance is $${totalBalanceUSD.toFixed(2)} USD, with ${userState.balanceETH.toFixed(4)} Sepolia ETH.`;
                       setVoiceFeedback(readout);
                       speakText(readout, lang);
                     }}
@@ -1041,8 +1912,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 </div>
               </div>
 
-              {/* 4 Primary Action Squircles */}
-              <div className="grid grid-cols-4 gap-3 sm:gap-4 mt-8 pt-6 border-t border-zinc-100">
+              {/* 4 Primary Action Buttons (Send, Receive, Swap, Fund) */}
+              <div className="grid grid-cols-4 gap-2 sm:gap-4 mt-8 pt-6 border-t border-zinc-100">
                 {/* Action 1: Send */}
                 <button
                   onClick={() => {
@@ -1050,10 +1921,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     setSendPreFill({});
                     setIsSendOpen(true);
                   }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-zinc-50 transition group focus:outline-none focus:ring-2 focus:ring-[#FF5500] cursor-pointer"
+                  className="flex flex-col items-center gap-2 p-2.5 sm:p-3 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
                 >
-                  <div className="w-14 h-14 rounded-2xl btn-orange text-white flex items-center justify-center shadow-md group-hover:scale-105 group-hover:shadow-lg transition">
-                    <Send className="w-6 h-6" />
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl btn-orange text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
+                    <Send className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
                   <span className="text-xs sm:text-sm font-extrabold text-zinc-900 font-display">Send</span>
                 </button>
@@ -1064,557 +1935,590 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     audioCues.playIntentRecognized();
                     setIsReceiveOpen(true);
                   }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-zinc-50 transition group focus:outline-none focus:ring-2 focus:ring-zinc-300 cursor-pointer"
+                  className="flex flex-col items-center gap-2 p-2.5 sm:p-3 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-zinc-50 border border-zinc-200 text-zinc-800 flex items-center justify-center shadow-xs group-hover:scale-105 group-hover:border-zinc-300 transition">
-                    <ArrowDownLeft className="w-6 h-6 text-[#FF5500]" />
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-zinc-50 border border-zinc-200 text-zinc-800 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
+                    <ArrowDownLeft className="w-5 h-5 sm:w-6 sm:h-6 text-[#FF5500]" />
                   </div>
                   <span className="text-xs sm:text-sm font-extrabold text-zinc-900 font-display">Receive</span>
                 </button>
 
-                {/* Action 3: Contacts */}
+                {/* Action 3: Swap */}
+                <button
+                  onClick={() => {
+                    audioCues.playIntentRecognized();
+                    setIsSwapOpen(true);
+                  }}
+                  className="flex flex-col items-center gap-2 p-2.5 sm:p-3 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
+                >
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
+                    <ArrowDownUp className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-extrabold text-zinc-900 font-display">Swap</span>
+                </button>
+
+                {/* Action 4: Fund (+ Add Cash) */}
+                <button
+                  onClick={() => {
+                    audioCues.playIntentRecognized();
+                    setIsFundOpen(true);
+                  }}
+                  className="flex flex-col items-center gap-2 p-2.5 sm:p-3 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
+                >
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
+                    <Coins className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-extrabold text-zinc-900 font-display">Fund</span>
+                </button>
+              </div>
+
+              {/* Quick Pills for Contacts and Guardians */}
+              <div className="flex flex-wrap items-center justify-center gap-3 mt-4 pt-3 border-t border-zinc-100/60 text-xs">
                 <button
                   onClick={() => {
                     audioCues.playIntentRecognized();
                     setIsContactsOpen(true);
                   }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-zinc-50 transition group focus:outline-none focus:ring-2 focus:ring-zinc-300 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold inline-flex items-center gap-1.5 transition cursor-pointer"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-zinc-50 border border-zinc-200 text-zinc-800 flex items-center justify-center shadow-xs group-hover:scale-105 group-hover:border-zinc-300 transition">
-                    <Users className="w-6 h-6 text-zinc-700" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-zinc-900 font-display">Contacts</span>
+                  <Users className="w-3.5 h-3.5 text-zinc-600" />
+                  <span>Address Book ({userState.contacts.length})</span>
                 </button>
 
-                {/* Action 4: Guardians */}
                 <button
                   onClick={() => {
                     audioCues.playIntentRecognized();
                     setIsGuardiansOpen(true);
                   }}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl hover:bg-slate-50 transition group focus:outline-none focus:ring-2 focus:ring-slate-300 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold inline-flex items-center gap-1.5 transition cursor-pointer"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center shadow-xs group-hover:scale-105 group-hover:border-slate-300 transition">
-                    <ShieldCheck className="w-6 h-6 text-emerald-600" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Guardians</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Social Guardians ({userState.guardians.length})</span>
                 </button>
               </div>
             </section>
 
-            {/* 2. Crypto Assets & Tokens Breakdown */}
-            <section
-              aria-labelledby="assets-heading"
-              className="tw-card p-6 sm:p-7 relative overflow-hidden shadow-sm bg-white"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            {/* Quick Security & Protection Status Card */}
+            <section className="p-5 rounded-3xl bg-white border border-zinc-200/80 shadow-xs space-y-3.5">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Coins className="w-4 h-4 text-emerald-600" />
-                  <h2 id="assets-heading" className="text-sm font-extrabold text-slate-900 uppercase tracking-wider font-display">
-                    Tokens
-                  </h2>
+                  <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <span className="font-extrabold text-xs text-zinc-900 uppercase tracking-wider font-display">
+                    Vault Security & Protection
+                  </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>+2.45% (24h)</span>
+                <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                  Protected
+                </span>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-50 border border-zinc-100">
+                  <span className="text-zinc-600 font-medium">Account Abstraction:</span>
+                  <span className="font-mono font-bold text-zinc-800">EIP-4337 Smart Account</span>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-50 border border-zinc-100">
+                  <span className="text-zinc-600 font-medium">Guardian Recovery:</span>
+                  <span className="font-mono font-bold text-emerald-700">{userState.guardians.length} Trusted Guardians</span>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-50 border border-zinc-100">
+                  <span className="text-zinc-600 font-medium">Hardware Biometrics:</span>
+                  <span className="font-mono font-bold text-zinc-800">WebAuthn Passkey</span>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-50 border border-zinc-100">
+                  <span className="text-zinc-600 font-medium">Gas Sponsorship:</span>
+                  <span className="font-mono font-bold text-emerald-700">100% Sponsored (0 Gas)</span>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {/* Token 1: Ethereum (ETH) */}
-                <div
+              <div className="pt-1 flex items-center justify-between text-xs">
+                <button
                   onClick={() => {
                     audioCues.playIntentRecognized();
-                    setSendPreFill({});
-                    setIsSendOpen(true);
+                    setIsGuardiansOpen(true);
                   }}
-                  className="p-3.5 rounded-2xl border border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/70 transition flex items-center justify-between group cursor-pointer"
+                  className="text-[#FF5500] font-bold hover:underline cursor-pointer"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition">
-                      <svg className="w-5 h-5 fill-current" viewBox="0 0 256 417">
-                        <path d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" fillOpacity="0.9" />
-                        <path d="M127.962 0L0 212.32l127.962 75.639V0z" fillOpacity="0.7" />
-                        <path d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.6L256 236.587z" fillOpacity="0.9" />
-                        <path d="M127.962 416.905v-104.72L0 236.585z" fillOpacity="0.7" />
-                        <path d="M127.961 287.958l127.96-75.637-127.96-58.162z" fillOpacity="0.5" />
-                        <path d="M0 212.32l127.96 75.638v-133.8z" fillOpacity="0.3" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-extrabold text-sm text-slate-900 font-display">Ethereum</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono font-bold">
-                          ETH
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold">
-                          Sepolia
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-500 font-medium mt-0.5">
-                        ${userState.ethRateUSD.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
-                        <span className="text-emerald-600 font-bold ml-1">+2.45%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="font-mono text-sm sm:text-base font-black text-slate-900">
-                        {userState.balanceETH.toFixed(4)} ETH
-                      </div>
-                      <div className="text-xs font-semibold text-slate-500">
-                        ${(userState.balanceETH * userState.ethRateUSD).toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}{' '}
-                        USD
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        audioCues.playIntentRecognized();
-                        setSendPreFill({});
-                        setIsSendOpen(true);
-                      }}
-                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold transition cursor-pointer"
-                    >
-                      Send
-                    </button>
-                  </div>
-                </div>
-
-                {/* Token 2: USDC (USD Coin) */}
-                <div
+                  Manage Guardians &rarr;
+                </button>
+                <button
                   onClick={() => {
                     audioCues.playIntentRecognized();
-                    setSendPreFill({});
-                    setIsSendOpen(true);
+                    setIsSettingsOpen(true);
                   }}
-                  className="p-3.5 rounded-2xl border border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/70 transition flex items-center justify-between group cursor-pointer"
+                  className="text-zinc-500 hover:text-zinc-900 font-bold transition cursor-pointer"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-sm font-bold text-sm group-hover:scale-105 transition">
-                      $
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-extrabold text-sm text-slate-900 font-display">USD Coin</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono font-bold">
-                          USDC
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold">
-                          ERC-20
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-500 font-medium mt-0.5">
-                        $1.00 <span className="text-emerald-600 font-bold ml-1">+0.01%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="font-mono text-sm sm:text-base font-black text-slate-900">
-                        1,250.00 USDC
-                      </div>
-                      <div className="text-xs font-semibold text-slate-500">
-                        $1,250.00 USD
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        audioCues.playIntentRecognized();
-                        setSendPreFill({});
-                        setIsSendOpen(true);
-                      }}
-                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold transition cursor-pointer"
-                    >
-                      Send
-                    </button>
-                  </div>
-                </div>
-
-                {/* Token 3: Wrapped Bitcoin (WBTC) */}
-                <div
-                  onClick={() => {
-                    audioCues.playIntentRecognized();
-                    setSendPreFill({});
-                    setIsSendOpen(true);
-                  }}
-                  className="p-3.5 rounded-2xl border border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/70 transition flex items-center justify-between group cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-sm font-mono font-black text-sm group-hover:scale-105 transition">
-                      B
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-extrabold text-sm text-slate-900 font-display">Wrapped BTC</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono font-bold">
-                          WBTC
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold">
-                          Sepolia
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-500 font-medium mt-0.5">
-                        $67,420.00 <span className="text-emerald-600 font-bold ml-1">+4.18%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="font-mono text-sm sm:text-base font-black text-slate-900">
-                        0.0450 WBTC
-                      </div>
-                      <div className="text-xs font-semibold text-slate-500">
-                        $3,033.90 USD
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        audioCues.playIntentRecognized();
-                        setSendPreFill({});
-                        setIsSendOpen(true);
-                      }}
-                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold transition cursor-pointer"
-                    >
-                      Send
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* 3. Streamlined Voice Control */}
-            <section
-              aria-labelledby="voice-center-title"
-              className="tw-card p-6 text-center shadow-sm bg-white"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Mic className="w-4 h-4 text-emerald-600" />
-                  <h2 id="voice-center-title" className="text-xs font-extrabold uppercase tracking-wider text-slate-700 font-display">
-                    Voice Control
-                  </h2>
-                </div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-[10px] font-mono font-bold text-slate-600">
-                  <span className="px-1 py-0.2 rounded bg-white border border-slate-300 text-[9px] font-black">SPACE</span>
-                  <span>Hold or tap to speak</span>
-                </div>
-              </div>
-
-              {/* Central Pulsing Microphone Button with Audio Wave Rings */}
-              <div className="py-3 relative flex items-center justify-center">
-                {/* Animated Equalizer Waveform Bars */}
-                <div className="flex items-center gap-1.5 h-10 mr-4">
-                  <div className={`w-1 rounded-full bg-[#FF5500] ${isListening ? 'wave-1' : 'h-2 opacity-30'}`} />
-                  <div className={`w-1 rounded-full bg-[#FF5500] ${isListening ? 'wave-2' : 'h-3 opacity-30'}`} />
-                  <div className={`w-1 rounded-full bg-[#FF5500] ${isListening ? 'wave-3' : 'h-4 opacity-30'}`} />
-                </div>
-
-                <button
-                  onClick={toggleMic}
-                  aria-label={isListening ? 'Stop listening' : 'Start listening'}
-                  className={`w-20 h-20 rounded-full flex flex-col items-center justify-center transition shadow-lg relative focus:outline-none focus:ring-4 focus:ring-[#FF5500]/50 cursor-pointer ${
-                    isListening
-                      ? 'bg-rose-500 text-white animate-pulse shadow-rose-500/40 ring-4 ring-rose-300'
-                      : 'btn-orange text-white shadow-[#FF5500]/30 hover:scale-105 voice-aura-active'
-                  }`}
-                >
-                  {isListening ? (
-                    <>
-                      <MicOff className="w-8 h-8" />
-                      <span className="text-[10px] font-black uppercase mt-0.5">Listening</span>
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="w-8 h-8" />
-                      <span className="text-[10px] font-black uppercase mt-0.5 font-display">Speak</span>
-                    </>
-                  )}
-                </button>
-
-                {/* Right Side Equalizer Bars */}
-                <div className="flex items-center gap-1.5 h-10 ml-4">
-                  <div className={`w-1 rounded-full bg-[#FF5500] ${isListening ? 'wave-3' : 'h-4 opacity-30'}`} />
-                  <div className={`w-1 rounded-full bg-[#FF5500] ${isListening ? 'wave-2' : 'h-3 opacity-30'}`} />
-                  <div className={`w-1 rounded-full bg-[#FF5500] ${isListening ? 'wave-1' : 'h-2 opacity-30'}`} />
-                </div>
-              </div>
-
-              {/* Live Status / Speech Transcript Box */}
-              <div className="max-w-md mx-auto mt-2">
-                <div className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs sm:text-sm font-semibold text-zinc-800 min-h-[48px] flex items-center justify-center">
-                  {transcript ? (
-                    <span className="text-zinc-900 font-bold">&quot;{transcript}&quot;</span>
-                  ) : (
-                    <span className="text-zinc-500">{voiceFeedback}</span>
-                  )}
-                </div>
-              </div>
-
-              {/* 3 Quick Clickable Voice Samples */}
-              <div className="mt-4 pt-3 border-t border-zinc-100 flex flex-wrap items-center justify-center gap-2">
-                <span className="text-xs text-zinc-500 font-medium">Try saying:</span>
-                <button
-                  onClick={() => simulateSpokenInput('Send 0.1 ETH to Rahul')}
-                  className="px-3 py-1 rounded-full bg-zinc-100 hover:bg-[#FF5500] hover:text-white border border-zinc-200 text-xs font-semibold text-zinc-700 transition cursor-pointer"
-                >
-                  &quot;Send 0.1 ETH to Rahul&quot;
-                </button>
-                <button
-                  onClick={() => simulateSpokenInput('Check my balance')}
-                  className="px-3 py-1 rounded-full bg-zinc-100 hover:bg-[#FF5500] hover:text-white border border-zinc-200 text-xs font-semibold text-zinc-700 transition cursor-pointer"
-                >
-                  &quot;Check my balance&quot;
-                </button>
-                <button
-                  onClick={() => simulateSpokenInput('Show my QR code')}
-                  className="px-3 py-1 rounded-full bg-zinc-100 hover:bg-[#FF5500] hover:text-white border border-zinc-200 text-xs font-semibold text-zinc-700 transition cursor-pointer"
-                >
-                  &quot;Show my QR code&quot;
+                  Inheritance Plan &rarr;
                 </button>
               </div>
             </section>
           </div>
 
-          {/* RIGHT COLUMN: Dedicated Contacts Card + Filterable Activity Feed (5 Cols on Desktop) */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* Dedicated Trusted Contacts Widget */}
-            <section
-              aria-labelledby="contacts-widget-heading"
-              className="tw-card p-6 shadow-sm bg-white"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-zinc-100 mb-4">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#FF5500]" />
-                  <h2 id="contacts-widget-heading" className="text-sm font-extrabold text-zinc-900 uppercase tracking-wider font-display">
-                    Address Book ({userState.contacts.length})
-                  </h2>
-                </div>
-                <button
-                  onClick={() => {
-                    audioCues.playIntentRecognized();
-                    setIsContactsOpen(true);
-                  }}
-                  className="text-xs font-bold text-zinc-600 hover:text-zinc-900 flex items-center gap-1 cursor-pointer"
-                >
-                  <span>Manage</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Contacts Quick List */}
-              <div className="space-y-2.5">
-                {userState.contacts.slice(0, 4).map((c) => (
-                  <div
-                    key={c.id}
-                    className="p-3 rounded-2xl border border-zinc-200/80 hover:border-zinc-300 hover:bg-zinc-50/60 transition flex items-center justify-between group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-9 h-9 rounded-xl ${c.avatarBg} text-white flex items-center justify-center font-bold text-xs shadow-sm`}
-                      >
-                        {c.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-extrabold text-xs text-zinc-900">{c.name}</span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-zinc-100 text-zinc-600 font-semibold">
-                            {c.relationship}
-                          </span>
-                        </div>
-                        <span className="text-[11px] font-mono text-zinc-400 block truncate max-w-[130px] sm:max-w-[160px]">
-                          {c.address}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => {
-                          audioCues.playIntentRecognized();
-                          speakText(`Contact ${c.name}, ${c.relationship}.`, lang);
-                        }}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition cursor-pointer"
-                        title="Read aloud"
-                      >
-                        <Volume2 className="w-3.5 h-3.5 text-[#FF5500]" />
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          audioCues.playSuccess();
-                          setSendPreFill({ contact: c.name });
-                          setIsSendOpen(true);
-                        }}
-                        className="px-2.5 py-1.5 rounded-xl btn-orange text-white text-[11px] font-bold transition flex items-center gap-1 shadow-xs cursor-pointer"
-                      >
-                        <Send className="w-3 h-3" />
-                        <span>Pay</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add contact quick button */}
-              <button
-                onClick={() => {
-                  audioCues.playIntentRecognized();
-                  setIsContactsOpen(true);
-                }}
-                className="w-full mt-3 py-2.5 rounded-2xl border border-dashed border-zinc-300 hover:border-zinc-400 text-zinc-600 hover:text-zinc-900 text-xs font-bold transition flex items-center justify-center gap-1.5 bg-zinc-50/50 cursor-pointer"
-              >
-                <UserPlus className="w-3.5 h-3.5 text-[#FF5500]" />
-                <span>Add Contact</span>
-              </button>
-            </section>
-
-            {/* Filterable Recent Activity Feed */}
-            <section
-              aria-labelledby="activity-heading"
-              className="tw-card p-6 shadow-sm bg-white"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-zinc-100 mb-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-zinc-600" />
-                  <h2 id="activity-heading" className="text-sm font-extrabold text-zinc-900 uppercase tracking-wider font-display">
-                    Recent Activity
-                  </h2>
-                </div>
-                <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-zinc-500">
-                  <span className="w-2 h-2 rounded-full bg-[#FF5500] animate-pulse" />
-                  <span>Sepolia Live</span>
-                </div>
-              </div>
-
-              {/* Interactive Filter Pills */}
-              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-100 border border-zinc-200 mb-3">
-                {(['all', 'send', 'receive'] as const).map((filterType) => (
+          {/* Right Column (Desktop 7 cols, Mobile Full Width): Assets, NFTs, Activity */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* 2. Sub-Navigation Tabs (Crypto, NFTs, Approvals, Trending, Activity) */}
+            <section className="tw-card p-6 sm:p-7 relative overflow-hidden shadow-sm bg-white">
+              {/* Tab Bar */}
+              <div className="flex items-center justify-between border-b border-zinc-200 pb-2 mb-6 overflow-x-auto">
+                <div className="flex items-center gap-2 sm:gap-4">
                   <button
-                    key={filterType}
                     onClick={() => {
                       audioCues.playIntentRecognized();
-                      setTxFilter(filterType);
+                      setActiveTab('crypto');
                     }}
-                    className={`flex-1 py-1 px-2.5 rounded-lg text-xs font-bold transition capitalize cursor-pointer ${
-                      txFilter === filterType
-                        ? 'bg-white text-zinc-900 shadow-xs'
-                        : 'text-zinc-500 hover:text-zinc-900'
+                    className={`pb-2 px-1 text-sm font-black transition relative cursor-pointer ${
+                      activeTab === 'crypto'
+                        ? 'text-zinc-950 border-b-2 border-[#FF5500]'
+                        : 'text-zinc-400 hover:text-zinc-700'
                     }`}
                   >
-                    {filterType === 'all' ? 'All' : filterType === 'send' ? 'Sent' : 'Received'}
+                    Crypto
                   </button>
-                ))}
+
+                  <button
+                    onClick={() => {
+                      audioCues.playIntentRecognized();
+                      setActiveTab('nfts');
+                    }}
+                    className={`pb-2 px-1 text-sm font-black transition relative cursor-pointer flex items-center gap-1.5 ${
+                      activeTab === 'nfts'
+                        ? 'text-zinc-950 border-b-2 border-[#FF5500]'
+                        : 'text-zinc-400 hover:text-zinc-700'
+                    }`}
+                  >
+                    <span>NFTs</span>
+                    <span className="px-1.5 py-0.2 rounded-full bg-zinc-100 text-[10px] font-mono text-zinc-600">
+                      {userState.nfts?.length || 0}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      audioCues.playIntentRecognized();
+                      setActiveTab('approvals');
+                    }}
+                    className={`pb-2 px-1 text-sm font-black transition relative cursor-pointer flex items-center gap-1.5 ${
+                      activeTab === 'approvals'
+                        ? 'text-zinc-950 border-b-2 border-[#FF5500]'
+                        : 'text-zinc-400 hover:text-zinc-700'
+                    }`}
+                  >
+                    <span>Approvals</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      (userState.approvals?.length || 0) > 0 ? 'bg-amber-100 text-amber-800' : 'bg-zinc-100 text-zinc-600'
+                    }`}>
+                      {userState.approvals?.length || 0}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      audioCues.playIntentRecognized();
+                      setActiveTab('trending');
+                    }}
+                    className={`pb-2 px-1 text-sm font-black transition relative cursor-pointer ${
+                      activeTab === 'trending'
+                        ? 'text-zinc-950 border-b-2 border-[#FF5500]'
+                        : 'text-zinc-400 hover:text-zinc-700'
+                    }`}
+                  >
+                    Trending
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      audioCues.playIntentRecognized();
+                      setActiveTab('activity');
+                    }}
+                    className={`pb-2 px-1 text-sm font-black transition relative cursor-pointer ${
+                      activeTab === 'activity'
+                        ? 'text-zinc-950 border-b-2 border-[#FF5500]'
+                        : 'text-zinc-400 hover:text-zinc-700'
+                    }`}
+                  >
+                    Activity
+                  </button>
+                </div>
+
+                <div className="hidden sm:flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      audioCues.playIntentRecognized();
+                      setIsFundOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-orange-50 border border-orange-200 text-[#FF5500] font-black text-xs hover:bg-orange-100 transition inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Add Cash</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Transactions List */}
-              <div className="space-y-3">
-                {filteredTransactions.length === 0 ? (
-                  <div className="text-center py-6 text-xs text-zinc-400 font-medium">
-                    No transactions found.
-                  </div>
-                ) : (
-                  filteredTransactions.map((tx) => (
+              {/* TAB 1: CRYPTO TOKENS */}
+              {activeTab === 'crypto' && (
+                <div className="space-y-3">
+                  {userState.tokens.map((tok) => (
                     <div
-                      key={tx.id}
-                      className="p-3.5 rounded-2xl border border-zinc-200/80 hover:border-zinc-300 transition bg-white space-y-2 shadow-xs"
+                      key={tok.id}
+                      className="p-3.5 rounded-2xl border border-zinc-200/80 hover:border-zinc-300 hover:bg-zinc-50/70 transition flex items-center justify-between group"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold ${
-                              tx.type === 'send'
-                                ? 'bg-zinc-100 text-zinc-700'
-                                : 'bg-[#FF5500]/10 text-[#FF5500]'
-                            }`}
-                          >
-                            {tx.type === 'send' ? (
-                              <ArrowUpRight className="w-4 h-4 text-zinc-700" />
-                            ) : (
-                              <ArrowDownLeft className="w-4 h-4 text-[#FF5500]" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="text-xs font-extrabold text-zinc-900">
-                              {tx.type === 'send' ? `Sent to ${tx.counterparty}` : `Received from ${tx.counterparty}`}
-                            </div>
-                            <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
-                              <span>{new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                              <span>&bull;</span>
-                              <span className="text-emerald-700 font-bold flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600 inline" />
-                                <span>Confirmed</span>
-                              </span>
-                            </div>
-                          </div>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-2xl ${tok.iconBg} text-white flex items-center justify-center font-black text-xs shadow-sm`}>
+                          {tok.symbol.slice(0, 3)}
                         </div>
-
-                        <div className="text-right">
-                          <div
-                            className={`text-xs sm:text-sm font-extrabold font-mono ${
-                              tx.type === 'send' ? 'text-slate-900' : 'text-emerald-600'
-                            }`}
-                          >
-                            {tx.type === 'send' ? '-' : '+'}
-                            {tx.amount.toFixed(4)} ETH
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-sm text-zinc-900">{tok.name}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 font-mono font-bold">
+                              {tok.symbol}
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-500 font-semibold">
+                              {tok.network}
+                            </span>
                           </div>
-                          <div className="text-[10px] font-semibold text-slate-400">
-                            ${(tx.amount * userState.ethRateUSD).toFixed(2)} USD
+                          <div className="text-xs text-zinc-500 font-medium mt-0.5">
+                            ${tok.priceUSD.toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
+                            <span className={`font-bold ms-1 ${tok.change24h >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {tok.change24h >= 0 ? '+' : ''}{tok.change24h}%
+                            </span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Hash & Etherscan Details row */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] font-mono text-slate-400">
-                        <div className="flex items-center gap-1 truncate max-w-[170px]">
-                          <span>Tx:</span>
-                          <span className="truncate">{tx.txHash}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="text-end">
+                          <div className="font-mono text-sm sm:text-base font-black text-zinc-900">
+                            {tok.balance.toFixed(tok.symbol === 'ETH' ? 4 : 2)} {tok.symbol}
+                          </div>
+                          <div className="text-xs font-semibold text-zinc-500">
+                            ${(tok.balance * tok.priceUSD).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            USD
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              audioCues.playIntentRecognized();
+                              setSendPreFill({});
+                              setIsSendOpen(true);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-100 text-zinc-700 text-xs font-bold transition cursor-pointer"
+                          >
+                            Send
+                          </button>
+                          <button
+                            onClick={() => {
+                              audioCues.playIntentRecognized();
+                              setIsSwapOpen(true);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-100 text-zinc-700 text-xs font-bold transition cursor-pointer"
+                          >
+                            Swap
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* TAB 2: NFTS & COLLECTIBLES */}
+              {activeTab === 'nfts' && (
+                <div className="space-y-4">
+                  {(!userState.nfts || userState.nfts.length === 0) ? (
+                    <div className="p-8 rounded-2xl bg-zinc-50 border border-dashed border-zinc-300 text-center space-y-3">
+                      <Award className="w-10 h-10 text-zinc-400 mx-auto" />
+                      <div>
+                        <h4 className="font-extrabold text-sm text-zinc-800">No NFTs in this Wallet</h4>
+                        <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
+                          Claim your SayPay Pioneer Genesis NFT badge to test accessibility descriptions and on-chain collectibles.
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleClaimNFT}
+                        className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-black text-white font-black text-xs uppercase tracking-wider shadow-sm transition cursor-pointer"
+                      >
+                        Claim Genesis Badge
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {userState.nfts.map((nft) => (
+                        <div key={nft.id} className="p-4 rounded-2xl border border-zinc-200 bg-white space-y-3 shadow-xs">
+                          <div className="h-44 rounded-xl overflow-hidden bg-zinc-100 relative">
+                            <img src={nft.imageUrl} alt={nft.name} className="w-full h-full object-cover" />
+                            <span className="absolute top-2 right-2 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white font-mono text-[10px] font-bold">
+                              {nft.tokenId}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">{nft.collection}</span>
+                            <h4 className="font-black text-sm text-zinc-900">{nft.name}</h4>
+                            <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{nft.description}</p>
+                          </div>
                           <button
                             onClick={() => {
                               audioCues.playSuccess();
-                              navigator.clipboard.writeText(tx.txHash);
-                              setCopiedTxId(tx.id);
-                              setTimeout(() => setCopiedTxId(null), 2000);
-                              const msg = 'Transaction hash copied.';
-                              setVoiceFeedback(msg);
-                              speakText(msg, lang);
+                              speakText(nft.audioDescription, lang);
                             }}
-                            className="p-1 hover:text-slate-900 transition cursor-pointer"
-                            title="Copy Tx Hash"
+                            className="w-full py-2 px-3 rounded-xl bg-orange-50 border border-orange-200 text-[#FF5500] font-bold text-xs inline-flex items-center justify-center gap-1.5 transition cursor-pointer"
                           >
-                            {copiedTxId === tx.id ? (
-                              <Check className="w-3 h-3 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-3 h-3" />
-                            )}
+                            <Volume2 className="w-3.5 h-3.5 text-[#FF5500]" />
+                            <span>Listen to Visual Description</span>
                           </button>
                         </div>
-
-                        <a
-                          href={`https://sepolia.etherscan.io/`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-slate-500 hover:text-emerald-700 font-semibold cursor-pointer"
-                        >
-                          <span>Etherscan</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </div>
+                      ))}
                     </div>
-                  ))
-                )}
-              </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 3: APPROVALS & SECURITY */}
+              {activeTab === 'approvals' && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 flex items-start gap-3">
+                    <ShieldCheck className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                    <div className="text-xs text-amber-950">
+                      <span className="font-black block">Approval Security Shield</span>
+                      <span>
+                        Smart contract approvals let applications spend tokens on your behalf. Revoke any permission you no longer use.
+                      </span>
+                    </div>
+                  </div>
+
+                  {(!userState.approvals || userState.approvals.length === 0) ? (
+                    <div className="p-8 rounded-2xl bg-zinc-50 border border-zinc-200 text-center text-xs text-zinc-500 font-medium">
+                      Zero active approvals. Your wallet has no external token permissions.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {userState.approvals.map((app) => (
+                        <div key={app.id} className="p-4 rounded-2xl border border-zinc-200 bg-white flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-sm text-zinc-900">{app.spenderName}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                app.riskLevel === 'high' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {app.riskLevel} risk
+                              </span>
+                            </div>
+                            <div className="text-xs text-zinc-500 mt-1 font-mono">
+                              <span>Allowance: {app.allowance} {app.tokenSymbol}</span> &bull; <span>{app.spenderAddress.slice(0, 10)}...</span>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handleRevokeApproval(app.id, app.spenderName)}
+                            className="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-xs transition cursor-pointer"
+                          >
+                            Revoke
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 4: TRENDING / MARKET DATA */}
+              {activeTab === 'trending' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                      Top Market Movers
+                    </h4>
+                    <button
+                      onClick={() => {
+                        audioCues.playSuccess();
+                        const speech = 'Market Report: Bitcoin is at $88,450, up 2.45%. Ethereum is at $2,693, up 1.00%. Solana is up 4.82% at $184.60.';
+                        speakText(speech, lang);
+                      }}
+                      className="text-xs font-bold text-[#FF5500] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                      <span>Listen to Market Audio Brief</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {MARKET_TRENDS.map((trend) => (
+                      <div key={trend.id} className="p-4 rounded-2xl border border-zinc-200 bg-white flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-black text-sm text-zinc-900">{trend.name}</span>
+                            <span className="font-mono text-xs font-bold text-zinc-400">{trend.symbol}</span>
+                          </div>
+                          <div className="text-xs text-zinc-500 mt-0.5">
+                            Cap: {trend.marketCapUSD} &bull; Vol: {trend.volume24hUSD}
+                          </div>
+                        </div>
+
+                        <div className="text-end">
+                          <div className="font-mono font-black text-sm text-zinc-900">
+                            ${trend.priceUSD.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </div>
+                          <div className={`font-mono text-xs font-bold ${trend.change24h >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {trend.change24h >= 0 ? '+' : ''}{trend.change24h}%
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 5: ACTIVITY (TRANSACTION HISTORY) */}
+              {activeTab === 'activity' && (
+                <div className="space-y-3">
+                  {/* Interactive Filter Pills */}
+                  <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-100 border border-zinc-200 mb-3">
+                    {(['all', 'send', 'receive'] as const).map((filterType) => (
+                      <button
+                        key={filterType}
+                        onClick={() => {
+                          audioCues.playIntentRecognized();
+                          setTxFilter(filterType);
+                        }}
+                        className={`flex-1 py-1 px-2.5 rounded-lg text-xs font-bold transition capitalize cursor-pointer ${
+                          txFilter === filterType
+                            ? 'bg-white text-zinc-900 shadow-xs'
+                            : 'text-zinc-500 hover:text-zinc-900'
+                        }`}
+                      >
+                        {filterType === 'all' ? 'All' : filterType === 'send' ? 'Sent' : 'Received'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {filteredTransactions.length === 0 ? (
+                    <div className="p-8 rounded-2xl bg-zinc-50 border border-dashed border-zinc-300 text-center space-y-3">
+                      <Clock className="w-8 h-8 text-zinc-400 mx-auto" />
+                      <div className="text-xs text-zinc-500 font-medium">
+                        No transactions yet. Click "Fund" or say "Add cash" to deposit testnet funds.
+                      </div>
+                      <button
+                        onClick={() => {
+                          audioCues.playIntentRecognized();
+                          setIsFundOpen(true);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-[#FF5500] text-white font-bold text-xs shadow-sm hover:bg-[#e04b00] transition cursor-pointer"
+                      >
+                        Deposit Mock Funds
+                      </button>
+                    </div>
+                  ) : (
+                    filteredTransactions.map((tx) => (
+                      <div
+                        key={tx.id}
+                        className="p-3.5 rounded-2xl border border-zinc-200/80 hover:border-zinc-300 transition bg-white space-y-2 shadow-xs"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold ${
+                                tx.type === 'send'
+                                  ? 'bg-zinc-100 text-zinc-700'
+                                  : tx.type === 'swap'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-[#FF5500]/10 text-[#FF5500]'
+                              }`}
+                            >
+                              {tx.type === 'send' ? (
+                                <ArrowUpRight className="w-4 h-4 text-zinc-700" />
+                              ) : tx.type === 'swap' ? (
+                                <ArrowDownUp className="w-4 h-4 text-emerald-700" />
+                              ) : (
+                                <ArrowDownLeft className="w-4 h-4 text-[#FF5500]" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-extrabold text-xs text-zinc-900 capitalize">
+                                  {tx.type === 'fund' ? 'Faucet Deposit' : tx.type}
+                                </span>
+                                <span className="text-[10px] text-zinc-400 font-medium">
+                                  &bull; {new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <div className="text-xs text-zinc-600 font-medium">
+                                {tx.type === 'send' ? `To: ${tx.counterparty}` : tx.type === 'swap' ? tx.note : `From: ${tx.counterparty}`}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-end">
+                            <div
+                              className={`font-mono text-sm font-black ${
+                                tx.type === 'send' ? 'text-zinc-900' : 'text-emerald-700'
+                              }`}
+                            >
+                              {tx.type === 'send' ? '-' : '+'}{tx.amount} {tx.currency}
+                            </div>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold font-mono">
+                              {tx.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </section>
           </div>
         </div>
+      </div>
+
+        {/* Floating Voice Control Capsule at Bottom (ONLY in Blind / Voice-Assisted Mode) */}
+        {accessibilityMode === 'blind' && (
+          <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
+            <div className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-full p-2.5 shadow-2xl border border-zinc-800 backdrop-blur-xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 pl-2 overflow-hidden">
+                <button
+                  onClick={toggleMic}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition cursor-pointer flex-shrink-0 ${
+                    isListening
+                      ? 'bg-[#FF5500] text-white animate-pulse'
+                      : 'bg-zinc-800 hover:bg-zinc-700 text-[#FF5500]'
+                  }`}
+                  title={isListening ? 'Stop listening' : 'Start voice command'}
+                >
+                  {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </button>
+                <div className="text-xs truncate font-medium">
+                  <div className="text-white truncate font-display font-bold">
+                    {transcript || voiceFeedback}
+                  </div>
+                  <div className="text-[10px] text-zinc-400 font-mono">
+                    Tap mic or hold Spacebar to speak
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 pr-2 flex-shrink-0">
+                <button
+                  onClick={() => simulateSpokenInput('Check my balance')}
+                  className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition cursor-pointer"
+                >
+                  Balance
+                </button>
+                <button
+                  onClick={() => simulateSpokenInput('Send 0.1 ETH to Priya')}
+                  className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition cursor-pointer"
+                >
+                  Send ETH
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Modals */}
@@ -1636,7 +2540,14 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         isOpen={showHeadphoneModal}
         currentLang={lang}
         onVerified={() => setShowHeadphoneModal(false)}
-        onClose={() => setShowHeadphoneModal(false)}
+        onSwitchToVisual={() => {
+          setShowHeadphoneModal(false);
+          handleSelectMode('visual');
+        }}
+        onClose={() => {
+          setShowHeadphoneModal(false);
+          handleSelectMode('visual');
+        }}
       />
 
       <SendModal
@@ -1684,6 +2595,74 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           setVoiceFeedback(msg);
         }}
       />
+
+      {/* Wallet Creation Window */}
+      <CreateWalletModal
+        isOpen={isCreateWalletOpen}
+        currentLang={lang}
+        onWalletCreated={handleWalletCreated}
+        onClose={() => setIsCreateWalletOpen(false)}
+      />
+
+      {/* Fund Wallet / Add Mock Cash Modal */}
+      <FundWalletModal
+        isOpen={isFundOpen}
+        user={userState}
+        currentLang={lang}
+        onFundSuccess={(updatedUser) => {
+          setUserState(updatedUser);
+          setTransactions(getStoredTransactions(updatedUser.id));
+        }}
+        onClose={() => setIsFundOpen(false)}
+      />
+
+      {/* Token Swap Modal */}
+      <SwapModal
+        isOpen={isSwapOpen}
+        user={userState}
+        currentLang={lang}
+        onSwapSuccess={(updatedUser) => {
+          setUserState(updatedUser);
+          setTransactions(getStoredTransactions(updatedUser.id));
+        }}
+        onClose={() => setIsSwapOpen(false)}
+      />
+
+      {/* Stealth Screen Curtain Overlay for Shoulder-Surfing Privacy */}
+      {isPrivacyModeActive && (
+        <div
+          role="region"
+          aria-label="Privacy Screen Curtain Active. Double click or press spacebar to speak."
+          className="fixed inset-0 z-[99999] bg-black text-white flex flex-col items-center justify-center p-6 select-none cursor-pointer"
+          onDoubleClick={() => disablePrivacyMode()}
+        >
+          <div className="text-center space-y-4 max-w-sm">
+            <div className="w-16 h-16 mx-auto rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+              <EyeOff className="w-8 h-8 text-[#FF5500]" />
+            </div>
+            <p className="text-xs font-mono text-zinc-500 uppercase tracking-widest">
+              Privacy Mode Active (Screen Curtain)
+            </p>
+            <p className="text-sm text-zinc-400">
+              Display is blacked out for shoulder-surfing security. Voice commands and audio feedback remain operational.
+            </p>
+            <div className="pt-4 flex flex-col items-center gap-3">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  disablePrivacyMode();
+                }}
+                className="px-5 py-2.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-xs font-bold text-zinc-200 border border-zinc-700 transition cursor-pointer"
+              >
+                Exit Privacy Mode
+              </button>
+              <span className="text-[11px] text-zinc-600">
+                Tip: Say "turn off privacy mode" or double-click anywhere to exit
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

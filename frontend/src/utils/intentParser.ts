@@ -26,7 +26,7 @@ export interface ParsedIntentResult {
   rawText: string;
 }
 
-const KNOWN_CONTACTS = ['Amma', 'Rahul', 'Zaid', 'Fatima', 'Priya', 'Sara', 'Alen'];
+const KNOWN_CONTACTS = ['Amma', 'Priya', 'Zaid', 'Fatima', 'Sara'];
 
 /**
  * Natural Language Understanding parser for English, Hindi, and Arabic crypto commands.
@@ -301,7 +301,7 @@ export function parseVoiceIntent(rawText: string): ParsedIntentResult {
     clean.includes('ادفع');
 
   if (isSend) {
-    let matchedContact = 'Rahul'; // Default demo recipient if not explicit
+    let matchedContact = 'Priya'; // Default recipient if not explicit
     for (const c of KNOWN_CONTACTS) {
       if (lower.includes(c.toLowerCase()) || clean.includes(c)) {
         matchedContact = c;
@@ -312,8 +312,8 @@ export function parseVoiceIntent(rawText: string): ParsedIntentResult {
     if (clean.includes('أمي') || clean.includes('امي') || lower.includes('mom') || lower.includes('mother')) {
       matchedContact = 'Amma';
     }
-    if (lower.includes('friend') || lower.includes('dost') || clean.includes('صديقي')) {
-      matchedContact = 'Rahul';
+    if (lower.includes('sister') || lower.includes('behen') || lower.includes('friend') || clean.includes('صديقي')) {
+      matchedContact = 'Priya';
     }
 
     // Extract amount

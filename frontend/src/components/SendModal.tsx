@@ -190,7 +190,7 @@ export const SendModal: React.FC<SendModalProps> = ({
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="e.g. Rahul, Amma, or 0x..."
+                  placeholder="e.g. Priya, Amma, or 0x..."
                   value={recipientInput}
                   onChange={(e) => handleManualInputChange(e.target.value)}
                   className="w-full pl-4 pr-10 py-3 rounded-2xl border border-zinc-200 bg-zinc-50 text-sm font-bold text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"

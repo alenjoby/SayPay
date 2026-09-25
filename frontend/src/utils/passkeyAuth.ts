@@ -160,8 +160,12 @@ export async function signTransactionWithPasskey(
     } catch (webAuthnError: any) {
       console.warn('Real WebAuthn prompt completed/cancelled or not configured:', webAuthnError?.message);
 
-      // If user explicitly cancelled, respect it
-      if (webAuthnError.name === 'NotAllowedError' && webAuthnError.message?.includes('cancel')) {
+      // If user cancelled, rejected, or timed out the biometric OS challenge, strictly abort without fallback
+      if (
+        webAuthnError.name === 'NotAllowedError' ||
+        webAuthnError.name === 'AbortError' ||
+        webAuthnError.name === 'TimeoutError'
+      ) {
         return {
           success: false,
           credentialId: '',
@@ -169,7 +173,7 @@ export async function signTransactionWithPasskey(
           authenticatorDataHex: '',
           clientDataJSON: '',
           method: 'webauthn_hardware',
-          error: 'Biometric scan was cancelled by user.',
+          error: 'Biometric authorization was rejected or cancelled.',
         };
       }
     }

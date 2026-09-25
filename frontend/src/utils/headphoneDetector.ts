@@ -13,6 +13,9 @@
 export interface HeadphoneStatus {
   isConnected: boolean;
   isVerified: boolean;
+  isWired: boolean;
+  isWireless: boolean;
+  connectionType: 'wired' | 'wireless' | 'none';
   deviceName: string;
   hasDevicePermission: boolean;
 }
@@ -23,16 +26,15 @@ type DisconnectListener = () => void;
 class HeadphoneSafetyService {
   private isConnected: boolean = false;
   private isVerified: boolean = false;
+  private isWired: boolean = false;
+  private isWireless: boolean = false;
+  private connectionType: 'wired' | 'wireless' | 'none' = 'none';
   private deviceName: string = 'Default Output';
   private listeners: HeadphoneListener[] = [];
   private disconnectListeners: DisconnectListener[] = [];
 
   constructor() {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('saypay_headphones_verified');
-      if (stored === 'true') {
-        this.isVerified = true;
-      }
       this.initDetection();
     }
   }
@@ -61,7 +63,22 @@ class HeadphoneSafetyService {
   }
 
   /**
-   * Scan audio devices to detect headphones, earbuds, AirPods, or Bluetooth headsets
+   * Request user permission to reveal unmasked hardware labels
+   */
+  public async requestAudioHardwareScan(): Promise<HeadphoneStatus> {
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((t) => t.stop());
+      } catch (e) {
+        // User may have denied mic or already granted
+      }
+    }
+    return this.scanAudioDevices();
+  }
+
+  /**
+   * Scan audio devices to detect wired or wireless earphones
    */
   public async scanAudioDevices(): Promise<HeadphoneStatus> {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) {
@@ -74,42 +91,85 @@ class HeadphoneSafetyService {
         (d) => d.kind === 'audiooutput' || d.kind === 'audioinput'
       );
 
-      // Search for headphone/earphone markers in device labels
-      const headphoneKeywords = [
+      const wirelessKeywords = [
+        'bluetooth',
+        'airpod',
+        'galaxy buds',
+        'pixel buds',
+        'earbuds',
+        'hands-free',
+        'wh-1000',
+        'wf-1000',
+        'bose quietcomfort',
+      ];
+
+      const wiredKeywords = [
         'headphone',
         'headset',
         'earphone',
-        'airpod',
-        'buds',
-        'bluetooth',
-        'wh-',
-        'wf-',
-        'galaxy buds',
-        'pixel buds',
-        'ear',
-        'audio jack',
+        'in-ear',
+        'earpods',
       ];
 
-      let detectedHeadphone = false;
+      const speakerBlacklist = [
+        'speaker',
+        'loudspeaker',
+        'built-in',
+        'internal',
+        'realtek audio',
+        'realtek high definition audio',
+        'realtek(r) audio',
+        'display audio',
+        'hdmi',
+        'tv audio',
+        'monitor',
+      ];
+
+      let detectedWireless = false;
+      let detectedWired = false;
       let matchedLabel = '';
 
       for (const dev of audioDevices) {
-        const lbl = dev.label.toLowerCase();
-        if (headphoneKeywords.some((kw) => lbl.includes(kw))) {
-          detectedHeadphone = true;
+        const lbl = dev.label.toLowerCase().trim();
+        if (!lbl) continue;
+
+        // Skip any device that is clearly an internal speaker or monitor
+        const isBlacklistedSpeaker = speakerBlacklist.some((b) => lbl.includes(b));
+        const isExplicitHeadset = wiredKeywords.some((kw) => lbl.includes(kw)) || wirelessKeywords.some((kw) => lbl.includes(kw));
+
+        if (isBlacklistedSpeaker && !isExplicitHeadset) {
+          continue;
+        }
+
+        if (wirelessKeywords.some((kw) => lbl.includes(kw))) {
+          detectedWireless = true;
+          matchedLabel = dev.label;
+          break;
+        } else if (wiredKeywords.some((kw) => lbl.includes(kw))) {
+          detectedWired = true;
           matchedLabel = dev.label;
           break;
         }
       }
 
-      // If user had previously verified earphones or a headphone device is found:
-      if (detectedHeadphone) {
+      this.isWireless = detectedWireless;
+      this.isWired = detectedWired;
+
+      if (detectedWireless) {
         this.isConnected = true;
+        this.isVerified = true;
+        this.connectionType = 'wireless';
+        this.deviceName = matchedLabel;
+      } else if (detectedWired) {
+        this.isConnected = true;
+        this.isVerified = true;
+        this.connectionType = 'wired';
         this.deviceName = matchedLabel;
       } else {
-        // In some browsers, device labels are sanitized until microphone permission is granted.
-        // We preserve isVerified if the user confirmed headphone connection.
-        this.isConnected = this.isVerified;
+        this.isConnected = false;
+        this.isVerified = false;
+        this.connectionType = 'none';
+        this.deviceName = 'Loudspeaker (Earphones Not Detected)';
       }
 
       this.notifyListeners();
@@ -130,7 +190,9 @@ class HeadphoneSafetyService {
     }
     this.isVerified = false;
     this.isConnected = false;
-    localStorage.removeItem('saypay_headphones_verified');
+    this.isWired = false;
+    this.isWireless = false;
+    this.connectionType = 'none';
 
     this.disconnectListeners.forEach((cb) => cb());
     this.notifyListeners();
@@ -138,8 +200,11 @@ class HeadphoneSafetyService {
 
   public getStatus(): HeadphoneStatus {
     return {
-      isConnected: this.isConnected || this.isVerified,
-      isVerified: this.isVerified,
+      isConnected: this.isConnected,
+      isVerified: this.isConnected,
+      isWired: this.isWired,
+      isWireless: this.isWireless,
+      connectionType: this.connectionType,
       deviceName: this.deviceName,
       hasDevicePermission: typeof navigator !== 'undefined' && !!navigator.mediaDevices,
     };
@@ -151,12 +216,15 @@ class HeadphoneSafetyService {
   public confirmEarphonesConnected(verified: boolean = true) {
     this.isConnected = verified;
     this.isVerified = verified;
-    if (typeof window !== 'undefined') {
-      if (verified) {
-        localStorage.setItem('saypay_headphones_verified', 'true');
-      } else {
-        localStorage.removeItem('saypay_headphones_verified');
-      }
+    if (verified) {
+      this.isWired = true;
+      this.connectionType = 'wired';
+      this.deviceName = 'Earphones (Verified Audio)';
+    } else {
+      this.isWired = false;
+      this.isWireless = false;
+      this.connectionType = 'none';
+      this.deviceName = 'Loudspeaker (Earphones Not Detected)';
     }
     this.notifyListeners();
   }
