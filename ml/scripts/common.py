@@ -18,7 +18,7 @@ REPORTS = ROOT / "reports"
 
 # Contacts saved on the device for every row of the hand-written test set.
 UNSEEN_CONTACTS = ["Amma", "Ahmed", "Rahul", "Mohammed Ali", "Sara", "Khalid", "Priya",
-                   "Fatima", "Dad", "أبو خالد"]
+                   "Fatima", "Dad", "Brother", "أبو خالد"]
 
 EXTERNAL_TRAIN = ["banking77_train", "arbanking77_train", "clinc150_train", "massive_ar_train", "massive_hi_train",
                   "massive_en_train"]
@@ -60,6 +60,11 @@ def load_unseen(name: str = "unseen.tsv") -> list[dict]:
             "contacts": UNSEEN_CONTACTS, "source": name.split(".")[0],
         })
     return rows
+
+
+def load_handwritten_tests() -> dict[str, list[dict]]:
+    """Hand-written test sets: the frozen blind set and the older (no longer blind) one."""
+    return {"blind_v2": load_unseen("blind_v2.tsv"), "unseen": load_unseen()}
 
 
 def lang_of(row: dict) -> str:

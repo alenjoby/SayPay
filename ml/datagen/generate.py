@@ -22,6 +22,7 @@ from .pools import AMOUNTS, EXTRA_CONTACTS, NAMES, UNITS
 from .templates_ar import AR, ARABIZI
 from .templates_en_hi import EN, HI_DEVA, HI_LATIN, MIX_HI_EN
 from .templates_extra import EXTRA
+from .templates_v4 import V4
 
 # Arabizi amounts (spoken form, gold)
 AMOUNTS_ARABIZI = [
@@ -56,11 +57,12 @@ def load_templates() -> list[dict]:
             add(intent, variety, block)
     for intent, block in ARABIZI.items():
         add(intent, "arabizi", block)
-    for intent, by_var in EXTRA.items():
-        for variety, block in by_var.items():
-            for i, t in enumerate(_lines(block)):
-                rows.append({"intent": intent, "variety": variety, "template": t,
-                             "template_id": f"{intent}/{variety}/x{i}"})
+    for tag, bank in (("x", EXTRA), ("v4_", V4)):
+        for intent, by_var in bank.items():
+            for variety, block in by_var.items():
+                for i, t in enumerate(_lines(block)):
+                    rows.append({"intent": intent, "variety": variety, "template": t,
+                                 "template_id": f"{intent}/{variety}/{tag}{i}"})
     for src, variety in ((EN, "en"), (HI_LATIN, "hi_latin"), (HI_DEVA, "hi_deva"),
                          (MIX_HI_EN, "mix_hi_en")):
         for intent, block in src.items():

@@ -92,6 +92,15 @@ _ENGLISH = {
 
 _NAME_CUES = {clean(w) for w in ["as", "named", "called", "باسم", "اسمه", "اسمها", "سمه",
                                  "naam", "नाम"]}
+# Phrases that mean the user wants money *from* someone. With one of these present,
+# the model is never allowed to propose "send" (asking for money must not send it).
+_REQUEST_CUES = [tuple(clean(w) for w in seq.split()) for seq in [
+    "request", "requesting", "ask for", "pay me", "send me", "transfer me", "give me money",
+    "collect", "bill", "maango", "mango", "maang", "maang lo", "mangwa", "mangwao", "mangwa do",
+    "mangao", "mujhe bheje", "mujhe bhejo", "मांगो", "मांग", "मंगवाओ", "मंगवा",
+    "اطلب", "طلب", "يحول لي", "يرسل لي", "تحول لي", "ترسل لي", "يدفع لي", "حولي لي",
+    "a6lub", "atlub",
+]]
 _LAST_SENDER = [("who", "sent"), ("sent", "me"), ("sender",), ("last", "person"), ("اللي", "ارسل"),
                 ("اللي", "حول"), ("الي", "حول"), ("المرسل",), ("jisne", "bheja"),
                 ("jisne",), ("जिसने",)]
@@ -157,6 +166,18 @@ def _new_name(tokens: list[Token], reserved: set[int]) -> str | None:
 
 def _display(t: Token) -> str:
     return t.raw.title() if t.raw.isascii() else t.raw
+
+
+def _has_request_cue(tokens: list[Token]) -> bool:
+    texts = [t.text for t in tokens]
+    for seq in _REQUEST_CUES:
+        n = len(seq)
+        if any(tuple(texts[i:i + n]) == seq for i in range(len(texts) - n + 1)):
+            return True
+    # "ask <name> for ..." with a name in between
+    if "ask" in texts and "for" in texts and texts.index("ask") < len(texts) - 1 - texts[::-1].index("for"):
+        return True
+    return False
 
 
 def _has_seq(tokens: list[Token], seq: tuple[str, ...]) -> bool:
@@ -225,6 +246,9 @@ def parse(text: str, contacts: list[str] | None = None, model="auto") -> ParseRe
         model = get_model()
     if model is not None:
         probs = model.predict_one(text, contacts)
+        if max(probs, key=probs.get) == "send" and _has_request_cue(tokens):
+            probs = dict(probs)
+            probs["receive"], probs["send"] = probs["receive"] + probs["send"], 0.0
         if tx_hash and max(probs, key=probs.get) not in ("history", "tx_status"):
             # A pasted 66-char hash can only be a transaction lookup.
             probs = {k: (0.95 if k == "tx_status" else v * 0.05) for k, v in probs.items()}

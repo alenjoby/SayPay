@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 
 from common import (DATA, EXTERNAL_TEST, EXTERNAL_TRAIN, MODELS, load_external, load_synthetic,
-                    load_unseen, near_duplicates)
+                    load_handwritten_tests, load_unseen, near_duplicates)
 from saypay_nlu.classifier import IntentModel
 from saypay_nlu.features import make_views
 from train import _weights, split
@@ -40,7 +40,7 @@ def main() -> None:
     rows = load_synthetic()
     for name in EXTERNAL_TRAIN:
         rows += load_external(name)
-    tests = {"unseen": load_unseen(), **{n: load_external(n) for n in EXTERNAL_TEST}}
+    tests = {**load_handwritten_tests(), **{n: load_external(n) for n in EXTERNAL_TEST}}
     hand_dev = load_unseen("dev_handwritten.tsv")
     all_tests = [r for rs in tests.values() for r in rs]
     drop = near_duplicates(rows + hand_dev, all_tests)
