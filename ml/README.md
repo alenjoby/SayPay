@@ -79,7 +79,10 @@ python scripts/check_deploy.py                       # engine, RAM, latency
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-The browser microphone works on `http://localhost` without HTTPS. To demo from a
+Open `http://localhost:8000/` for a small test page: speak (Chrome/Edge speech
+recognition in Arabic, Hindi or English) or type a command and see what the model
+understood, with the full JSON. The browser microphone works on `http://localhost`
+without HTTPS. To demo from a
 phone (mic + fingerprint need HTTPS), expose the frontend and API through a tunnel
 such as `cloudflared tunnel --url http://localhost:8000`.
 

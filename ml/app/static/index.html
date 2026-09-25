@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SayPay NLU tester</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#15181d; --muted:#5b6470; --line:#dde1e6;
+          --accent:#0b6bcb; --ok:#11805a; --warn:#b25b00; --bad:#c62828; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111418; --card:#1a1e24; --ink:#e8eaed; --muted:#9aa3ad; --line:#2c323a;
+            --accent:#5aa9ff; --ok:#3ecf8e; --warn:#ffb454; --bad:#ff6b6b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  p.sub { margin: 0 0 20px; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:4px; }
+  input, select, textarea { width:100%; font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line);
+                            border-radius:8px; padding:10px; }
+  textarea { min-height: 64px; resize: vertical; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .row > div { flex:1 1 200px; }
+  .actions { display:flex; gap:10px; margin-top:12px; flex-wrap: wrap; }
+  button { font:inherit; font-weight:600; border:0; border-radius:10px; padding:12px 18px; cursor:pointer;
+           background:var(--accent); color:#fff; }
+  button.secondary { background: transparent; color: var(--accent); border:1px solid var(--accent); }
+  button.mic.on { background: var(--bad); }
+  button:focus-visible { outline: 3px solid var(--warn); outline-offset: 2px; }
+  #say { font-size: 1.15rem; font-weight: 600; margin: 0 0 8px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+  .chip { font-size:.85rem; padding:3px 10px; border-radius:999px; border:1px solid var(--line); }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  pre { margin:0; font-size:.8rem; overflow:auto; max-height: 320px; background: var(--bg); padding: 10px; border-radius: 8px; }
+  .examples button { background: transparent; color: var(--ink); border:1px solid var(--line); font-weight: 500; padding: 6px 10px; font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>SayPay NLU tester</h1>
+  <p class="sub">Speak or type a command. It shows what the model understood. Nothing moves money.</p>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="lang">Speech language (Chrome / Edge)</label>
+        <select id="lang">
+          <option value="ar-AE">Arabic (UAE)</option>
+          <option value="ar-SA">Arabic (Saudi)</option>
+          <option value="ar-EG">Arabic (Egypt)</option>
+          <option value="en-US">English (US)</option>
+          <option value="en-IN">English (India)</option>
+          <option value="hi-IN">Hindi</option>
+        </select>
+      </div>
+      <div>
+        <label for="contacts">Saved contacts (comma separated)</label>
+        <input id="contacts" value="Amma, Ahmed, Rahul, Sara, Khalid, Priya, Dad, Brother">
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <label for="text">Command</label>
+      <textarea id="text" dir="auto" placeholder="حوّل 0.1 إيثيريوم لأمي"></textarea>
+    </div>
+    <div class="actions">
+      <button id="mic" class="mic" type="button">🎤 Speak</button>
+      <button id="go" type="button">Understand</button>
+    </div>
+    <div class="examples actions" aria-label="Examples">
+      <button type="button">حوّل 0.1 إيثيريوم لأمي</button>
+      <button type="button">كم الbalance حقي</button>
+      <button type="button">7awel 50 l ahmed</button>
+      <button type="button">Rahul ko 500 bhejo</button>
+      <button type="button">ask sara for 20</button>
+      <button type="button">send a message to ahmed</button>
+      <button type="button">لا خلاص</button>
+    </div>
+  </div>
+
+  <div class="card" aria-live="polite">
+    <p id="say">Result appears here.</p>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="card">
+    <label>Full response</label>
+    <pre id="raw">{}</pre>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const API = "intent";  // same origin as this page
+
+function readback(r) {
+  if (r.intent === "unknown") return ["Sorry, I didn't get that. Please say it again.", "bad"];
+  if (r.needs_clarification && r.clarification) {
+    const c = r.clarification;
+    if (c.type === "missing") return [`${r.intent}: missing ${c.slots.join(" and ")}, the app would ask for it`, "warn"];
+    if (c.type === "choose_intent") return [`Not sure: did you mean ${c.options.join(" or ")}?`, "warn"];
+  }
+  const who = r.recipient ? (r.recipient.contact || r.recipient.value || r.recipient.type) : null;
+  const amt = r.amount != null ? `${r.amount}${r.unit ? " " + r.unit : ""}` : null;
+  switch (r.intent) {
+    case "send": return [`Send ${amt || "?"} to ${who || "?"}. Confirm with fingerprint.`, "ok"];
+    case "receive": return [`Request / receive${amt ? " " + amt : ""}${who ? " from " + who : ""}.`, "ok"];
+    case "check_balance": return ["Check balance.", "ok"];
+    case "history": return ["Show transaction history.", "ok"];
+    case "tx_status": return [`Check transfer status${who ? " (" + who + ")" : ""}.`, "ok"];
+    case "add_contact": return [`Save contact${r.name ? " " + r.name : ""}.`, "ok"];
+    case "recovery_help": return ["Start phone recovery help.", "ok"];
+    case "cancel": return ["Cancelled.", "ok"];
+  }
+  return [r.intent, "ok"];
+}
+
+async function understand() {
+  const text = $("text").value.trim();
+  if (!text) return;
+  const contacts = $("contacts").value.split(",").map(s => s.trim()).filter(Boolean);
+  $("say").textContent = "…";
+  try {
+    const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" },
+                                   body: JSON.stringify({ text, contacts }) });
+    const r = await res.json();
+    const [line, cls] = readback(r);
+    $("say").textContent = line;
+    $("say").className = cls;
+    const chips = [`intent: ${r.intent}`, `confidence: ${Math.round(r.confidence * 100)}%`,
+                   `languages: ${(r.lang_mix || []).join("+") || "?"}`, `engine: ${r.engine}`];
+    $("chips").innerHTML = chips.map(c => `<span class="chip">${c}</span>`).join("");
+    $("raw").textContent = JSON.stringify(r, null, 2);
+  } catch (e) {
+    $("say").textContent = "Could not reach the API: " + e;
+    $("say").className = "bad";
+  }
+}
+
+$("go").addEventListener("click", understand);
+$("text").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); understand(); } });
+document.querySelectorAll(".examples button").forEach(b =>
+  b.addEventListener("click", () => { $("text").value = b.textContent; understand(); }));
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+$("mic").addEventListener("click", () => {
+  if (!SR) { $("say").textContent = "Speech recognition needs Chrome or Edge."; return; }
+  if (rec) { rec.stop(); return; }
+  rec = new SR();
+  rec.lang = $("lang").value;
+  rec.interimResults = true;
+  rec.onresult = (e) => {
+    $("text").value = Array.from(e.results).map(x => x[0].transcript).join(" ");
+    if (e.results[e.results.length - 1].isFinal) understand();
+  };
+  rec.onerror = (e) => { $("say").textContent = "Mic error: " + e.error; };
+  rec.onend = () => { rec = null; $("mic").classList.remove("on"); $("mic").textContent = "🎤 Speak"; };
+  rec.start();
+  $("mic").classList.add("on");
+  $("mic").textContent = "■ Stop";
+});
+</script>
+</body>
+</html>
