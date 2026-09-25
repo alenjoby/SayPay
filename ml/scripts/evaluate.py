@@ -242,7 +242,9 @@ def render(report: dict, systems) -> str:
     lat = report["latency_ms"]
     L += ["", f"Latency, v3 (full pipeline, CPU): p50 {lat['p50']:.1f} ms, p95 {lat['p95']:.1f} ms.", ""]
     for name, meta in report.get("models", {}).items():
-        if meta:
+        if meta and meta.get("kind") == "zeroshot":
+            L.append(f"- **{name}**: {meta.get('model')} (no training on our data)")
+        elif meta:
             L.append(f"- **{name}**: `{meta.get('model')}`, {meta.get('n_params', 0) / 1e6:.0f}M params, "
                      f"dev macro-F1 {meta.get('best_dev_macro_f1', 0):.3f}, "
                      f"latency p50 {meta.get('latency_ms_p50', 0):.1f} ms on {meta.get('device')}")

@@ -88,6 +88,8 @@ def main() -> None:
     ap.add_argument("--max-len", type=int, default=64)
     ap.add_argument("--seed", type=int, default=13)
     ap.add_argument("--limit", type=int, default=0, help="debug: use only N training rows")
+    ap.add_argument("--export", default="", help="dir to write a deployable int8 ONNX model "
+                    "(e.g. models/mmbert_int8); needs `pip install onnx onnxruntime`")
     args = ap.parse_args()
 
     rng = random.Random(args.seed)
@@ -175,6 +177,56 @@ def main() -> None:
             "latency_ms_p50": float(np.median(lat)), "train_seconds": time.time() - t0}
     (out_dir / "meta.json").write_text(json.dumps(meta, indent=1))
     print(f"wrote {out_dir}")
+    if args.export:
+        export_onnx(model, tok, Path(args.export), meta, dev, args)
+
+
+def export_onnx(model, tok, out: Path, meta: dict, dev: list[dict], args) -> None:
+    """Export to ONNX, quantize to int8, and check it agrees with the PyTorch model."""
+    import onnxruntime as ort
+    from onnxruntime.quantization import QuantType, quantize_dynamic
+
+    out.mkdir(parents=True, exist_ok=True)
+    model = model.float().cpu().eval()
+    if hasattr(model.config, "_attn_implementation"):
+        model.config._attn_implementation = "eager"  # plain attention exports cleanly
+    sample = tok(["حول 0.1 لأمي", "send <num> <unit> to <name> please"], padding=True,
+                 return_tensors="pt")
+    fp32 = out / "model.fp32.onnx"
+
+    class Wrap(torch.nn.Module):
+        def __init__(self, m):
+            super().__init__()
+            self.m = m
+
+        def forward(self, input_ids, attention_mask):
+            return self.m(input_ids=input_ids, attention_mask=attention_mask).logits
+
+    torch.onnx.export(Wrap(model), (sample["input_ids"], sample["attention_mask"]), str(fp32),
+                      input_names=["input_ids", "attention_mask"], output_names=["logits"],
+                      dynamic_axes={"input_ids": {0: "b", 1: "t"}, "attention_mask": {0: "b", 1: "t"},
+                                    "logits": {0: "b"}}, opset_version=17)
+    quantize_dynamic(str(fp32), str(out / "model.int8.onnx"), weight_type=QuantType.QInt8)
+    fp32.unlink()
+    tok.save_pretrained(out)
+
+    # Agreement check on dev: int8 ONNX vs PyTorch fp32 argmax.
+    sess = ort.InferenceSession(str(out / "model.int8.onnx"), providers=["CPUExecutionProvider"])
+    same = 0
+    rows = dev[:300]
+    with torch.no_grad():
+        for r in rows:
+            enc = tok([r[args.field]], truncation=True, max_length=args.max_len, return_tensors="pt")
+            a = model(**enc).logits.argmax(-1).item()
+            b = sess.run(None, {"input_ids": enc["input_ids"].numpy(),
+                                "attention_mask": enc["attention_mask"].numpy()})[0].argmax(-1)[0]
+            same += int(a == b)
+    cfg = {"labels": LABELS, "temperature": meta["temperature"], "field": args.field,
+           "max_len": args.max_len, "source_model": args.model,
+           "int8_agreement_with_fp32": same / len(rows)}
+    (out / "saypay.json").write_text(json.dumps(cfg, indent=1))
+    size = (out / "model.int8.onnx").stat().st_size / 1e6
+    print(f"exported {out} ({size:.0f} MB int8), agreement with fp32 on dev: {same}/{len(rows)}")
 
 
 if __name__ == "__main__":

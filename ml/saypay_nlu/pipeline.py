@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from .intents import INTENTS, keyword_hits, softmax
 from .lexicon import STOPWORDS
@@ -26,22 +27,41 @@ from .txref import extract_tx_ref
 CONFIDENCE_THRESHOLD = 0.8
 
 _MODEL = None
+_ENGINE = "rules-v1"
 _MODEL_LOADED = False
+_MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
 
 
 def get_model():
-    """The trained intent model, or None (rules only). SAYPAY_ENGINE=rules forces rules."""
-    global _MODEL, _MODEL_LOADED
+    """The intent model to use. SAYPAY_ENGINE picks it:
+    auto (default): v3 + mmBERT ensemble if the ONNX model exists, else v3, else rules
+    ensemble | v3 | rules: force one."""
+    global _MODEL, _ENGINE, _MODEL_LOADED
     if not _MODEL_LOADED:
         _MODEL_LOADED = True
-        if os.getenv("SAYPAY_ENGINE", "").lower() != "rules":
+        want = os.getenv("SAYPAY_ENGINE", "auto").lower()
+        if want != "rules":
             from .classifier import IntentModel
-            _MODEL = IntentModel.load()
+            v3 = IntentModel.load()
+            onnx = None
+            if want in ("auto", "ensemble") and v3 is not None:
+                try:
+                    from .transformer import OnnxIntentModel
+                    onnx = OnnxIntentModel.load(Path(os.getenv(
+                        "SAYPAY_TRANSFORMER", _MODELS_DIR / "mmbert_int8")))
+                except ImportError:  # onnxruntime / tokenizers not installed
+                    onnx = None
+            if onnx is not None:
+                from .transformer import Ensemble
+                _MODEL, _ENGINE = Ensemble(v3, onnx), "v3+mmbert"
+            elif v3 is not None:
+                _MODEL, _ENGINE = v3, "tfidf-v3"
     return _MODEL
 
 
 def engine_name() -> str:
-    return "tfidf-v3" if get_model() is not None else "rules-v1"
+    get_model()
+    return _ENGINE
 
 _STOP = {clean(w) for w in STOPWORDS}
 

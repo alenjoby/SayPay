@@ -10,10 +10,13 @@ moves money: the app reads the action back and the user approves with a fingerpr
 "did my last transfer go through?" -> tx_status {ordinal: last}
 ```
 
-Engine: **tfidf-v3**. A trained intent model (TF-IDF over three text views
-plus rule features, calibrated) decides the intent. Amounts, units, recipients
+Engine: **v3 + mmBERT ensemble** when `models/mmbert_int8/` is present, else **tfidf-v3**.
+The intent is decided by averaging a TF-IDF model (three text views + rule
+features, calibrated) and a fine-tuned mmBERT (int8 ONNX on CPU). See
+[`reports/compare.md`](reports/compare.md) for why (v3+mmBERT is significantly
+better than either alone on unseen dialects). Amounts, units, recipients
 and safety checks stay rule-based. `SAYPAY_ENGINE=rules` falls back to the v1
-keyword rules. Results: [`reports/eval.md`](reports/eval.md).
+keyword rules; `SAYPAY_ENGINE=v3` skips the transformer. Results: [`reports/eval.md`](reports/eval.md).
 
 ## Train and evaluate
 
@@ -51,6 +54,9 @@ uvicorn app.main:app --reload --port 8000     # API docs at http://localhost:800
 python -m saypay_nlu "حول 0.1 لأمي" --contacts Amma,Ahmed   # try from the shell
 pytest -q
 ```
+
+The mmBERT model (~300 MB) is too large for git: export it with the last cell of
+`notebooks/compare_models.ipynb` and unzip it to `models/mmbert_int8/` on the server.
 
 Docker (VPS): `docker build -t saypay-nlu . && docker run -p 8000:8000 saypay-nlu`.
 The browser mic only works on HTTPS, so put the API behind a TLS reverse proxy
