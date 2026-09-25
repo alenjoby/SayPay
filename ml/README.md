@@ -1,0 +1,142 @@
+# SayPay: intent API (AI/ML)
+
+Turns a spoken or typed command in **Arabic, English or Hindi**, including mixes of them
+and Arabizi, into **one proposed action** with a confidence score. The API never
+moves money: the app reads the action back and the user approves with a fingerprint.
+
+```
+"حوّل 0.1 إيثيريوم لأمي"  ->  send 0.1 ETH to Amma  (0.99)
+"Rahul ko 500 bhejo"      ->  send 500 to Rahul     (0.99)
+"did my last transfer go through?" -> tx_status {ordinal: last}
+```
+
+Engine today: **rules-v1** (normalization + keyword scoring + rule-based slots).
+The trained model (TF-IDF, then XLM-R) replaces only the intent scorer; the
+response format stays the same.
+
+## Run
+
+```bash
+cd ml
+pip install -r requirements-dev.txt
+uvicorn app.main:app --reload --port 8000     # API docs at http://localhost:8000/docs
+python -m saypay_nlu "حول 0.1 لأمي" --contacts Amma,Ahmed   # try from the shell
+pytest -q
+```
+
+Docker (VPS): `docker build -t saypay-nlu . && docker run -p 8000:8000 saypay-nlu`.
+The browser mic only works on HTTPS, so put the API behind a TLS reverse proxy
+(e.g. Caddy) and set `SAYPAY_CORS_ORIGINS=https://your-frontend-domain`.
+
+## API
+
+### `POST /intent`
+
+```json
+{ "text": "ارسل خمسمية درهم لأحمد", "contacts": ["Amma", "Ahmed", "Rahul"] }
+```
+
+`contacts` are the names saved on the device. Addresses never leave the phone.
+
+```json
+{
+  "intent": "send",
+  "confidence": 0.991,
+  "needs_clarification": false,
+  "clarification": null,
+  "alternatives": [{"intent": "check_balance", "score": 0.001}, ...],
+  "amount": 500.0,
+  "unit": "AED",
+  "recipient": {"type": "contact", "value": "Ahmed", "contact": "Ahmed", "score": 0.97},
+  "contact": "Ahmed",
+  "phone": null,
+  "name": null,
+  "source": null,
+  "similar_contacts": [],
+  "tx_ref": null,
+  "lang_mix": ["ar"],
+  "normalized_text": "ارسل خمسميه درهم لاحمد",
+  "engine": "rules-v1",
+  "scores": null
+}
+```
+
+Add `?debug=true` to get the raw per-intent `scores`.
+
+### Intents
+
+| intent | example |
+|---|---|
+| `check_balance` | كم رصيدي؟ · what's my balance · mera balance kitna hai |
+| `send` | حوّل 0.1 لأمي · send 5 eth to 0501234567 · Rahul ko 500 bhejo |
+| `history` | شو آخر عملية؟ · show my transactions · pichla transaction dikhao |
+| `tx_status` | وصلت الفلوس لأحمد؟ · did it go through? · pahuncha kya |
+| `receive` | عطني عنواني · what's my address · mera address kya hai |
+| `add_contact` | سجله باسم خالد · add the address I copied as Omar |
+| `recovery_help` | ضاع تلفوني · I lost my phone · mera phone kho gaya |
+| `cancel` | لا خلاص · cancel / don't send · rehne do |
+| `unknown` | nothing matched: ask the user to repeat |
+
+### How the app should use the response
+
+- **`needs_clarification: true` → ask, never act.** `clarification` says what to ask:
+  - `{"type": "choose_intent", "options": ["send", "receive"]}`: "Did you mean send or receive?"
+  - `{"type": "missing", "slots": ["recipient"]}`: "Who should I send it to? Say a name or phone number, or scan a code."
+  - `{"type": "unknown"}`: "Sorry, please say that again."
+- **`recipient.type`**: the user never speaks or hears an address.
+
+  | type | app does |
+  |---|---|
+  | `contact` | look up the address in the on-device address book |
+  | `phone` | look up the SayPay user registered with that number |
+  | `ens` / `handle` | resolve the name |
+  | `address` | pasted 0x address: read its voice code back and warn it's new |
+  | `clipboard` | read the clipboard and read its voice code back |
+  | `qr` | open the scanner with audio guidance |
+  | `self` | block: "That's your own wallet" |
+- **`unit`**: `null` means the user didn't say one. Use the default currency in the read-back.
+- **`tx_ref`**: the user describes a transaction (`ordinal`, `when`, `direction`,
+  `contact`, `amount`, or a pasted `hash`). Match it against the local transaction list.
+- **`add_contact`**: `name` is the name to save. `source` is where the address comes from
+  (`clipboard`, `qr`, `phone`, `last_sender`, or `null` to open the contact picker).
+  `similar_contacts` lists existing names that sound the same, so the app can ask
+  "You already have Ahmed. Is this a different person?"
+
+## What the rules handle
+
+- **Scripts**: Arabic (diacritics, alef/ya/ta-marbuta variants, Arabic-Indic digits,
+  clitics like `لـ`/`و`/`ال`), Arabizi (`7awel`, `3indi`), Devanagari, and Latin, plus
+  English words glued to Arabic (`الـbalance`).
+- **Amounts** (rules only, never the model): digits, `٠٫١`, `1,000`, `5k`, and number words
+  in English, Gulf/MSA Arabic (`خمسمية`, `الفين وخمسمية`, `صفر فاصلة واحد`, `نص`) and Hindi
+  (`paanch sau`, `dedh hazaar`, `नौ सौ`).
+- **Units**: ETH, AED, SAR, KWD, USD, INR, EUR, … in all three languages.
+- **Contacts across scripts**: `Ahmed` = `Ahmad` = `أحمد` = `अहमद` (phonetic key + fuzzy
+  match), with family words (`أمي`, `mom`, `mummy`, `ماما`, `मम्मी` all match "Amma").
+- **Negation**: `don't send`, `لا ترسل`, `mat bhejo` → `cancel`.
+
+## Layout
+
+```
+saypay_nlu/
+  normalize.py   scripts, digits, Arabizi, tokens
+  phonetic.py    Arabic/Devanagari -> Latin, phonetic keys
+  numbers.py     amounts, units, phone numbers
+  recipients.py  contacts, address, ENS, phone, clipboard, QR, self
+  intents.py     keyword lexicon + scoring
+  txref.py       "my last transfer to Ahmed"
+  pipeline.py    puts it together -> ParseResult
+app/             FastAPI service
+tests/
+```
+
+## Roadmap
+
+- **v2 data**: seed commands per intent (Arabic → English → Hindi) plus LLM expansion for
+  training. The test set comes from real speakers (ArBanking77, MASSIVE, and native
+  speakers recorded at the event), never from the LLM.
+- **v3**: TF-IDF char n-gram + LogisticRegression intent model.
+- **v4**: fine-tuned `xlm-roberta-base` (covers ar/en/hi; MuRIL has no Arabic), combined
+  with v3 + rules.
+- **v5**: evaluation (intent / amount / contact accuracy per language) against an
+  English-only baseline.
