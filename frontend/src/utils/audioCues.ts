@@ -160,6 +160,109 @@ class AudioCueSystem {
       osc.stop(now + idx * 0.08 + 0.4);
     });
   }
+
+  /**
+   * Sound 6: Binaural Stereo Headphone Verification Test (Left ear chime then Right ear chime)
+   */
+  public playHeadphoneStereoTest() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // Left Ear tone (at now)
+    const oscLeft = ctx.createOscillator();
+    const gainLeft = ctx.createGain();
+    oscLeft.type = 'sine';
+    oscLeft.frequency.setValueAtTime(587.33, now); // D5
+    gainLeft.gain.setValueAtTime(0.12, now);
+    gainLeft.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+    // Right Ear tone (at now + 0.35s)
+    const oscRight = ctx.createOscillator();
+    const gainRight = ctx.createGain();
+    oscRight.type = 'sine';
+    oscRight.frequency.setValueAtTime(880.0, now + 0.35); // A5
+    gainRight.gain.setValueAtTime(0.12, now + 0.35);
+    gainRight.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+    const anyCtx = ctx as any;
+    if (typeof anyCtx.createStereoPanner === 'function') {
+      const panLeft = anyCtx.createStereoPanner();
+      panLeft.pan.setValueAtTime(-0.85, now);
+      oscLeft.connect(gainLeft);
+      gainLeft.connect(panLeft);
+      panLeft.connect(ctx.destination);
+
+      const panRight = anyCtx.createStereoPanner();
+      panRight.pan.setValueAtTime(0.85, now + 0.35);
+      oscRight.connect(gainRight);
+      gainRight.connect(panRight);
+      panRight.connect(ctx.destination);
+    } else {
+      oscLeft.connect(gainLeft);
+      gainLeft.connect(ctx.destination);
+      oscRight.connect(gainRight);
+      gainRight.connect(ctx.destination);
+    }
+
+    oscLeft.start(now);
+    oscLeft.stop(now + 0.3);
+    oscRight.start(now + 0.35);
+    oscRight.stop(now + 0.65);
+  }
+
+  /**
+   * Sound 7: Headphone Disconnected Emergency Alert
+   */
+  public playHeadphoneDisconnectedAlert() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    [300, 200].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+
+      gain.gain.setValueAtTime(0.14, now + idx * 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.15 + 0.2);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + idx * 0.15);
+      osc.stop(now + idx * 0.15 + 0.2);
+    });
+  }
+
+  /**
+   * Sound 8: Passkey Biometric Success (Deep subtle hardware click + chime)
+   */
+  public playPasskeySuccess() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(783.99, now); // G5
+    osc.frequency.exponentialRampToValueAtTime(1174.66, now + 0.12); // D6
+
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.3);
+  }
 }
 
 export const audioCues = new AudioCueSystem();

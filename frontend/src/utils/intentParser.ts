@@ -4,11 +4,15 @@ export type IntentType =
   | 'check_balance'
   | 'send'
   | 'confirm'
+  | 'passkey_sign'
   | 'cancel'
   | 'history'
   | 'receive'
+  | 'copy_address'
   | 'guardians'
   | 'contacts'
+  | 'settings'
+  | 'earphones_connected'
   | 'switch_mode'
   | 'help'
   | 'unknown';
@@ -32,6 +36,47 @@ export function parseVoiceIntent(rawText: string): ParsedIntentResult {
   const clean = rawText.trim();
   const lower = clean.toLowerCase();
   const lang = detectLanguage(clean);
+
+  // 0. Check for Real Passkey / Fingerprint Authorization
+  if (
+    lower.includes('fingerprint') ||
+    lower.includes('passkey') ||
+    lower.includes('biometric') ||
+    lower.includes('touch id') ||
+    lower.includes('face id') ||
+    lower.includes('angutha') ||
+    lower.includes('ungli') ||
+    lower.includes('authorize') ||
+    lower.includes('sign with') ||
+    clean.includes('بصمة') ||
+    clean.includes('مفتاح المرور')
+  ) {
+    return {
+      intent: 'passkey_sign',
+      confidence: 0.99,
+      detectedLang: lang,
+      rawText: clean,
+    };
+  }
+
+  // 0.1 Check for Earphone / Headphone connection confirmation
+  if (
+    lower.includes('headphone') ||
+    lower.includes('earphone') ||
+    lower.includes('earphones connected') ||
+    lower.includes('headphones connected') ||
+    lower.includes('plugged in') ||
+    lower.includes('earphone verified') ||
+    clean.includes('سماعات') ||
+    clean.includes('سماعة')
+  ) {
+    return {
+      intent: 'earphones_connected',
+      confidence: 0.99,
+      detectedLang: lang,
+      rawText: clean,
+    };
+  }
 
   // 1. Check for Confirm / Yes (vital for hands-free voice sign-off)
   if (
@@ -93,6 +138,23 @@ export function parseVoiceIntent(rawText: string): ParsedIntentResult {
     return {
       intent: 'check_balance',
       confidence: 0.96,
+      detectedLang: lang,
+      rawText: clean,
+    };
+  }
+
+  // 3.1 Check for Copy Address
+  if (
+    lower.includes('copy address') ||
+    lower.includes('copy my address') ||
+    lower === 'copy' ||
+    lower.includes('pata copy') ||
+    clean.includes('نسخ العنوان') ||
+    clean.includes('انسخ')
+  ) {
+    return {
+      intent: 'copy_address',
+      confidence: 0.98,
       detectedLang: lang,
       rawText: clean,
     };
@@ -186,6 +248,23 @@ export function parseVoiceIntent(rawText: string): ParsedIntentResult {
     return {
       intent: 'help',
       confidence: 0.97,
+      detectedLang: lang,
+      rawText: clean,
+    };
+  }
+
+  // 8.1 Check for Settings
+  if (
+    lower.includes('setting') ||
+    lower.includes('preference') ||
+    lower.includes('audio setting') ||
+    lower.includes('awaz setting') ||
+    clean.includes('إعدادات') ||
+    clean.includes('اعدادات')
+  ) {
+    return {
+      intent: 'settings',
+      confidence: 0.96,
       detectedLang: lang,
       rawText: clean,
     };

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Fingerprint, AlertCircle, ArrowRight, UserCheck, ShieldCheck, Search, Check } from 'lucide-react';
+import { Send, Fingerprint, AlertCircle, ArrowRight, UserCheck, ShieldCheck, Search, Check, ShieldAlert, KeyRound } from 'lucide-react';
 import { Contact } from '../utils/walletState';
 import { speakText, SupportedLanguage } from '../utils/i18n';
 import { audioCues } from '../utils/audioCues';
+import { signTransactionWithPasskey, PasskeySignatureResult } from '../utils/passkeyAuth';
 
 interface SendModalProps {
   isOpen: boolean;
@@ -12,8 +13,9 @@ interface SendModalProps {
   initialAmount?: number;
   availableBalanceETH: number;
   ethRateUSD: number;
+  externalVoiceTrigger?: 'confirm' | 'cancel' | 'fingerprint' | null;
   onClose: () => void;
-  onConfirmSend: (recipient: string, address: string, amount: number) => void;
+  onConfirmSend: (recipient: string, address: string, amount: number, sigResult?: PasskeySignatureResult) => void;
 }
 
 export const SendModal: React.FC<SendModalProps> = ({
@@ -24,6 +26,7 @@ export const SendModal: React.FC<SendModalProps> = ({
   initialAmount,
   availableBalanceETH,
   ethRateUSD,
+  externalVoiceTrigger,
   onClose,
   onConfirmSend,
 }) => {
@@ -35,6 +38,7 @@ export const SendModal: React.FC<SendModalProps> = ({
   );
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [authStage, setAuthStage] = useState<'details' | 'passkey_prompt' | 'broadcasting'>('details');
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialContact) {
@@ -48,6 +52,23 @@ export const SendModal: React.FC<SendModalProps> = ({
       setRecipientInput(contacts[0].name);
     }
   }, [initialContact, contacts]);
+
+  // Handle external voice triggers (e.g. user says "fingerprint" or "confirm" or "cancel")
+  useEffect(() => {
+    if (!isOpen) return;
+    if (externalVoiceTrigger === 'confirm' || externalVoiceTrigger === 'fingerprint') {
+      if (authStage === 'details') {
+        handleProceedToPasskey();
+        setTimeout(() => {
+          handleExecutePasskey();
+        }, 600);
+      } else if (authStage === 'passkey_prompt') {
+        handleExecutePasskey();
+      }
+    } else if (externalVoiceTrigger === 'cancel') {
+      onClose();
+    }
+  }, [externalVoiceTrigger, isOpen, authStage]);
 
   if (!isOpen) return null;
 
@@ -82,26 +103,49 @@ export const SendModal: React.FC<SendModalProps> = ({
     if (!isValidAddress || numericAmount <= 0) return;
     audioCues.playIntentRecognized();
     setAuthStage('passkey_prompt');
+    setAuthError(null);
 
     const readBackSpeech =
       currentLang === 'hi'
-        ? `${resolvedName} को ${numericAmount} ईथर भेजे जा रहे हैं। गैस फीस शून्य। पासकी से पुष्टि करें।`
+        ? `${resolvedName} को ${numericAmount} ईथर भेजे जा रहे हैं। पासकी या फिंगरप्रिंट से पुष्टि करें।`
         : currentLang === 'ar'
-        ? `إرسال ${numericAmount} إيثيريوم إلى ${resolvedName}. رسوم الغاز مجانية. يرجى التأكيد بالبصمة.`
-        : `Send ${numericAmount} test ETH to ${resolvedName}. Gas sponsored by paymaster. Confirm with your passkey.`;
+        ? `إرسال ${numericAmount} إيثيريوم إلى ${resolvedName}. يرجى التأكيد ببصمة الإصبع أو مفتاح المرور.`
+        : `Send ${numericAmount} test ETH to ${resolvedName}. Say "Fingerprint" or tap the button to sign with your passkey.`;
 
     speakText(readBackSpeech, currentLang);
   };
 
-  const handleExecutePasskey = () => {
+  const handleExecutePasskey = async () => {
     setIsAuthorizing(true);
     setAuthStage('broadcasting');
+    setAuthError(null);
     audioCues.playListeningStarted();
 
-    setTimeout(() => {
+    const pseudoTxHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+
+    try {
+      const sigResult = await signTransactionWithPasskey(pseudoTxHash, resolvedName, numericAmount);
+
+      if (sigResult.success) {
+        audioCues.playPasskeySuccess();
+        setTimeout(() => {
+          audioCues.playSuccess();
+          setIsAuthorizing(false);
+          onConfirmSend(resolvedName, resolvedAddress, numericAmount, sigResult);
+        }, 600);
+      } else {
+        setIsAuthorizing(false);
+        setAuthStage('passkey_prompt');
+        setAuthError(sigResult.error || 'Biometric authorization was declined.');
+        audioCues.playWarning();
+        speakText('Biometric authentication failed. Say "Fingerprint" to retry or "Cancel" to abort.', currentLang);
+      }
+    } catch (err: any) {
       setIsAuthorizing(false);
-      onConfirmSend(resolvedName, resolvedAddress, numericAmount);
-    }, 1200);
+      setAuthStage('passkey_prompt');
+      setAuthError('Authentication could not complete.');
+      audioCues.playWarning();
+    }
   };
 
   return (
@@ -261,13 +305,21 @@ export const SendModal: React.FC<SendModalProps> = ({
               </div>
             </div>
 
+            {authError && (
+              <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs flex items-center gap-2 text-left">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{authError}</span>
+              </div>
+            )}
+
             <div className="pt-2 space-y-2">
               <button
                 onClick={handleExecutePasskey}
-                className="w-full py-3.5 rounded-2xl btn-orange text-white text-sm font-black transition flex items-center justify-center gap-2 shadow-lg"
+                disabled={isAuthorizing}
+                className="w-full py-3.5 rounded-2xl btn-orange text-white text-sm font-black transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
               >
                 <Fingerprint className="w-5 h-5" />
-                <span>Sign with Fingerprint / Passkey</span>
+                <span>{isAuthorizing ? 'Scanning Biometrics...' : 'Sign with Fingerprint / Passkey'}</span>
               </button>
 
               <button

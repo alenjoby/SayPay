@@ -219,9 +219,13 @@ export function detectLanguage(text: string): SupportedLanguage {
 }
 
 /**
- * Native Text-To-Speech Synthesis helper
+ * Native Text-To-Speech Synthesis helper with onEnd callback support
  */
-export function speakText(text: string, lang: SupportedLanguage = 'en') {
+export function speakText(
+  text: string,
+  lang: SupportedLanguage = 'en',
+  onEnd?: () => void
+) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
   window.speechSynthesis.cancel(); // Cancel any existing speech
@@ -236,6 +240,15 @@ export function speakText(text: string, lang: SupportedLanguage = 'en') {
   utterance.lang = langMap[lang] || 'en-US';
   utterance.rate = 0.95; // Slightly measured rate for maximum intelligibility
   utterance.pitch = 1.0;
+
+  if (onEnd) {
+    utterance.onend = () => {
+      onEnd();
+    };
+    utterance.onerror = () => {
+      onEnd();
+    };
+  }
 
   window.speechSynthesis.speak(utterance);
 }

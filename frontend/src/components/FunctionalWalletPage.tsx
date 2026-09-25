@@ -57,6 +57,9 @@ import { ReceiveModal } from './ReceiveModal';
 import { ContactsModal } from './ContactsModal';
 import { GuardiansModal } from './GuardiansModal';
 import { AccessibilitySettingsModal, AccessibilitySettings } from './AccessibilitySettingsModal';
+import { HeadphoneSafetyModal } from './HeadphoneSafetyModal';
+import { headphoneSafety, HeadphoneStatus } from '../utils/headphoneDetector';
+import { PasskeySignatureResult } from '../utils/passkeyAuth';
 
 interface FunctionalWalletPageProps {
   onBackToLanding: () => void;
@@ -82,6 +85,11 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const [lang, setLang] = useState<SupportedLanguage>(initialLang);
   const [showBlindRules, setShowBlindRules] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+
+  // Compulsory Earphone Safety State
+  const [headphoneStatus, setHeadphoneStatus] = useState<HeadphoneStatus>(() => headphoneSafety.getStatus());
+  const [showHeadphoneModal, setShowHeadphoneModal] = useState<boolean>(false);
+  const [modalVoiceTrigger, setModalVoiceTrigger] = useState<'confirm' | 'cancel' | 'fingerprint' | null>(null);
 
   // Full Granular Accessibility Settings (W3C WCAG AAA)
   const [accessibilitySettings, setAccessibilitySettings] = useState<AccessibilitySettings>(() => {
@@ -167,6 +175,85 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       setAriaAnnouncement(msg);
       speakText(msg, lang);
     }
+  };
+
+  // Enforce Compulsory Earphones in Blind Mode
+  useEffect(() => {
+    if (accessibilityMode === 'blind') {
+      const current = headphoneSafety.getStatus();
+      if (!current.isConnected && !current.isVerified) {
+        setShowHeadphoneModal(true);
+      }
+    }
+
+    const unsubStatus = headphoneSafety.onStatusChange((status) => {
+      setHeadphoneStatus(status);
+      if (status.isConnected || status.isVerified) {
+        setShowHeadphoneModal(false);
+      }
+    });
+
+    const unsubDisconnect = headphoneSafety.onDisconnect(() => {
+      if (accessibilityMode === 'blind') {
+        audioCues.playHeadphoneDisconnectedAlert();
+        setShowHeadphoneModal(true);
+        setVoiceFeedback('Audio muted: Earphones disconnected for your financial privacy.');
+        setAriaAnnouncement('Security alert: Earphones disconnected.');
+      }
+    });
+
+    return () => {
+      unsubStatus();
+      unsubDisconnect();
+    };
+  }, [accessibilityMode]);
+
+  // Voice Loop Helper: Speaks and automatically listens in Blind Mode
+  const startListening = () => {
+    setTranscript('');
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        try {
+          recognitionRef.current.stop();
+          setTimeout(() => {
+            try {
+              recognitionRef.current?.start();
+            } catch (err) {}
+          }, 150);
+        } catch (err) {}
+      }
+    }
+  };
+
+  const speakAndFollowUp = (
+    msg: string,
+    spokenLang: SupportedLanguage = lang,
+    shouldPromptListen: boolean = true
+  ) => {
+    // If in blind mode and earphones not verified, pause and require earphones
+    if (
+      accessibilityMode === 'blind' &&
+      !headphoneSafety.getStatus().isConnected &&
+      !headphoneSafety.getStatus().isVerified
+    ) {
+      setShowHeadphoneModal(true);
+      return;
+    }
+
+    setVoiceFeedback(msg);
+    setAriaAnnouncement(msg);
+
+    speakText(msg, spokenLang, () => {
+      if (accessibilityMode === 'blind' && shouldPromptListen) {
+        setTimeout(() => {
+          if (!isListening) {
+            startListening();
+          }
+        }, 400);
+      }
+    });
   };
 
   const handleUpdateSettings = (newSettings: AccessibilitySettings) => {
@@ -327,16 +414,18 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         const balSpeech =
           detected === 'hi'
-            ? `आपका कुल बैलेंस ${userState.balanceETH.toFixed(4)} टेस्ट ईथर है।`
+            ? `आपका कुल बैलेंस ${userState.balanceETH.toFixed(4)} टेस्ट ईथर है, जिसका मूल्य ${(
+                userState.balanceETH * userState.ethRateUSD
+              ).toFixed(2)} डॉलर है। आप आगे क्या करना चाहते हैं?`
             : detected === 'ar'
-            ? `رصيدك الإجمالي هو ${userState.balanceETH.toFixed(4)} إيثيريوم تجريبي.`
+            ? `رصيدك الإجمالي هو ${userState.balanceETH.toFixed(4)} إيثيريوم تجريبي، بقيمة ${(
+                userState.balanceETH * userState.ethRateUSD
+              ).toFixed(2)} دولار. ماذا تود أن تفعل؟`
             : `Your total balance is ${userState.balanceETH.toFixed(4)} Sepolia ETH, valued at ${(
                 userState.balanceETH * userState.ethRateUSD
-              ).toFixed(2)} dollars.`;
+              ).toFixed(2)} dollars. What would you like to do next? Say Send, Receive, or Contacts.`;
 
-        setVoiceFeedback(balSpeech);
-        setAriaAnnouncement(balSpeech);
-        speakText(balSpeech, detected);
+        speakAndFollowUp(balSpeech, detected);
         break;
       }
 
@@ -344,6 +433,57 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         setSendPreFill({ contact: result.contact, amount: result.amount });
         setIsSendOpen(true);
+        const sendSpeech =
+          detected === 'hi'
+            ? `${result.contact || 'राहुल'} को ${result.amount || 0.1} ईथर भेजने की तैयारी है। गैस फीस प्रायोजित है। हस्ताक्षर करने के लिए "फिंगरप्रिंट" बोलें, या रद्द करने के लिए "रद्द" कहें।`
+            : detected === 'ar'
+            ? `جاهز لإرسال ${result.amount || 0.1} إيثيريوم إلى ${result.contact || 'صديقي'}. قل "بصمة" للتوقيع بمفتاح المرور، أو قل "إلغاء".`
+            : `Prepared transfer: Sending ${result.amount || 0.1} Sepolia ETH to ${result.contact || 'Rahul'}. Gas is sponsored. Say "Fingerprint" or "Confirm" to sign with your passkey, or say "Cancel".`;
+
+        speakAndFollowUp(sendSpeech, detected);
+        break;
+      }
+
+      case 'passkey_sign':
+      case 'confirm': {
+        if (isSendOpen) {
+          if (accessibilitySettings.earconsEnabled) audioCues.playListeningStarted();
+          setModalVoiceTrigger('fingerprint');
+          setTimeout(() => setModalVoiceTrigger(null), 1500);
+        } else {
+          speakAndFollowUp('No transaction is pending signature. Say "Send 0.1 ETH to Rahul" to start a payment.', detected);
+        }
+        break;
+      }
+
+      case 'earphones_connected': {
+        headphoneSafety.confirmEarphonesConnected(true);
+        setShowHeadphoneModal(false);
+        if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
+        const epMsg =
+          detected === 'hi'
+            ? 'ईयरफ़ोन सत्यापित और सक्रिय हैं। निजी ऑडियो वॉलेट अनलॉक हो गया है। मैं आपकी क्या मदद कर सकता हूँ?'
+            : detected === 'ar'
+            ? 'تم التحقق من توصيل سماعات الأذن بنجاح. تم فتح المحفظة الصوتية الخاصة.'
+            : 'Earphones verified and active. Private audio vault unlocked. How can I assist you?';
+        speakAndFollowUp(epMsg, detected);
+        break;
+      }
+
+      case 'copy_address': {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          navigator.clipboard.writeText(userState.address);
+        }
+        setCopiedAddress(true);
+        setTimeout(() => setCopiedAddress(false), 3000);
+        if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
+        const copyMsg =
+          detected === 'hi'
+            ? `आपका वॉलेट पता क्लिपबोर्ड पर कॉपी कर लिया गया है।`
+            : detected === 'ar'
+            ? `تم نسخ عنوان محفظتك إلى الحافظة بنجاح.`
+            : `Your wallet address ending in ${userState.address.slice(-4).split('').join(' ')} has been copied to your clipboard.`;
+        speakAndFollowUp(copyMsg, detected);
         break;
       }
 
@@ -352,40 +492,46 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         setIsReceiveOpen(true);
         const rxSpeech =
           detected === 'hi'
-            ? `आपका क्यूआर कोड और सेपोलिया पता स्क्रीन पर तैयार है।`
+            ? `प्राप्त करने की स्क्रीन तैयार है। आपका पता है 0x71C8 समाप्त 4E92 पर। पता कॉपी करने के लिए कहें "कॉपी करें"।`
             : detected === 'ar'
-            ? `رمز الاستجابة السريعة وعنوانك جاهزان الآن.`
-            : `Your QR code and Sepolia receiving address are ready.`;
-        setVoiceFeedback(rxSpeech);
-        speakText(rxSpeech, detected);
+            ? `شاشة الاستلام جاهزة. عنوانك ينتهي بـ 4E92. قل "نسخ" لنسخ العنوان.`
+            : `Your receiving QR code and address are ready. Your address ends in ${userState.address.slice(-4).split('').join(' ')}. Say "Copy address" to copy, or say "Cancel" to close.`;
+        speakAndFollowUp(rxSpeech, detected);
         break;
       }
 
       case 'guardians': {
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         setIsGuardiansOpen(true);
+        const gNames = userState.guardians.map((g) => g.name).join(', ');
         const gSpeech =
           detected === 'hi'
-            ? `आपके तीन गार्जियन सक्रिय हैं। अम्मा, राहुल, और विधिक सलाहकार।`
+            ? `आपके सक्रिय गार्जियन हैं: ${gNames}। रिकवरी के लिए दो हस्ताक्षर आवश्यक हैं।`
             : detected === 'ar'
-            ? `لديك ثلاثة أوصياء نشطين لحماية حسابك.`
-            : `You have three active guardians: Amma, Rahul, and Legal Counsel. Two signatures required for recovery.`;
-        setVoiceFeedback(gSpeech);
-        speakText(gSpeech, detected);
+            ? `الأوصياء النشطون هم: ${gNames}. يلزم توقيعان للاسترداد.`
+            : `Opening guardians. You have three active guardians: ${gNames}. Two signatures are required for recovery. Say "Cancel" to return.`;
+        speakAndFollowUp(gSpeech, detected);
         break;
       }
 
       case 'contacts': {
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         setIsContactsOpen(true);
+        const names = userState.contacts.map((c) => c.name).join(', ');
         const cSpeech =
           detected === 'hi'
-            ? `संपर्क सूची खोली गई है। आप अम्मा, राहुल, या ज़ैद को चुन सकते हैं।`
+            ? `संपर्क सूची खोली गई है। आपके पास ${userState.contacts.length} संपर्क हैं: ${names}। किसी को भेजने के लिए कहें "भेजो"।`
             : detected === 'ar'
-            ? `تم فتح قائمة جهات الاتصال الموثوقة.`
-            : `Opening your trusted contacts book.`;
-        setVoiceFeedback(cSpeech);
-        speakText(cSpeech, detected);
+            ? `تم فتح جهات الاتصال. لديك ${userState.contacts.length} جهات اتصال: ${names}.`
+            : `Opening contacts. You have ${userState.contacts.length} saved contacts: ${names}. Say "Send to [name]" to transfer funds.`;
+        speakAndFollowUp(cSpeech, detected);
+        break;
+      }
+
+      case 'settings': {
+        if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+        setIsSettingsOpen(true);
+        speakAndFollowUp('Opening accessibility settings. You can adjust speech rate, auditory earcons, and contrast.', detected);
         break;
       }
 
@@ -397,8 +543,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               lastTx.amount
             } ETH with ${lastTx.counterparty}. Status confirmed.`
           : 'You have no recent transactions.';
-        setVoiceFeedback(hSpeech);
-        speakText(hSpeech, detected);
+        speakAndFollowUp(hSpeech, detected);
         break;
       }
 
@@ -408,18 +553,17 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         setIsReceiveOpen(false);
         setIsContactsOpen(false);
         setIsGuardiansOpen(false);
-        const cMsg = 'Action cancelled.';
-        setVoiceFeedback(cMsg);
-        speakText(cMsg, detected);
+        setIsSettingsOpen(false);
+        setModalVoiceTrigger('cancel');
+        speakAndFollowUp('Action cancelled. Returned to main wallet dashboard.', detected);
         break;
       }
 
       case 'help': {
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         const helpMsg =
-          'You can say: Check balance, Send 0.1 ETH to Rahul, Show my QR code, View guardians, Show contacts, or What was my last transaction.';
-        setVoiceFeedback(helpMsg);
-        speakText(helpMsg, detected);
+          'You can say: Check balance, Send 0.1 ETH to Rahul, Fingerprint to sign, Copy address, Show QR code, Show contacts, View guardians, or Earphones connected.';
+        speakAndFollowUp(helpMsg, detected);
         break;
       }
 
@@ -432,8 +576,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       default: {
         if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
         const unkMsg = `Understood: "${spokenText}". Say "help" to hear supported voice commands.`;
-        setVoiceFeedback(unkMsg);
-        speakText(unkMsg, detected);
+        speakAndFollowUp(unkMsg, detected);
         break;
       }
     }
@@ -469,7 +612,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           recognitionRef.current.start();
         } catch (e) {
           recognitionRef.current.stop();
-          setTimeout(() => recognitionRef.current.start(), 100);
+          setTimeout(() => recognitionRef.current?.start(), 100);
         }
       } else {
         simulateSpokenInput('Send 0.1 ETH to Rahul');
@@ -486,8 +629,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     }, 700);
   };
 
-  // Real Payment Execution (Debits sender DB, broadcasts to recipient DB)
-  const handleConfirmSend = (recipient: string, address: string, amount: number) => {
+  // Real Payment Execution (Debits sender DB, broadcasts to recipient DB, signs with real WebAuthn passkey)
+  const handleConfirmSend = (
+    recipient: string,
+    address: string,
+    amount: number,
+    sigResult?: PasskeySignatureResult
+  ) => {
     if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
     confetti({
       particleCount: 70,
@@ -506,6 +654,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     setUserState(updatedUser);
     saveStoredUser(updatedUser);
 
+    const txHash =
+      sigResult?.signatureHex?.slice(0, 18) ||
+      `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`;
+
     // If recipient is our friend Rahul, update his stored DB record as well
     if (activeUserId === 'user_main' && recipient.toLowerCase().includes('rahul')) {
       const friendData = getStoredUser('user_friend');
@@ -522,14 +674,11 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         counterpartyAddress: userState.address,
         timestamp: Date.now(),
         status: 'confirmed',
-        txHash: `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`,
+        txHash,
+        note: `Passkey Biometrics Verified (${sigResult?.method || 'WebAuthn Hardware'})`,
       };
       saveStoredTransactions('user_friend', [friendRxRecord, ...friendTxs]);
     }
-
-    const txHash = `0x${Math.random().toString(16).slice(2, 10)}...${Math.random()
-      .toString(16)
-      .slice(2, 6)}`;
 
     const newTx: TransactionRecord = {
       id: `tx_${Date.now()}`,
@@ -541,6 +690,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       timestamp: Date.now(),
       status: 'confirmed',
       txHash,
+      note: `Hardware Biometrics Approved (${sigResult?.method || 'WebAuthn Passkey'})`,
     };
 
     const updatedTxs = [newTx, ...transactions];
@@ -563,16 +713,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
     const successSpeech =
       lang === 'hi'
-        ? `${recipient} को ${amount} ईथर सफलतापूर्वक भेजे गए।`
+        ? `सफलतापूर्वक भेजा गया! ${recipient} को ${amount} ईथर का भुगतान आपके पासकी द्वारा हस्ताक्षरित और सेपोलिया पर पुष्टि कर दिया गया है।`
         : lang === 'ar'
-        ? `تم إرسال ${amount} إيثيريوم بنجاح إلى ${recipient}.`
-        : `Successfully sent ${amount} test ETH to ${recipient}. Sepolia block confirmed.`;
+        ? `تم بنجاح! تم توقيع وإرسال ${amount} إيثيريوم إلى ${recipient} باستخدام مفتاح المرور وتأكيد الكتلة.`
+        : `Transaction confirmed and broadcast! ${amount} Sepolia ETH sent to ${recipient}. Signed with your hardware passkey on smart contract.`;
 
-    setVoiceFeedback(successSpeech);
-    setAriaAnnouncement(successSpeech);
-    if (accessibilitySettings.autoReadAloud) {
-      speakText(successSpeech, lang);
-    }
+    speakAndFollowUp(successSpeech, lang);
   };
 
   // Filter transactions based on active filter tab
@@ -624,6 +770,27 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 <span>Sepolia Testnet</span>
                 <span className="text-[10px] text-zinc-500 border-l border-zinc-300 pl-2 font-mono">12 Gwei</span>
               </div>
+
+              {/* Compulsory Earphones Privacy Indicator */}
+              <button
+                onClick={() => {
+                  audioCues.playIntentRecognized();
+                  setShowHeadphoneModal(true);
+                }}
+                className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold transition cursor-pointer ${
+                  headphoneStatus.isVerified || headphoneStatus.isConnected
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-orange-50 border-[#FF5500]/40 text-[#FF5500] animate-pulse'
+                }`}
+                title="Earphones Audio Privacy Gate"
+              >
+                <Headphones className="w-3.5 h-3.5" />
+                <span>
+                  {headphoneStatus.isVerified || headphoneStatus.isConnected
+                    ? 'Earphones Active'
+                    : 'Earphones Required'}
+                </span>
+              </button>
             </div>
 
             {/* Right Controls: Web3 Account Dropdown, Settings, Mode Toggle */}
@@ -1465,6 +1632,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         onClose={() => setIsSettingsOpen(false)}
       />
 
+      <HeadphoneSafetyModal
+        isOpen={showHeadphoneModal}
+        currentLang={lang}
+        onVerified={() => setShowHeadphoneModal(false)}
+        onClose={() => setShowHeadphoneModal(false)}
+      />
+
       <SendModal
         isOpen={isSendOpen}
         contacts={userState.contacts}
@@ -1473,6 +1647,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         initialAmount={sendPreFill.amount}
         availableBalanceETH={userState.balanceETH}
         ethRateUSD={userState.ethRateUSD}
+        externalVoiceTrigger={modalVoiceTrigger}
         onClose={() => setIsSendOpen(false)}
         onConfirmSend={handleConfirmSend}
       />

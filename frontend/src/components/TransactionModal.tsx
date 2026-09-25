@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Fingerprint, CheckCircle2, ShieldCheck, X, Volume2, ArrowUpRight } from 'lucide-react';
 import { audioCues } from '../utils/audioCues';
 import { speakText, SupportedLanguage } from '../utils/i18n';
+import { signTransactionWithPasskey } from '../utils/passkeyAuth';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -25,12 +26,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
   const getReadbackText = () => {
     if (lang === 'hi') {
-      return `${contact} को ${amount} टेस्ट इथीरियम भेज रहे हैं। फिंगरप्रिंट से पुष्टि करें।`;
+      return `${contact} को ${amount} टेस्ट इथीरियम भेज रहे हैं। फिंगरप्रिंट या पासकी से पुष्टि करें।`;
     }
     if (lang === 'ar') {
-      return `إرسال ${amount} إيثيريوم تجريبي إلى ${contact}. يرجى التأكيد ببصمة الإصبع.`;
+      return `إرسال ${amount} إيثيريوم تجريبي إلى ${contact}. يرجى التأكيد ببصمة الإصبع أو مفتاح المرور.`;
     }
-    return `Send ${amount} test Ether to ${contact}. Confirm with fingerprint.`;
+    return `Send ${amount} test Ether to ${contact}. Confirm with fingerprint or passkey.`;
   };
 
   useEffect(() => {
@@ -57,19 +58,23 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSimulatePasskey = () => {
+  const handleSimulatePasskey = async () => {
     setScanState('scanning');
     audioCues.playListeningStarted();
 
-    setTimeout(() => {
+    const pseudoTx = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+    const result = await signTransactionWithPasskey(pseudoTx, contact, amount);
+
+    if (result.success) {
       setScanState('approved');
-      audioCues.playSuccess();
+      audioCues.playPasskeySuccess();
+      setTimeout(() => audioCues.playSuccess(), 250);
       speakText(
         lang === 'hi'
-          ? 'लेनदेन स्वीकृत हुआ और ब्लॉकचेन पर भेजा गया।'
+          ? 'पासकी द्वारा हस्ताक्षर हुआ! लेनदेन स्वीकृत और ब्लॉकचेन पर भेजा गया।'
           : lang === 'ar'
-          ? 'تم تأكيد المعاملة وإرسالها إلى البلوكتشين.'
-          : 'Transaction approved and broadcast to blockchain.',
+          ? 'تم التحقق من البصمة! تم تأكيد المعاملة وإرسالها إلى البلوكتشين.'
+          : 'Passkey signature verified! Transaction approved and broadcast to blockchain.',
         lang
       );
 
@@ -77,7 +82,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         onSuccess(amount, contact);
         onClose();
       }, 1100);
-    }, 900);
+    } else {
+      setScanState('idle');
+      audioCues.playWarning();
+      speakText('Biometric verification cancelled. Tap to try again.', lang);
+    }
   };
 
   return (
