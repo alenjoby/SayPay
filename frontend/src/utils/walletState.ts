@@ -3,10 +3,11 @@
  * 
  * Supports:
  * 1. Dual-user demo: "You (0x71C8)" and "Friend (Rahul 0x3A9F)"
- * 2. Real-time cross-tab and cross-device communication via BroadcastChannel
- * 3. 100% voice command execution and screen reader announcements
- * 4. Full Contacts management: Add, View, Search, Delete contacts
- * 5. Zero em-dashes anywhere in text or UI
+ * 2. Persistent Local Database (IndexedStorage via localStorage) so balances, transactions, and contacts persist across refreshes
+ * 3. Real-time cross-tab and cross-device communication via BroadcastChannel
+ * 4. 100% voice command execution and screen reader announcements
+ * 5. Full Contacts management: Add, View, Search, Delete contacts
+ * 6. Zero em-dashes anywhere in text or UI
  */
 
 export interface TransactionRecord {
@@ -51,7 +52,7 @@ export interface WalletUser {
   contacts: Contact[];
 }
 
-export const DEMO_USERS: Record<'user_main' | 'user_friend', WalletUser> = {
+export const DEFAULT_USERS: Record<'user_main' | 'user_friend', WalletUser> = {
   user_main: {
     id: 'user_main',
     name: 'Alen',
@@ -89,6 +90,72 @@ export const DEMO_USERS: Record<'user_main' | 'user_friend', WalletUser> = {
     ],
   },
 };
+
+/**
+ * Local Database Persistence Helpers
+ */
+export function getStoredUser(userId: 'user_main' | 'user_friend'): WalletUser {
+  if (typeof window === 'undefined') return DEFAULT_USERS[userId];
+  try {
+    const raw = localStorage.getItem(`saypay_db_user_${userId}`);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error(e);
+  }
+  return DEFAULT_USERS[userId];
+}
+
+export function saveStoredUser(user: WalletUser) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`saypay_db_user_${user.id}`, JSON.stringify(user));
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+export function getStoredTransactions(userId: 'user_main' | 'user_friend'): TransactionRecord[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(`saypay_db_txs_${userId}`);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error(e);
+  }
+  return [
+    {
+      id: 'tx_init_1',
+      type: 'receive',
+      amount: 2.5,
+      currency: 'Sepolia ETH',
+      counterparty: 'Sepolia Faucet',
+      counterpartyAddress: '0x88f4...912a',
+      timestamp: Date.now() - 3600000 * 2,
+      status: 'confirmed',
+      txHash: '0x3f9a...c812',
+    },
+    {
+      id: 'tx_init_2',
+      type: 'send',
+      amount: 0.1,
+      currency: 'Sepolia ETH',
+      counterparty: 'Amma',
+      counterpartyAddress: '0x892a...12bc',
+      timestamp: Date.now() - 3600000 * 24,
+      status: 'confirmed',
+      txHash: '0x7b11...90fe',
+    },
+  ];
+}
+
+export function saveStoredTransactions(userId: 'user_main' | 'user_friend', txs: TransactionRecord[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`saypay_db_txs_${userId}`, JSON.stringify(txs));
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 const SYNC_CHANNEL_NAME = 'saypay_live_transfer_channel';
 

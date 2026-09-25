@@ -29,24 +29,30 @@ import {
   AlertTriangle,
   ArrowLeft,
   Info,
+  Settings,
+  Flame,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audioCues } from '../utils/audioCues';
 import { speakText, SupportedLanguage, detectLanguage } from '../utils/i18n';
 import { parseVoiceIntent, ParsedIntentResult } from '../utils/intentParser';
 import {
-  DEMO_USERS,
   WalletUser,
   TransactionRecord,
   Contact,
   walletSync,
   SyncEvent,
+  getStoredUser,
+  saveStoredUser,
+  getStoredTransactions,
+  saveStoredTransactions,
 } from '../utils/walletState';
 import { ModeOnboardingModal } from './ModeOnboardingModal';
 import { SendModal } from './SendModal';
 import { ReceiveModal } from './ReceiveModal';
 import { ContactsModal } from './ContactsModal';
 import { GuardiansModal } from './GuardiansModal';
+import { AccessibilitySettingsModal, AccessibilitySettings } from './AccessibilitySettingsModal';
 
 interface FunctionalWalletPageProps {
   onBackToLanding: () => void;
@@ -57,9 +63,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   onBackToLanding,
   initialLang = 'en',
 }) => {
-  // 1. User & Wallet Identity (Supports instant switching between "You" and "Friend Rahul")
+  // 1. User & Wallet Identity (Instant switching between "You (Alen)" and "Friend (Rahul)")
   const [activeUserId, setActiveUserId] = useState<'user_main' | 'user_friend'>('user_main');
-  const [userState, setUserState] = useState<WalletUser>(DEMO_USERS.user_main);
+  const [userState, setUserState] = useState<WalletUser>(() => getStoredUser('user_main'));
 
   // 2. Mode & Accessibility Preferences
   const [accessibilityMode, setAccessibilityMode] = useState<'blind' | 'visual'>(() => {
@@ -69,8 +75,28 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     return localStorage.getItem('saypay_onboarded') !== 'true';
   });
   const [lang, setLang] = useState<SupportedLanguage>(initialLang);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [showBlindRules, setShowBlindRules] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+
+  // Full Granular Accessibility Settings (W3C WCAG AAA)
+  const [accessibilitySettings, setAccessibilitySettings] = useState<AccessibilitySettings>(() => {
+    const saved = localStorage.getItem('saypay_acc_settings');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      autoReadAloud: true,
+      earconsEnabled: true,
+      highContrast: true,
+      fontSize: 'large',
+      speechRate: 0.95,
+      spokenLanguage: initialLang,
+      hapticFeedback: true,
+      spacebarHotkey: true,
+    };
+  });
 
   // 3. Modals & Dialogs
   const [isSendOpen, setIsSendOpen] = useState(false);
@@ -86,31 +112,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const [ariaAnnouncement, setAriaAnnouncement] = useState('');
   const recognitionRef = useRef<any>(null);
 
-  // 5. Transaction History
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([
-    {
-      id: 'tx_init_1',
-      type: 'receive',
-      amount: 2.5,
-      currency: 'Sepolia ETH',
-      counterparty: 'Sepolia Faucet',
-      counterpartyAddress: '0x88f4...912a',
-      timestamp: Date.now() - 3600000 * 2,
-      status: 'confirmed',
-      txHash: '0x3f9a...c812',
-    },
-    {
-      id: 'tx_init_2',
-      type: 'send',
-      amount: 0.1,
-      currency: 'Sepolia ETH',
-      counterparty: 'Amma',
-      counterpartyAddress: '0x892a...12bc',
-      timestamp: Date.now() - 3600000 * 24,
-      status: 'confirmed',
-      txHash: '0x7b11...90fe',
-    },
-  ]);
+  // 5. Persistent Transaction History (Database)
+  const [transactions, setTransactions] = useState<TransactionRecord[]>(() =>
+    getStoredTransactions('user_main')
+  );
 
   // 6. Incoming Notification Banner
   const [incomingAlert, setIncomingAlert] = useState<{
@@ -120,10 +125,22 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     txHash: string;
   } | null>(null);
 
-  // Synchronize active user state
+  // Synchronize active user state from local DB on user switch
   useEffect(() => {
-    setUserState(DEMO_USERS[activeUserId]);
+    const loaded = getStoredUser(activeUserId);
+    setUserState(loaded);
+    const loadedTxs = getStoredTransactions(activeUserId);
+    setTransactions(loadedTxs);
   }, [activeUserId]);
+
+  // Persist user and transactions whenever they change
+  useEffect(() => {
+    saveStoredUser(userState);
+  }, [userState]);
+
+  useEffect(() => {
+    saveStoredTransactions(activeUserId, transactions);
+  }, [activeUserId, transactions]);
 
   // Save mode preference
   const handleSelectMode = (mode: 'blind' | 'visual') => {
@@ -133,36 +150,36 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     setShowOnboarding(false);
 
     if (mode === 'blind') {
-      const msg = `Voice-Assisted Mode enabled. Welcome ${userState.name}. Your balance is ${userState.balanceETH.toFixed(4)} Sepolia ETH. Tap the mic or press Spacebar anytime to speak.`;
+      const msg = `Voice-Assisted Mode enabled. Welcome ${userState.name}. Your balance is ${userState.balanceETH.toFixed(
+        4
+      )} Sepolia ETH. Tap the mic or press Spacebar anytime to speak.`;
       setVoiceFeedback(msg);
       setAriaAnnouncement(msg);
       speakText(msg, lang);
     }
   };
 
-  // Sound sync
-  const toggleSound = () => {
-    const next = !soundEnabled;
-    setSoundEnabled(next);
-    audioCues.setSoundEnabled(next);
-    if (next) {
-      audioCues.playSuccess();
-    }
+  const handleUpdateSettings = (newSettings: AccessibilitySettings) => {
+    setAccessibilitySettings(newSettings);
+    localStorage.setItem('saypay_acc_settings', JSON.stringify(newSettings));
+    audioCues.setSoundEnabled(newSettings.earconsEnabled);
   };
 
   // Add Contact Handler
   const handleAddContact = (newContact: Contact) => {
+    const updatedContacts = [newContact, ...userState.contacts];
     setUserState((prev) => ({
       ...prev,
-      contacts: [newContact, ...prev.contacts],
+      contacts: updatedContacts,
     }));
   };
 
   // Delete Contact Handler
   const handleDeleteContact = (contactId: string) => {
+    const updated = userState.contacts.filter((c) => c.id !== contactId);
     setUserState((prev) => ({
       ...prev,
-      contacts: prev.contacts.filter((c) => c.id !== contactId),
+      contacts: updated,
     }));
   };
 
@@ -175,18 +192,24 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           (activeUserId === 'user_main' && event.fromUser === 'user_friend');
 
         if (isForMe) {
-          audioCues.playIncomingPayment();
+          if (accessibilitySettings.earconsEnabled) {
+            audioCues.playIncomingPayment();
+          }
+
           confetti({
-            particleCount: 80,
-            spread: 70,
+            particleCount: 90,
+            spread: 75,
             origin: { y: 0.6 },
             colors: ['#00E575', '#00C853', '#FFFFFF'],
           });
 
-          setUserState((prev) => ({
-            ...prev,
-            balanceETH: prev.balanceETH + event.amount,
-          }));
+          // Credit balance directly in database & memory
+          setUserState((prev) => {
+            const nextBal = prev.balanceETH + event.amount;
+            const updatedUser = { ...prev, balanceETH: nextBal };
+            saveStoredUser(updatedUser);
+            return updatedUser;
+          });
 
           const newTx: TransactionRecord = {
             id: `tx_${Date.now()}`,
@@ -199,7 +222,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             status: 'confirmed',
             txHash: event.txHash,
           };
-          setTransactions((prev) => [newTx, ...prev]);
+
+          setTransactions((prev) => {
+            const updated = [newTx, ...prev];
+            saveStoredTransactions(activeUserId, updated);
+            return updated;
+          });
 
           setIncomingAlert({
             show: true,
@@ -217,7 +245,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
           setVoiceFeedback(incomingSpeech);
           setAriaAnnouncement(incomingSpeech);
-          speakText(incomingSpeech, lang);
+          if (accessibilitySettings.autoReadAloud) {
+            speakText(incomingSpeech, lang);
+          }
 
           setTimeout(() => {
             setIncomingAlert(null);
@@ -229,7 +259,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     return () => {
       unsubscribe();
     };
-  }, [activeUserId, lang]);
+  }, [activeUserId, lang, accessibilitySettings]);
 
   // Voice Recognition setup
   useEffect(() => {
@@ -243,7 +273,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
         recognition.onstart = () => {
           setIsListening(true);
-          audioCues.playListeningStarted();
+          if (accessibilitySettings.earconsEnabled) {
+            audioCues.playListeningStarted();
+          }
           setVoiceFeedback('Listening to your voice...');
         };
 
@@ -270,7 +302,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         recognitionRef.current = recognition;
       }
     }
-  }, [lang, transcript]);
+  }, [lang, transcript, accessibilitySettings]);
 
   // Process natural voice commands
   const handleProcessCommand = (spokenText: string) => {
@@ -282,7 +314,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
     switch (result.intent) {
       case 'check_balance': {
-        audioCues.playIntentRecognized();
+        if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         const balSpeech =
           detected === 'hi'
             ? `आपका कुल बैलेंस ${userState.balanceETH.toFixed(4)} टेस्ट ईथर है।`
@@ -299,14 +331,14 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
 
       case 'send': {
-        audioCues.playIntentRecognized();
+        if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         setSendPreFill({ contact: result.contact, amount: result.amount });
         setIsSendOpen(true);
         break;
       }
 
       case 'receive': {
-        audioCues.playIntentRecognized();
+        if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         setIsReceiveOpen(true);
         const rxSpeech =
           detected === 'hi'
@@ -320,7 +352,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
 
       case 'guardians': {
-        audioCues.playIntentRecognized();
+        if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         setIsGuardiansOpen(true);
         const gSpeech =
           detected === 'hi'
@@ -334,7 +366,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
 
       case 'contacts': {
-        audioCues.playIntentRecognized();
+        if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         setIsContactsOpen(true);
         const cSpeech =
           detected === 'hi'
@@ -348,7 +380,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
 
       case 'history': {
-        audioCues.playIntentRecognized();
+        if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         const lastTx = transactions[0];
         const hSpeech = lastTx
           ? `Your latest transaction was ${lastTx.type === 'send' ? 'sending' : 'receiving'} ${
@@ -361,7 +393,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
 
       case 'cancel': {
-        audioCues.playWarning();
+        if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
         setIsSendOpen(false);
         setIsReceiveOpen(false);
         setIsContactsOpen(false);
@@ -373,7 +405,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
 
       case 'help': {
-        audioCues.playIntentRecognized();
+        if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         const helpMsg =
           'You can say: Check balance, Send 0.1 ETH to Rahul, Show my QR code, View guardians, Show contacts, or What was my last transaction.';
         setVoiceFeedback(helpMsg);
@@ -388,7 +420,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
 
       default: {
-        audioCues.playWarning();
+        if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
         const unkMsg = `Understood: "${spokenText}". Say "help" to hear supported voice commands.`;
         setVoiceFeedback(unkMsg);
         speakText(unkMsg, detected);
@@ -399,6 +431,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
   // Keyboard shortcut (Spacebar to hold-and-speak for blind users)
   useEffect(() => {
+    if (!accessibilitySettings.spacebarHotkey) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes((e.target as any)?.tagName)) {
         if (!isListening) {
@@ -410,7 +444,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isListening]);
+  }, [isListening, accessibilitySettings.spacebarHotkey]);
 
   const toggleMic = () => {
     if (isListening) {
@@ -435,30 +469,58 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
   const simulateSpokenInput = (text: string) => {
     setTranscript(text);
-    audioCues.playListeningStarted();
+    if (accessibilitySettings.earconsEnabled) audioCues.playListeningStarted();
     setVoiceFeedback(`Processing: "${text}"`);
     setTimeout(() => {
       handleProcessCommand(text);
     }, 700);
   };
 
+  // Real Payment Execution (Debits sender DB, broadcasts to recipient DB)
   const handleConfirmSend = (recipient: string, address: string, amount: number) => {
-    audioCues.playSuccess();
+    if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
     confetti({
-      particleCount: 50,
-      spread: 60,
+      particleCount: 60,
+      spread: 65,
       origin: { y: 0.7 },
       colors: ['#00E575', '#00C853', '#FFFFFF'],
     });
 
-    setUserState((prev) => ({
-      ...prev,
-      balanceETH: Math.max(0, prev.balanceETH - amount),
-    }));
+    const newBalance = Math.max(0, userState.balanceETH - amount);
+
+    // Save updated sender in persistent DB
+    const updatedUser: WalletUser = {
+      ...userState,
+      balanceETH: newBalance,
+    };
+    setUserState(updatedUser);
+    saveStoredUser(updatedUser);
+
+    // If recipient is our friend Rahul, update his stored DB record as well
+    if (activeUserId === 'user_main' && recipient.toLowerCase().includes('rahul')) {
+      const friendData = getStoredUser('user_friend');
+      friendData.balanceETH += amount;
+      saveStoredUser(friendData);
+
+      const friendTxs = getStoredTransactions('user_friend');
+      const friendRxRecord: TransactionRecord = {
+        id: `tx_${Date.now()}_rx`,
+        type: 'receive',
+        amount,
+        currency: 'Sepolia ETH',
+        counterparty: userState.name,
+        counterpartyAddress: userState.address,
+        timestamp: Date.now(),
+        status: 'confirmed',
+        txHash: `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`,
+      };
+      saveStoredTransactions('user_friend', [friendRxRecord, ...friendTxs]);
+    }
 
     const txHash = `0x${Math.random().toString(16).slice(2, 10)}...${Math.random()
       .toString(16)
       .slice(2, 6)}`;
+
     const newTx: TransactionRecord = {
       id: `tx_${Date.now()}`,
       type: 'send',
@@ -470,8 +532,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       status: 'confirmed',
       txHash,
     };
-    setTransactions((prev) => [newTx, ...prev]);
 
+    const updatedTxs = [newTx, ...transactions];
+    setTransactions(updatedTxs);
+    saveStoredTransactions(activeUserId, updatedTxs);
+
+    // Broadcast in real-time across tabs/phones!
     walletSync.broadcast({
       type: 'PAYMENT_SENT',
       fromUser: activeUserId,
@@ -494,7 +560,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
     setVoiceFeedback(successSpeech);
     setAriaAnnouncement(successSpeech);
-    speakText(successSpeech, lang);
+    if (accessibilitySettings.autoReadAloud) {
+      speakText(successSpeech, lang);
+    }
   };
 
   const isRTL = lang === 'ar';
@@ -503,7 +571,11 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     <div
       dir={isRTL ? 'rtl' : 'ltr'}
       className={`min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-[#00E575] selection:text-slate-950 ${
-        accessibilityMode === 'blind' ? 'text-lg' : 'text-base'
+        accessibilitySettings.fontSize === 'extra_large'
+          ? 'text-xl'
+          : accessibilitySettings.fontSize === 'large'
+          ? 'text-lg'
+          : 'text-base'
       }`}
     >
       {/* Hidden Live Region for Screen Readers */}
@@ -524,7 +596,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               <div className="w-8 h-8 rounded-xl bg-[#00E575] flex items-center justify-center font-black text-slate-950 text-sm shadow-sm group-hover:scale-105 transition">
                 S
               </div>
-              <span className="font-extrabold text-base text-slate-900 tracking-tight">SayPay</span>
+              <span className="font-extrabold text-base text-slate-900 tracking-tight font-display">
+                SayPay
+              </span>
             </button>
 
             {/* Testnet Badge */}
@@ -534,7 +608,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             </span>
           </div>
 
-          {/* Right Controls: User Switcher, Blind Rules, Mode Toggle, Sound */}
+          {/* Right Controls: User Switcher, Blind Rules, Settings, Mode Toggle */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Live Dual-User Switcher (Demo Phone-To-Phone) */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded-full border border-slate-200">
@@ -584,6 +658,20 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               <span className="hidden md:inline">Blind Protocols</span>
             </button>
 
+            {/* Accessibility Settings Drawer Trigger */}
+            <button
+              onClick={() => {
+                audioCues.playIntentRecognized();
+                setIsSettingsOpen(true);
+              }}
+              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition flex items-center gap-1.5 shadow-sm"
+              title="Accessibility Settings"
+              aria-label="Open Accessibility Settings"
+            >
+              <Settings className="w-4 h-4 text-[#00A850]" />
+              <span className="hidden lg:inline text-xs font-bold">Settings</span>
+            </button>
+
             {/* Accessibility Mode Switcher */}
             <button
               onClick={() => {
@@ -626,21 +714,11 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               <option value="hi">हिंदी</option>
               <option value="ar">العربية</option>
             </select>
-
-            {/* Sound Toggle */}
-            <button
-              onClick={toggleSound}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition"
-              title={soundEnabled ? 'Mute Sound Effects' : 'Enable Sound Effects'}
-              aria-label="Toggle Sound"
-            >
-              {soundEnabled ? <Volume2 className="w-4 h-4 text-[#00A850]" /> : <VolumeX className="w-4 h-4" />}
-            </button>
           </div>
         </div>
       </header>
 
-      {/* 2. Blind Mode Operating Rules Drawer / Modal */}
+      {/* 2. Blind Mode Operating Rules Drawer */}
       {showBlindRules && (
         <section className="bg-slate-900 text-white border-b border-slate-800 px-4 py-5 animate-fade-in">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start justify-between gap-6">
@@ -649,7 +727,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 <span className="px-2 py-0.5 rounded-full bg-[#00E575] text-slate-950 font-black text-[10px] uppercase">
                   W3C WCAG AAA Standards
                 </span>
-                <h3 className="text-base font-black">SayPay Blind User Operating Rules</h3>
+                <h3 className="text-base font-black font-display">SayPay Blind User Operating Rules</h3>
               </div>
               <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
                 Blind users navigate 100% through earcon audio chimes, verbal read-backs, and zero hexadecimal verification. Here are the 5 core rules built into this wallet:
@@ -693,7 +771,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         </section>
       )}
 
-      {/* 3. Main Full-Width Responsive Workspace (Eliminating empty side spaces) */}
+      {/* 3. Main Full-Width Responsive Workspace */}
       <main className="max-w-7xl mx-auto px-4 sm:px-8 py-6 space-y-6">
         {/* Incoming Payment Banner (Live Real-Time Notification) */}
         {incomingAlert && (
@@ -706,14 +784,14 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 <div className="text-xs uppercase tracking-wider font-extrabold text-emerald-950">
                   Real-Time Payment Received!
                 </div>
-                <div className="text-base font-black">
+                <div className="text-base font-black font-display">
                   +{incomingAlert.amount} Sepolia ETH from {incomingAlert.from}
                 </div>
               </div>
             </div>
             <button
               onClick={() => setIncomingAlert(null)}
-              className="px-3 py-1.5 rounded-xl bg-slate-950 text-white text-xs font-bold"
+              className="px-3.5 py-1.5 rounded-xl bg-slate-950 text-white text-xs font-bold"
             >
               Dismiss
             </button>
@@ -747,7 +825,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     <span className="text-4xl sm:text-5xl font-black text-slate-950 tracking-tight font-mono">
                       {userState.balanceETH.toFixed(4)}
                     </span>
-                    <span className="text-xl sm:text-2xl font-black text-[#00A850]">ETH</span>
+                    <span className="text-xl sm:text-2xl font-black text-[#00A850] font-display">ETH</span>
                   </div>
 
                   {/* Fiat conversion */}
@@ -808,7 +886,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   <div className="w-14 h-14 rounded-2xl bg-[#00E575] text-slate-950 flex items-center justify-center shadow-md shadow-emerald-500/25 group-hover:scale-105 transition">
                     <Send className="w-6 h-6" />
                   </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-slate-900">Send</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Send</span>
                 </button>
 
                 {/* Action 2: Receive */}
@@ -822,7 +900,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   <div className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
                     <ArrowDownLeft className="w-6 h-6 text-[#00A850]" />
                   </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-slate-900">Receive</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Receive</span>
                 </button>
 
                 {/* Action 3: Contacts */}
@@ -836,7 +914,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   <div className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
                     <Users className="w-6 h-6 text-slate-700" />
                   </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-slate-900">Contacts</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Contacts</span>
                 </button>
 
                 {/* Action 4: Guardians */}
@@ -850,7 +928,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   <div className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
                     <ShieldCheck className="w-6 h-6 text-emerald-600" />
                   </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-slate-900">Guardians</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-900 font-display">Guardians</span>
                 </button>
               </div>
             </section>
@@ -940,9 +1018,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             </section>
           </div>
 
-          {/* RIGHT COLUMN: Proper Dedicated Contacts Card + Recent Activity Feed (5 Cols on Desktop) */}
+          {/* RIGHT COLUMN: Dedicated Contacts Card + Recent Activity Feed (5 Cols on Desktop) */}
           <div className="lg:col-span-5 space-y-6">
-            {/* Dedicated Trusted Contacts Widget (Solves "Contacts not proper") */}
+            {/* Dedicated Trusted Contacts Widget */}
             <section
               aria-labelledby="contacts-widget-heading"
               className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm"
@@ -950,7 +1028,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-[#00A850]" />
-                  <h2 id="contacts-widget-heading" className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                  <h2 id="contacts-widget-heading" className="text-sm font-extrabold text-slate-900 uppercase tracking-wider font-display">
                     Trusted Contacts ({userState.contacts.length})
                   </h2>
                 </div>
@@ -1041,7 +1119,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-slate-500" />
-                  <h2 id="activity-heading" className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                  <h2 id="activity-heading" className="text-sm font-extrabold text-slate-900 uppercase tracking-wider font-display">
                     Recent Activity
                   </h2>
                 </div>
@@ -1107,6 +1185,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         currentLang={lang}
         onSelectMode={handleSelectMode}
         onClose={() => setShowOnboarding(false)}
+      />
+
+      <AccessibilitySettingsModal
+        isOpen={isSettingsOpen}
+        settings={accessibilitySettings}
+        onUpdateSettings={handleUpdateSettings}
+        onClose={() => setIsSettingsOpen(false)}
       />
 
       <SendModal

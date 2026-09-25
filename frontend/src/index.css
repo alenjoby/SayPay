@@ -12,6 +12,11 @@
     overflow-x: hidden;
   }
 
+  h1, h2, h3, .font-display {
+    font-family: 'Syne', 'Plus Jakarta Sans', system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+
   /* High contrast accessible focus rings */
   *:focus-visible {
     outline: 2px solid #00C853;
