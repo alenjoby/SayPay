@@ -33,7 +33,7 @@ class _Logits(torch.nn.Module):
 
 
 def export(model_dir: Path, out: Path, temperature: float, field: str = "masked",
-           max_len: int = 64, per_channel: bool = True, fp32: bool = False) -> None:
+           max_len: int = 64, per_channel: bool = False, fp32: bool = False) -> None:
     import onnxruntime as ort
     from onnxruntime.quantization import QuantType, quantize_dynamic
 
@@ -59,8 +59,8 @@ def export(model_dir: Path, out: Path, temperature: float, field: str = "masked"
         # Full precision (~1.2 GB): no accuracy loss, for a machine with RAM to spare.
         model_file = "model.onnx"
     else:
-        # Per-channel scales (one per output row) keep int8 much closer to fp32 than
-        # a single scale per matrix, at the same file size (~300 MB).
+        # Per-tensor int8 (~300 MB). Per-channel broke mmBERT (37/300 agreement on
+        # dev in Colab), so it is opt-in only.
         model_file = "model.int8.onnx"
         quantize_dynamic(str(fp32_path), str(out / model_file), weight_type=QuantType.QInt8,
                          per_channel=per_channel)
@@ -84,23 +84,29 @@ def export(model_dir: Path, out: Path, temperature: float, field: str = "masked"
            "source_model": str(model_dir), "file": model_file,
            "precision": "fp32" if fp32 else "int8", "per_channel": per_channel,
            "int8_agreement_with_fp32": same / len(rows) if rows else None}
-    (out / "saypay.json").write_text(json.dumps(cfg, indent=1))
     size = (out / model_file).stat().st_size / 1e6
     print(f"exported {out}/{model_file} ({size:.0f} MB), agreement with fp32 PyTorch on dev: "
           f"{same}/{len(rows)}")
+    if rows and same / len(rows) < 0.95:
+        # Refuse to leave a broken model where the API would pick it up.
+        (out / model_file).unlink()
+        raise SystemExit(f"EXPORT REJECTED: only {same}/{len(rows)} dev predictions match the "
+                         f"PyTorch model (need >= 95%). Nothing was written to {out}.")
+    (out / "saypay.json").write_text(json.dumps(cfg, indent=1))
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True, help="checkpoint dir, e.g. preds/mmbert/hf")
     ap.add_argument("--out", required=True, help="e.g. models/mmbert_int8")
-    ap.add_argument("--per-tensor", action="store_true", help="one scale per matrix (older, less accurate)")
+    ap.add_argument("--per-channel", action="store_true",
+                    help="per-channel int8 scales (broke mmBERT in testing; checked on export)")
     ap.add_argument("--fp32", action="store_true", help="no quantization (~1.2 GB, exact)")
     args = ap.parse_args()
     model_dir = Path(args.model)
     meta = json.loads((model_dir.parent / "meta.json").read_text())
     export(model_dir, Path(args.out), temperature=meta["temperature"], field=meta["field"],
-           max_len=meta["max_len"], per_channel=not args.per_tensor, fp32=args.fp32)
+           max_len=meta["max_len"], per_channel=args.per_channel, fp32=args.fp32)
 
 
 if __name__ == "__main__":
