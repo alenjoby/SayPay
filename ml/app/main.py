@@ -11,7 +11,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from saypay_nlu import CONFIDENCE_THRESHOLD, ENGINE, INTENTS, __version__, parse
+from saypay_nlu import CONFIDENCE_THRESHOLD, INTENTS, __version__, engine_name, parse
 
 from .schemas import IntentRequest, IntentResponse
 
@@ -28,7 +28,7 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "engine": ENGINE, "version": __version__, "intents": INTENTS,
+    return {"status": "ok", "engine": engine_name(), "version": __version__, "intents": INTENTS,
             "confidence_threshold": CONFIDENCE_THRESHOLD}
 
 
@@ -36,6 +36,6 @@ def health() -> dict:
 def intent(req: IntentRequest, debug: bool = False) -> IntentResponse:
     result = parse(req.text, req.contacts)
     body = result.as_dict()
-    body["engine"] = ENGINE
+    body["engine"] = engine_name()
     body["scores"] = result.scores if debug else None
     return IntentResponse(**body)

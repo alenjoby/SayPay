@@ -25,8 +25,8 @@ def ar_variants(word: str) -> list[str]:
 # Words that name a relationship rather than a person. A saved contact named
 # with any word in a group also matches the other words in that group.
 FAMILY_ALIASES: list[set[str]] = [
-    {"mom", "mother", "mum", "mummy", "mommy", "mama", "maa", "ma", "amma", "ammi", "ammy",
-     "umma", "ummi", "yumma", "امي", "ماما", "يمه", "يما", "والدتي", "امه", "ام",
+    {"mom", "mother", "mum", "mummy", "mommy", "mama", "maa", "amma", "ammi", "ammy",
+     "umma", "ummi", "yumma", "امي", "ماما", "يمه", "يما", "والدتي", "امه",
      "माँ", "मां", "मम्मी", "अम्मा", "अम्मी", "माता"},
     {"dad", "father", "papa", "pappa", "baba", "abba", "abbu", "abu", "yuba", "ابوي", "بابا",
      "يبه", "يبا", "والدي", "ابويه", "पापा", "पिताजी", "अब्बा", "अब्बू", "बाबा"},

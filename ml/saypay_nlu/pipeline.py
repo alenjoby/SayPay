@@ -6,6 +6,7 @@ with a fingerprint. Nothing here moves money.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 
 from .intents import INTENTS, keyword_hits, softmax
@@ -23,6 +24,24 @@ from .recipients import (
 from .txref import extract_tx_ref
 
 CONFIDENCE_THRESHOLD = 0.8
+
+_MODEL = None
+_MODEL_LOADED = False
+
+
+def get_model():
+    """The trained intent model, or None (rules only). SAYPAY_ENGINE=rules forces rules."""
+    global _MODEL, _MODEL_LOADED
+    if not _MODEL_LOADED:
+        _MODEL_LOADED = True
+        if os.getenv("SAYPAY_ENGINE", "").lower() != "rules":
+            from .classifier import IntentModel
+            _MODEL = IntentModel.load()
+    return _MODEL
+
+
+def engine_name() -> str:
+    return "tfidf-v3" if get_model() is not None else "rules-v1"
 
 _STOP = {clean(w) for w in STOPWORDS}
 
@@ -122,7 +141,9 @@ def _has_seq(tokens: list[Token], seq: tuple[str, ...]) -> bool:
     return any(tuple(texts[i:i + n]) == seq for i in range(len(texts) - n + 1))
 
 
-def parse(text: str, contacts: list[str] | None = None) -> ParseResult:
+def parse(text: str, contacts: list[str] | None = None, model="auto") -> ParseResult:
+    """Parse one command. ``model``: "auto" (trained model if present), None (rules),
+    or an IntentModel instance (used by the evaluation)."""
     tokens = tokenize(text)
     index = ContactIndex(contacts or [])
 
@@ -176,11 +197,21 @@ def parse(text: str, contacts: list[str] | None = None) -> ParseResult:
     if len(tokens) <= 2 and scores["cancel"] > 0:
         scores["cancel"] += 1.5  # a bare "no" / "لا" / "nahi"
 
-    probs = softmax(scores)
-    ranked = sorted(probs.items(), key=lambda kv: -kv[1])
-    top, conf = ranked[0]
-    if max(scores.values()) <= 0:
-        top, conf = "unknown", 0.0
+    if model == "auto":
+        model = get_model()
+    if model is not None:
+        probs = model.predict_one(text, contacts)
+        if tx_hash and max(probs, key=probs.get) not in ("history", "tx_status"):
+            # A pasted 66-char hash can only be a transaction lookup.
+            probs = {k: (0.95 if k == "tx_status" else v * 0.05) for k, v in probs.items()}
+        ranked = sorted(probs.items(), key=lambda kv: -kv[1])
+        top, conf = ranked[0]
+    else:
+        probs = softmax(scores)
+        ranked = sorted(probs.items(), key=lambda kv: -kv[1])
+        top, conf = ranked[0]
+        if max(scores.values()) <= 0:
+            top, conf = "unknown", 0.0
 
     missing: list[str] = []
     if top == "send":
@@ -214,17 +245,19 @@ def parse(text: str, contacts: list[str] | None = None) -> ParseResult:
     needs = conf < CONFIDENCE_THRESHOLD or bool(missing) or top == "unknown"
     if top == "unknown":
         clarification = {"type": "unknown"}
-    elif conf < CONFIDENCE_THRESHOLD:
-        clarification = {"type": "choose_intent", "options": [ranked[0][0], ranked[1][0]]}
-    elif missing:
+    elif missing and conf >= 0.5:
+        # "How much should I send to Ahmed?" also confirms the intent.
         clarification = {"type": "missing", "slots": missing}
+    elif conf < CONFIDENCE_THRESHOLD:
+        options = [k for k, _ in ranked if k != "unknown"][:2]
+        clarification = {"type": "choose_intent", "options": options}
 
     return ParseResult(
         intent=top,
         confidence=round(conf, 3),
         needs_clarification=needs,
         clarification=clarification,
-        alternatives=[{"intent": k, "score": round(v, 3)} for k, v in ranked[1:3]],
+        alternatives=[{"intent": k, "score": round(v, 3)} for k, v in ranked[1:3] if k != top],
         amount=amount_span.value if amount_span else None,
         unit=amount_span.unit if amount_span else None,
         recipient=recipient.as_dict() if recipient else None,

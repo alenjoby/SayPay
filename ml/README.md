@@ -10,9 +10,25 @@ moves money: the app reads the action back and the user approves with a fingerpr
 "did my last transfer go through?" -> tx_status {ordinal: last}
 ```
 
-Engine today: **rules-v1** (normalization + keyword scoring + rule-based slots).
-The trained model (TF-IDF, then XLM-R) replaces only the intent scorer; the
-response format stays the same.
+Engine: **tfidf-v3**. A trained intent model (TF-IDF over three text views
+plus rule features, calibrated) decides the intent. Amounts, units, recipients
+and safety checks stay rule-based. `SAYPAY_ENGINE=rules` falls back to the v1
+keyword rules. Results: [`reports/eval.md`](reports/eval.md).
+
+## Train and evaluate
+
+```bash
+python -m datagen.generate          # synthetic commands from templates + noise
+python scripts/fetch_external.py    # Banking77, ArBanking77, MASSIVE (real speakers)
+python scripts/train.py             # -> models/intent_v3.joblib (+ English-only baseline)
+python scripts/evaluate.py          # -> reports/eval.md
+```
+
+Test sets are never used for training or tuning:
+`data/test/unseen.tsv` (hand-written, frozen), the external `*_test` splits, and
+ArBanking77's Saudi/Moroccan/Tunisian sets (dialects absent from training).
+Tuning uses held-out templates plus `data/test/dev_handwritten.tsv`. Training
+rows that are near-duplicates of any test row are removed.
 
 ## Run
 
