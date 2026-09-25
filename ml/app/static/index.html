@@ -67,6 +67,9 @@
     <div class="actions">
       <button id="mic" class="mic" type="button">🎤 Speak</button>
       <button id="go" type="button">Understand</button>
+      <label style="display:flex;align-items:center;gap:6px;margin:0;color:var(--ink)">
+        <input id="speak" type="checkbox" checked style="width:auto"> Read the answer aloud
+      </label>
     </div>
     <div class="examples actions" aria-label="Examples">
       <button type="button">حوّل 0.1 إيثيريوم لأمي</button>
@@ -81,6 +84,7 @@
 
   <div class="card" aria-live="polite">
     <p id="say">Result appears here.</p>
+    <p id="rb" dir="auto" style="margin:0 0 8px;font-size:1.1rem"></p>
     <div class="chips" id="chips"></div>
   </div>
 
@@ -129,6 +133,16 @@ async function understand() {
     $("say").className = cls;
     const chips = [`intent: ${r.intent}`, `confidence: ${Math.round(r.confidence * 100)}%`,
                    `languages: ${(r.lang_mix || []).join("+") || "?"}`, `engine: ${r.engine}`];
+    if (r.readback) {
+      $("rb").textContent = "🔊 " + r.readback.text;
+      $("rb").lang = r.readback.lang;
+      if ($("speak").checked && window.speechSynthesis) {
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(r.readback.text);
+        u.lang = { ar: "ar-SA", hi: "hi-IN", en: "en-US" }[r.readback.lang] || "en-US";
+        speechSynthesis.speak(u);
+      }
+    }
     $("chips").innerHTML = chips.map(c => `<span class="chip">${c}</span>`).join("");
     $("raw").textContent = JSON.stringify(r, null, 2);
   } catch (e) {

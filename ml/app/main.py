@@ -37,7 +37,7 @@ def health() -> dict:
 
 @app.post("/intent", response_model=IntentResponse, response_model_exclude_none=False)
 def intent(req: IntentRequest, debug: bool = False) -> IntentResponse:
-    result = parse(req.text, req.contacts)
+    result = parse(req.text, req.contacts, reply_lang=req.reply_lang)
     body = result.as_dict()
     body["engine"] = engine_name()
     body["scores"] = result.scores if debug else None

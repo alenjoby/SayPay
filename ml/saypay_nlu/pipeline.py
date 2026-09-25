@@ -22,6 +22,7 @@ from .recipients import (
     find_keyword_recipient,
     find_tx_hash,
 )
+from .readback import build_readback
 from .txref import extract_tx_ref
 
 CONFIDENCE_THRESHOLD = 0.8
@@ -124,6 +125,7 @@ class ParseResult:
     tx_ref: dict | None
     lang_mix: list[str]
     normalized_text: str
+    readback: dict = field(default_factory=dict)
     scores: dict[str, float] = field(default_factory=dict)
 
     def as_dict(self) -> dict:
@@ -186,7 +188,8 @@ def _has_seq(tokens: list[Token], seq: tuple[str, ...]) -> bool:
     return any(tuple(texts[i:i + n]) == seq for i in range(len(texts) - n + 1))
 
 
-def parse(text: str, contacts: list[str] | None = None, model="auto") -> ParseResult:
+def parse(text: str, contacts: list[str] | None = None, model="auto",
+          reply_lang: str | None = None) -> ParseResult:
     """Parse one command. ``model``: "auto" (trained model if present), None (rules),
     or an IntentModel instance (used by the evaluation)."""
     tokens = tokenize(text)
@@ -300,7 +303,7 @@ def parse(text: str, contacts: list[str] | None = None, model="auto") -> ParseRe
         options = [k for k, _ in ranked if k != "unknown"][:2]
         clarification = {"type": "choose_intent", "options": options}
 
-    return ParseResult(
+    result = ParseResult(
         intent=top,
         confidence=round(conf, 3),
         needs_clarification=needs,
@@ -319,6 +322,8 @@ def parse(text: str, contacts: list[str] | None = None, model="auto") -> ParseRe
         normalized_text=normalized_text(tokens),
         scores={k: round(v, 3) for k, v in scores.items()},
     )
+    result.readback = build_readback(result, reply_lang)
+    return result
 
 
 __all__ = ["parse", "ParseResult", "INTENTS", "CONFIDENCE_THRESHOLD"]
