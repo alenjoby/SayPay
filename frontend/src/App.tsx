@@ -376,32 +376,32 @@ export const App: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="grid-pattern-monochromia p-8 rounded-3xl border border-zinc-200 text-center shadow-sm hover:border-[#FF5500]/40 transition">
-              <span className="text-5xl font-black text-zinc-900 tracking-tight block tabular-nums">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm">
+              <span className="text-5xl font-black text-slate-900 tracking-tight block tabular-nums">
                 +70%
               </span>
-              <h3 className="font-bold text-zinc-800 text-sm mt-2">Longer Task Duration</h3>
-              <p className="text-xs text-zinc-500 mt-1">
+              <h3 className="font-bold text-slate-800 text-sm mt-2">Longer Task Duration</h3>
+              <p className="text-xs text-slate-500 mt-1">
                 Blind users averaged 47.9 minutes vs 28.2 minutes for sighted users on basic tasks.
               </p>
             </div>
 
-            <div className="grid-pattern-monochromia p-8 rounded-3xl border border-zinc-200 text-center shadow-sm hover:border-[#FF5500]/40 transition">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm">
               <span className="text-5xl font-black text-[#FF5500] tracking-tight block tabular-nums">
                 0
               </span>
-              <h3 className="font-bold text-zinc-800 text-sm mt-2">Silent Popups in SayPay</h3>
-              <p className="text-xs text-zinc-500 mt-1">
+              <h3 className="font-bold text-slate-800 text-sm mt-2">Silent Popups in SayPay</h3>
+              <p className="text-xs text-slate-500 mt-1">
                 Standard wallets failed to announce confirmation dialogs. SayPay reads all actions out loud.
               </p>
             </div>
 
-            <div className="grid-pattern-monochromia p-8 rounded-3xl border border-zinc-200 text-center shadow-sm hover:border-[#FF5500]/40 transition">
-              <span className="text-5xl font-black text-zinc-900 tracking-tight block tabular-nums">
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm">
+              <span className="text-5xl font-black text-slate-900 tracking-tight block tabular-nums">
                 12 Words
               </span>
-              <h3 className="font-bold text-zinc-800 text-sm mt-2">Seed Phrases Eliminated</h3>
-              <p className="text-xs text-zinc-500 mt-1">
+              <h3 className="font-bold text-slate-800 text-sm mt-2">Seed Phrases Eliminated</h3>
+              <p className="text-xs text-slate-500 mt-1">
                 Screen-reader users often skipped 12-word seed backups due to fatigue. SayPay is seedless.
               </p>
             </div>
@@ -410,44 +410,44 @@ export const App: React.FC = () => {
       </section>
 
       {/* 5. Section: Security Architecture (Industrial Split Layout) */}
-      <section id="security" className="py-20 px-4 sm:px-8 bg-white border-b border-zinc-200">
+      <section id="security" className="py-20 px-4 sm:px-8 bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto">
           <div className="max-w-xl mb-12">
             <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5500]">
               Deliberate Architecture
             </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-zinc-900 tracking-tight mt-2">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-2">
               Where security isn't a feature. It's the foundation.
             </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="grid-pattern-monochromia p-6 rounded-2xl border border-zinc-200 space-y-3 hover:border-[#FF5500]/40 transition">
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
               <div className="w-10 h-10 rounded-xl bg-zinc-950 text-[#FF5500] flex items-center justify-center font-bold">
                 <Lock className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-bold text-zinc-900">AI Never Moves Money</h3>
-              <p className="text-xs text-zinc-600 leading-relaxed">
+              <h3 className="text-lg font-bold text-slate-900">AI Never Moves Money</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
                 The speech model only proposes a structured action. Funds are unlocked exclusively through physical device biometric confirmation (Passkey/Fingerprint).
               </p>
             </div>
 
-            <div className="grid-pattern-monochromia p-6 rounded-2xl border border-zinc-200 space-y-3 hover:border-[#FF5500]/40 transition">
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
               <div className="w-10 h-10 rounded-xl bg-zinc-950 text-[#FF5500] flex items-center justify-center font-bold">
                 <Shield className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-bold text-zinc-900">No Voice Passwords</h3>
-              <p className="text-xs text-zinc-600 leading-relaxed">
+              <h3 className="text-lg font-bold text-slate-900">No Voice Passwords</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
                 Voice biometrics can be cloned from 3 seconds of audio. SayPay uses device hardware biometric authentication and avoids speaking passwords aloud.
               </p>
             </div>
 
-            <div className="grid-pattern-monochromia p-6 rounded-2xl border border-zinc-200 space-y-3 hover:border-[#FF5500]/40 transition">
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
               <div className="w-10 h-10 rounded-xl bg-zinc-950 text-[#FF5500] flex items-center justify-center font-bold">
                 <UserCheck className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-bold text-zinc-900">Zero On-Chain PII</h3>
-              <p className="text-xs text-zinc-600 leading-relaxed">
+              <h3 className="text-lg font-bold text-slate-900">Zero On-Chain PII</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
                 Personal names, contacts, and phone records remain strictly in local device storage. The public blockchain only sees smart contract wallet interactions.
               </p>
             </div>
