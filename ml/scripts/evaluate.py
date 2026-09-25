@@ -147,6 +147,8 @@ def main() -> None:
                     help="prediction dirs from finetune_transformer.py / laya_zeroshot.py")
     ap.add_argument("--onnx", default="", help="int8 ONNX model dir (e.g. models/mmbert_int8): "
                     "adds it and the deployed v3+ONNX ensemble as systems")
+    ap.add_argument("--sets", default="", help="comma-separated test sets to run (default: all), "
+                    "e.g. blind_v2,arbanking77_saudi_test")
     ap.add_argument("--out", default="eval")
     args = ap.parse_args()
     systems = {
@@ -169,6 +171,9 @@ def main() -> None:
         if systems[name].meta.get("kind") != "zeroshot":
             systems[f"v3+{name}"] = Ensemble(systems["v3"], systems[name])
     tests = {**load_handwritten_tests(), **{n: load_external(n) for n in EXTERNAL_TEST}}
+    if args.sets:
+        keep = set(args.sets.split(",")) | {"blind_v2"}
+        tests = {k: v for k, v in tests.items() if k in keep}
     report: dict = {"generated": time.strftime("%Y-%m-%d %H:%M"), "sets": {},
                     "models": extra_meta}
     unseen_preds = {}
