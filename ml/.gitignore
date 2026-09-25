@@ -7,3 +7,6 @@ data/external/
 data/cache/
 preds/_*/
 data/splits/
+preds/
+models/mmbert_int8/
+models/_*/
