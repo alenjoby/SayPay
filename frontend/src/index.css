@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --dark-cyan: #119da4;
-  --cerulean: #0c7489;
-  --dark-teal: #13505b;
-  --black: #040404;
-  --dust-grey: #d7d9ce;
+  --primary-lime: #00E575;
+  --primary-dark: #00C853;
+  --bg-canvas: #F8FAFC;
+  --card-bg: #FFFFFF;
+  --text-dark: #0F172A;
 }
 
 @layer base {
@@ -14,8 +14,8 @@
   }
   
   body {
-    background-color: var(--dust-grey);
-    color: var(--black);
+    background-color: var(--bg-canvas);
+    color: var(--text-dark);
     font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overflow-x: hidden;
   }
@@ -25,52 +25,52 @@
     letter-spacing: -0.03em;
   }
 
-  /* High contrast accessible focus rings using dark-cyan */
+  /* High contrast accessible focus rings using primary-lime */
   *:focus-visible {
-    outline: 2px solid var(--dark-cyan);
+    outline: 2px solid var(--primary-lime);
     outline-offset: 3px;
   }
 }
 
-/* Luxury Web3 Card Style (Dust-Grey Surface with Dark Teal / Cerulean Accents) */
+/* Luxury Web3 Card Style */
 .tw-card {
   background-color: #FFFFFF;
-  border: 1px solid rgba(19, 80, 91, 0.14);
+  border: 1px solid #E2E8F0;
   border-radius: 1.5rem;
-  box-shadow: 0 10px 30px -5px rgba(4, 4, 4, 0.05), 0 4px 6px -2px rgba(4, 4, 4, 0.02);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.02);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .tw-card:hover {
-  border-color: rgba(17, 157, 164, 0.4);
-  box-shadow: 0 20px 35px -10px rgba(12, 116, 137, 0.12);
-  transform: translateY(-2px);
-}
-
-/* Premium Cyan Button */
-.btn-cyan {
-  background-color: var(--dark-cyan);
-  color: #FFFFFF;
-  font-weight: 700;
-  transition: all 0.2s ease;
-}
-
-.btn-cyan:hover {
-  background-color: var(--cerulean);
-  color: #FFFFFF;
+  border-color: rgba(0, 229, 117, 0.4);
+  box-shadow: 0 12px 28px -6px rgba(0, 229, 117, 0.12);
   transform: translateY(-1px);
 }
 
-/* Dark Teal Button */
-.btn-teal {
-  background-color: var(--dark-teal);
+/* Signature Electric Lime Button */
+.btn-lime {
+  background-color: #00E575;
+  color: #022c22;
+  font-weight: 800;
+  transition: all 0.2s ease;
+}
+
+.btn-lime:hover {
+  background-color: #00C853;
+  color: #022c22;
+  transform: translateY(-1px);
+}
+
+/* Dark Slate Button */
+.btn-dark {
+  background-color: #0F172A;
   color: #FFFFFF;
   font-weight: 700;
   transition: all 0.2s ease;
 }
 
-.btn-teal:hover {
-  background-color: var(--black);
+.btn-dark:hover {
+  background-color: #1E293B;
   color: #FFFFFF;
   transform: translateY(-1px);
 }
@@ -114,16 +114,16 @@
 /* Voice cockpit radial aura animation */
 @keyframes voiceAura {
   0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(17, 157, 164, 0.5);
+    transform: scale(0.96);
+    box-shadow: 0 0 0 0 rgba(0, 229, 117, 0.45);
   }
   70% {
-    transform: scale(1.05);
-    box-shadow: 0 0 0 25px rgba(17, 157, 164, 0);
+    transform: scale(1.04);
+    box-shadow: 0 0 0 22px rgba(0, 229, 117, 0);
   }
   100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(17, 157, 164, 0);
+    transform: scale(0.96);
+    box-shadow: 0 0 0 0 rgba(0, 229, 117, 0);
   }
 }
 
