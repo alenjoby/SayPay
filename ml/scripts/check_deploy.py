@@ -59,7 +59,7 @@ def main() -> None:
     load_s = time.time() - t0
     loaded = rss_mb()
 
-    rows = load_unseen()
+    rows = load_unseen("blind_v2.tsv")
     for r in rows[:5]:  # warm-up
         parse(r["text"], r["contacts"])
     lat, correct = [], 0
@@ -73,7 +73,7 @@ def main() -> None:
     print(f"load time         {load_s:.1f} s")
     print(f"memory            {loaded:.0f} MB resident ({loaded - base:.0f} MB for models)")
     print(f"latency           p50 {statistics.median(lat):.1f} ms, p95 {lat[int(0.95 * len(lat)) - 1]:.1f} ms")
-    print(f"hand-written set  {correct}/{len(rows)} correct ({100 * correct / len(rows):.1f}%)")
+    print(f"blind test set   {correct}/{len(rows)} correct ({100 * correct / len(rows):.1f}%)")
     for text in ["حوّل 0.1 إيثيريوم لأمي", "Rahul ko 500 bhejo", "send a message to ahmed"]:
         r = parse(text, ["Amma", "Ahmed", "Rahul"])
         print(f"  {text!r:32} -> {r.intent} {r.confidence:.2f} amount={r.amount} contact={r.contact}")
