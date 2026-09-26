@@ -2,6 +2,25 @@
 
 SayPay is an accessible, voice-first cryptocurrency smart wallet engineered for blind and visually impaired individuals. It eliminates traditional Web3 usability barriers by removing 12-word seed phrases, replacing 42-character hexadecimal addresses with verified human contacts, enforcing hardware biometric authorization via WebAuthn passkeys, and providing privacy-preserving auditory interfaces.
 
+## Run it in one step
+
+You need **Python 3.11+** and **Node.js 20+**. Then:
+
+| Windows | Mac / Linux |
+|---|---|
+| Double-click **`start.bat`** | `./start.sh` |
+
+The first run installs everything (a few minutes); after that it starts in seconds.
+It starts the voice model, a local blockchain with the SayPayVault contract, the
+app and the contract tester, then opens **http://localhost:5173**. Use **Chrome or
+Edge**, go into the wallet, and **hold Space** to talk (or type in the box under the
+voice bar). Stop: press Enter in the start window (Windows; `stop.bat` if it was
+closed) or Ctrl+C (Mac/Linux).
+
+Try: "What's my balance", "Send 0.05 ETH to Amma", "प्रिया को 0.05 ईथर भेजो",
+"كم رصيدي", "change to Arabic". The contract tester (http://localhost:5174) plays
+the guardians and the beneficiary for the recovery and inheritance demos.
+
 ---
 
 ## 1. Usability Research and Problem Statement
