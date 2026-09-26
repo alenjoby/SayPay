@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AccessibleDialog } from './AccessibleDialog';
 import {
   Sliders,
   Volume2,
@@ -120,9 +121,8 @@ export const AccessibilitySettingsModal: React.FC<AccessibilitySettingsModalProp
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <AccessibleDialog
+      onClose={onClose}
       aria-labelledby="accessibility-settings-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
     >
@@ -605,6 +605,6 @@ export const AccessibilitySettingsModal: React.FC<AccessibilitySettingsModalProp
           </button>
         </div>
       </div>
-    </div>
+    </AccessibleDialog>
   );
 };

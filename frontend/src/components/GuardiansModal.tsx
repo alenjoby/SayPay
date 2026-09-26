@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AccessibleDialog } from './AccessibleDialog';
 import { ShieldCheck, UserCheck, AlertTriangle, Clock, RefreshCw, XCircle, ChevronRight, Lock, Activity, Heart, ArrowRight } from 'lucide-react';
 import { Guardian, walletSync } from '../utils/walletState';
 import { audioCues } from '../utils/audioCues';
@@ -195,9 +196,8 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <AccessibleDialog
+      onClose={onClose}
       aria-labelledby="guardians-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-sm animate-fade-in"
     >
@@ -488,6 +488,6 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </AccessibleDialog>
   );
 };

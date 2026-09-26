@@ -52,6 +52,7 @@ import { audioCues } from '../utils/audioCues';
 import { speakText, SupportedLanguage, detectLanguage, onSpeechStateChange, isCurrentlySpeaking, stopSpeaking } from '../utils/i18n';
 import { parseVoiceIntent, ParsedIntentResult } from '../utils/intentParser';
 import { understandCommand, sendBlocker } from '../utils/intentApi';
+import { useSayPayVault } from '../chain';
 import {
   WalletUser,
   TransactionRecord,
@@ -219,6 +220,16 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const [transcript, setTranscript] = useState('');
   const [voiceFeedback, setVoiceFeedback] = useState('Tap Mic or hold Spacebar to speak');
   const [ariaAnnouncement, setAriaAnnouncement] = useState('');
+  // Security events and errors go to the alert region; everything else is polite (spec).
+  const [alertAnnouncement, setAlertAnnouncement] = useState('');
+  // Typed fallback: every voice action also works by typing (spec).
+  const [typedCommand, setTypedCommand] = useState('');
+  // Clear, wait ~100 ms, then set, so a repeated message is announced again (spec).
+  const announce = (text: string, urgent = false) => {
+    const set = urgent ? setAlertAnnouncement : setAriaAnnouncement;
+    set('');
+    setTimeout(() => set(text), 100);
+  };
   const recognitionRef = useRef<any>(null);
   // Latest transcript and command handler, read when recognition ends. The
   // recognition callbacks are created in an effect, so reading state there
@@ -354,7 +365,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     shouldPromptListen: boolean = true
   ) => {
     setVoiceFeedback(msg);
-    setAriaAnnouncement(msg);
+    announce(msg);
 
     speakText(msg, spokenLang, () => {
       if (accessibilityMode === 'blind' && shouldPromptListen) {
@@ -366,6 +377,67 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
     });
   };
+
+  // ---- On-chain wallet (SayPayVault, see src/chain/README.md) -------------
+  // If no contract deployment is found, the wallet stays in its simulated mode.
+
+  // Chain messages can arrive milliseconds apart (Pending, Confirmed, Sent):
+  // queue them so each one is spoken instead of cutting the previous one off.
+  const chainSpeech = useRef<{ queue: string[]; speaking: boolean }>({ queue: [], speaking: false });
+  const speakQueued = (text: string) => {
+    const q = chainSpeech.current;
+    q.queue.push(text);
+    if (q.speaking) return;
+    const next = () => {
+      const t = q.queue.shift();
+      if (!t) {
+        q.speaking = false;
+        return;
+      }
+      q.speaking = true;
+      speakText(t, lang, next);
+    };
+    next();
+  };
+
+  const chain = useSayPayVault({
+    lang,
+    nameOf: (addr) =>
+      userState.contacts.find((c) => c.address.toLowerCase() === addr.toLowerCase())?.name ?? null,
+    onAnnounce: (a) => {
+      setVoiceFeedback(a.text);
+      announce(a.text, a.urgent);
+      speakQueued(a.text);
+    },
+    sounds: accessibilitySettings.earconsEnabled,
+  });
+
+  // The main account's balance is the vault's balance on chain.
+  useEffect(() => {
+    // The on-chain wallet is the main / created account; 'Savings' stays simulated.
+    if (!chain.status || activeUserId === 'user_friend') return;
+    const onChain = Number(chain.status.balanceEth);
+    setUserState((prev) => {
+      const ethToken = prev.tokens?.find((t) => t.id === 't_eth');
+      if (Math.abs(prev.balanceETH - onChain) < 1e-12 && (!ethToken || Math.abs(ethToken.balance - onChain) < 1e-12)) {
+        return prev;
+      }
+      // The screen shows the ETH row of the token list, so update both.
+      return {
+        ...prev,
+        balanceETH: onChain,
+        tokens: prev.tokens?.map((t) => (t.id === 't_eth' ? { ...t, balance: onChain } : t)),
+      };
+    });
+  }, [chain.status?.balanceEth, activeUserId]);
+
+  useEffect(() => {
+    if (chain.error) console.info('[SayPay chain] not connected, using the simulated wallet:', chain.error);
+  }, [chain.error]);
+
+  /** Fingerprint prompt for an owner action other than a send (ping, recovery). */
+  const approveWithPasskey = (action: string) => async () =>
+    (await signTransactionWithPasskey(`saypay:${action}:${Date.now()}`, action, 0)).success;
 
   const handleUpdateSettings = (newSettings: AccessibilitySettings) => {
     setAccessibilitySettings(newSettings);
@@ -733,6 +805,25 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   // Process natural voice commands
   const handleProcessCommand = async (spokenText: string) => {
     const lower = spokenText.toLowerCase();
+
+    // Wallet-safety commands for the contract (each asks for the fingerprint).
+    if (chain.vault) {
+      const has = (words: string[]) => words.some((w) => lower.includes(w));
+      if (has(['cancel recovery', 'stop recovery', 'recovery cancel', 'الغي الاسترجاع', 'وقف الاسترجاع',
+               'रिकवरी कैंसल', 'रिकवरी रद्द', 'रिकवरी रोको'])) {
+        await chain.cancelRecovery(approveWithPasskey('cancelRecovery'));
+        return;
+      }
+      if (has(['finish recovery', 'complete recovery', 'كمل الاسترجاع', 'اكمل الاسترجاع', 'रिकवरी पूरी'])) {
+        await chain.executeRecovery(approveWithPasskey('executeRecovery'));
+        return;
+      }
+      if (has(["i'm here", 'i am here', 'im here', "i'm alive", 'i am alive', 'أنا موجود', 'انا موجود',
+               'मैं यहाँ हूँ', 'मैं यहां हूं', 'main yahan hoon', 'mai yaha hu'])) {
+        await chain.ping(approveWithPasskey('ping'));
+        return;
+      }
+    }
 
     // Reversible Payment Cancel / Undo Voice Trigger (UX-04)
     if (
@@ -1312,6 +1403,46 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     return () => clearInterval(timer);
   }, [pendingUndoTx?.id, activeUserId, lang, userState.name, userState.address, accessibilitySettings.earconsEnabled]);
 
+  /**
+   * Send through the contract. The fingerprint was already given in the Send
+   * popup, so it unlocks the device key. The hook announces "Pending",
+   * "Confirmed" and "Sent … to Amma" (or why it failed) with their sounds.
+   */
+  const chainSentIds = useRef(new Set<string>());
+  const finalizeSendOnChain = async (pending: {
+    id: string;
+    recipient: string;
+    address: string;
+    amount: number;
+    sigResult?: PasskeySignatureResult;
+  }) => {
+    // finalizeSend can run twice for one payment (React dev mode re-runs the
+    // countdown's state updater); a second on-chain send would be a real duplicate.
+    if (chainSentIds.current.has(pending.id)) return;
+    chainSentIds.current.add(pending.id);
+    const { recipient, address, amount, sigResult } = pending;
+    const hash = await chain.send(address, amount, async () => !!sigResult?.success);
+    if (!hash) return;
+    confetti({ particleCount: 70, spread: 70, origin: { y: 0.7 }, colors: ['#FF5500', '#FF7733', '#09090B', '#3B82F6'] });
+    const newTx: TransactionRecord = {
+      id: `tx_${Date.now()}`,
+      type: 'send',
+      amount,
+      currency: 'Sepolia ETH',
+      counterparty: recipient,
+      counterpartyAddress: address,
+      timestamp: Date.now(),
+      status: 'confirmed',
+      txHash: hash,
+      note: `On-chain via SayPayVault (${sigResult?.method || 'passkey'})`,
+    };
+    setTransactions((prev) => {
+      const updated = [newTx, ...prev];
+      saveStoredTransactions(activeUserId, updated);
+      return updated;
+    });
+  };
+
   const finalizeSend = (pending: {
     id: string;
     recipient: string;
@@ -1328,6 +1459,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       setVoiceFeedback(cancelSpeech);
       setAriaAnnouncement(cancelSpeech);
       speakAndFollowUp(cancelSpeech, lang);
+      return;
+    }
+
+    // Real transaction on the SayPayVault contract (main account, contract deployed).
+    if (chain.vault && activeUserId !== 'user_friend') {
+      void finalizeSendOnChain(pending);
       return;
     }
 
@@ -1783,8 +1920,11 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }`}
     >
       {/* Hidden Live Region for Screen Readers */}
-      <div className="sr-only" aria-live="assertive" aria-atomic="true">
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {ariaAnnouncement}
+      </div>
+      <div className="sr-only" role="alert" aria-live="assertive" aria-atomic="true">
+        {alertAnnouncement}
       </div>
 
       {/* 1. Global Floating Pill Navigation Bar */}
@@ -2921,11 +3061,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         {(accessibilityMode === 'blind' || isListening || isProcessingVoice || voiceCard !== null) && (
           <div className="fixed bottom-6 inset-x-0 z-40 flex flex-col items-center px-4 pointer-events-none">
             <VoiceResultCard card={voiceCard} listening={isListening} processing={isProcessingVoice} transcript={transcript} />
-            <div className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-full p-2.5 shadow-2xl border border-zinc-800 backdrop-blur-xl flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 pl-2 overflow-hidden">
+            <div className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-3xl p-2.5 shadow-2xl border border-zinc-800 backdrop-blur-xl flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 pl-1 overflow-hidden">
                 <button
                   onClick={toggleMic}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition cursor-pointer flex-shrink-0 ${
+                  aria-label={isListening ? 'Stop listening' : 'Start voice command'}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition cursor-pointer flex-shrink-0 ${
                     isListening
                       ? 'bg-[#FF5500] text-white animate-pulse'
                       : 'bg-zinc-800 hover:bg-zinc-700 text-[#FF5500]'
@@ -2958,6 +3100,38 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   Send ETH
                 </button>
               </div>
+            </div>
+            <form
+              className="flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const text = typedCommand.trim();
+                if (!text) return;
+                setTypedCommand('');
+                setTranscript(text);
+                handleProcessCommand(text);
+              }}
+            >
+              <label htmlFor="typed-command" className="sr-only">
+                Type a command instead of speaking
+              </label>
+              <input
+                id="typed-command"
+                type="text"
+                dir="auto"
+                autoComplete="off"
+                value={typedCommand}
+                onChange={(e) => setTypedCommand(e.target.value)}
+                placeholder="Or type: Send 0.1 ETH to Priya"
+                className="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded-full px-4 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-full bg-[#FF5500] hover:bg-[#e64d00] text-white text-sm font-bold transition cursor-pointer flex-shrink-0"
+              >
+                Run command
+              </button>
+            </form>
             </div>
           </div>
         )}

@@ -3,7 +3,7 @@
  * recovery / inheritance calls, each reporting its progress so the app can
  * announce "Pending" and "Confirmed". Also watches contract events live.
  */
-import { Contract, JsonRpcProvider, Wallet, formatEther, isAddress, parseEther } from 'ethers';
+import { Contract, JsonRpcProvider, Wallet, formatEther, getAddress, isAddress, parseEther } from 'ethers';
 import type { Log } from 'ethers';
 import { Deployment, isLocalChain } from './deployment';
 import { withDeviceKey, ApprovalRejected } from './deviceKey';
@@ -127,11 +127,14 @@ export class SayPayVault {
   // ---- Owner (this phone) -------------------------------------------------
 
   send(to: string, amountEth: number | string, approve: Approve, onProgress: (p: TxProgress) => void) {
-    if (!isAddress(to)) {
+    // Address-book entries may have any letter case (the demo contacts' checksums
+    // are wrong); lower-casing skips the checksum check and getAddress normalises it.
+    const lower = (to || '').trim().toLowerCase();
+    if (!isAddress(lower)) {
       onProgress({ stage: 'failed', reason: 'bad_address', message: 'Not a wallet address.' });
       return Promise.resolve(false);
     }
-    return this.transact('send', [to, parseEther(String(amountEth))], approve, onProgress);
+    return this.transact('send', [getAddress(lower), parseEther(String(amountEth))], approve, onProgress);
   }
 
   ping(approve: Approve, onProgress: (p: TxProgress) => void) {

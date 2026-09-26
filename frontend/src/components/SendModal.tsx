@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AccessibleDialog } from './AccessibleDialog';
 import { Send, Fingerprint, AlertCircle, ArrowRight, UserCheck, ShieldCheck, Search, Check, ShieldAlert, KeyRound } from 'lucide-react';
 import { Contact } from '../utils/walletState';
 import { speakText, SupportedLanguage } from '../utils/i18n';
@@ -179,9 +180,8 @@ export const SendModal: React.FC<SendModalProps> = ({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <AccessibleDialog
+      onClose={onClose}
       aria-labelledby="send-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
     >
@@ -428,6 +428,6 @@ export const SendModal: React.FC<SendModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </AccessibleDialog>
   );
 };
