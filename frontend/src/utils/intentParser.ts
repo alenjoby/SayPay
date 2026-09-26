@@ -8,6 +8,8 @@ export type IntentType =
   | 'cancel'
   | 'history'
   | 'receive'
+  | 'fund'
+  | 'swap'
   | 'copy_address'
   | 'guardians'
   | 'contacts'
@@ -281,6 +283,46 @@ export function parseVoiceIntent(rawText: string): ParsedIntentResult {
     return {
       intent: 'switch_mode',
       confidence: 0.95,
+      detectedLang: lang,
+      rawText: clean,
+    };
+  }
+
+  // 9.1 Check for Fund / Deposit
+  if (
+    lower.includes('fund') ||
+    lower.includes('deposit') ||
+    lower.includes('add cash') ||
+    lower.includes('add funds') ||
+    lower.includes('add money') ||
+    lower.includes('faucet') ||
+    lower.includes('paise daalo') ||
+    lower.includes('jama karo') ||
+    clean.includes('إيداع') ||
+    clean.includes('شحن')
+  ) {
+    return {
+      intent: 'fund',
+      confidence: 0.98,
+      detectedLang: lang,
+      rawText: clean,
+    };
+  }
+
+  // 9.2 Check for Swap / Exchange
+  if (
+    lower.includes('swap') ||
+    lower.includes('exchange') ||
+    lower.includes('convert') ||
+    lower.includes('trade') ||
+    lower.includes('badlo') ||
+    lower.includes('tabdeel') ||
+    clean.includes('تبديل') ||
+    clean.includes('مبادلة')
+  ) {
+    return {
+      intent: 'swap',
+      confidence: 0.98,
       detectedLang: lang,
       rawText: clean,
     };

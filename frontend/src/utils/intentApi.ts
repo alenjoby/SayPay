@@ -20,7 +20,7 @@ const TIMEOUT_MS = 2500;
 // Commands about the app itself, not money: the local parser is exact for these.
 const APP_INTENTS: IntentType[] = [
   'passkey_sign', 'confirm', 'earphones_connected', 'copy_address', 'guardians',
-  'contacts', 'settings', 'help', 'switch_mode',
+  'contacts', 'settings', 'help', 'switch_mode', 'fund', 'swap',
 ];
 
 // Model intent -> the screen the wallet already has for it.
@@ -28,6 +28,10 @@ const MODEL_TO_APP: Record<string, IntentType> = {
   check_balance: 'check_balance',
   send: 'send',
   receive: 'receive',
+  fund: 'fund',
+  deposit: 'fund',
+  swap: 'swap',
+  exchange: 'swap',
   history: 'history',
   tx_status: 'history', // "did my payment go through" -> latest transaction status
   add_contact: 'contacts',
