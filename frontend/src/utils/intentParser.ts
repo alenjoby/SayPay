@@ -301,7 +301,7 @@ export function parseVoiceIntent(rawText: string): ParsedIntentResult {
     clean.includes('ادفع');
 
   if (isSend) {
-    let matchedContact = 'Priya'; // Default recipient if not explicit
+    let matchedContact: string | undefined = undefined;
     for (const c of KNOWN_CONTACTS) {
       if (lower.includes(c.toLowerCase()) || clean.includes(c)) {
         matchedContact = c;
@@ -311,9 +311,17 @@ export function parseVoiceIntent(rawText: string): ParsedIntentResult {
     // Also check aliases
     if (clean.includes('أمي') || clean.includes('امي') || lower.includes('mom') || lower.includes('mother')) {
       matchedContact = 'Amma';
-    }
-    if (lower.includes('sister') || lower.includes('behen') || lower.includes('friend') || clean.includes('صديقي')) {
+    } else if (clean.includes('صديقي') || lower.includes('friend')) {
       matchedContact = 'Priya';
+    } else if (!matchedContact) {
+      // Extract explicit recipient name from phrases like "send 10 ETH to John" or "John ko 10 bhejo"
+      const toMatch = lower.match(/(?:send|pay|transfer)\s+[\d.]+\s*(?:eth|sepolia\s*eth)?\s+to\s+([a-zA-Z]+)/i);
+      const koMatch = lower.match(/([a-zA-Z]+)\s+ko\s+[\d.]+/i);
+      if (toMatch && toMatch[1]) {
+        matchedContact = toMatch[1].charAt(0).toUpperCase() + toMatch[1].slice(1).toLowerCase();
+      } else if (koMatch && koMatch[1]) {
+        matchedContact = koMatch[1].charAt(0).toUpperCase() + koMatch[1].slice(1).toLowerCase();
+      }
     }
 
     // Extract amount

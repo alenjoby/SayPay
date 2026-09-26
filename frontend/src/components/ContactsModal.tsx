@@ -12,6 +12,7 @@ import {
   X,
   Phone,
   ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
 import { Contact } from '../utils/walletState';
 import { speakText, SupportedLanguage } from '../utils/i18n';
@@ -44,6 +45,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
   const [newName, setNewName] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [newRelationship, setNewRelationship] = useState('Friend');
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && initialNewName) {
@@ -62,15 +64,41 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
 
   const handleSaveContact = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim() || !newAddress.trim()) return;
+    setFormError(null);
+    const trimmedName = newName.trim();
+    const trimmedAddress = newAddress.trim();
+
+    if (!trimmedName || !trimmedAddress) {
+      setFormError('Please fill in both the contact name and Ethereum address.');
+      audioCues.playWarning();
+      return;
+    }
+
+    const isDuplicate = contacts.some(
+      (c) => c.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (isDuplicate) {
+      setFormError(`A contact named "${trimmedName}" already exists in your address book.`);
+      audioCues.playWarning();
+      speakText(`A contact named ${trimmedName} already exists in your address book.`, currentLang);
+      return;
+    }
+
+    const isValidEth = /^0x[a-fA-F0-9]{40}$/.test(trimmedAddress);
+    if (!isValidEth) {
+      setFormError('Invalid Ethereum address. Must be a 42-character hex address starting with 0x.');
+      audioCues.playWarning();
+      speakText('Invalid address format. Please enter a valid 42-character 0x address.', currentLang);
+      return;
+    }
 
     const colors = ['bg-emerald-600', 'bg-slate-900', 'bg-blue-600', 'bg-violet-600', 'bg-teal-600'];
     const randomBg = colors[Math.floor(Math.random() * colors.length)];
 
     const created: Contact = {
       id: `c_${Date.now()}`,
-      name: newName.trim(),
-      address: newAddress.trim(),
+      name: trimmedName,
+      address: trimmedAddress,
       relationship: newRelationship,
       avatarBg: randomBg,
       isRecent: true,
@@ -85,6 +113,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
 
     setNewName('');
     setNewAddress('');
+    setFormError(null);
     setShowAddForm(false);
   };
 
@@ -212,6 +241,13 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                 className="w-full px-3 py-2 bg-white rounded-xl border border-zinc-200 font-mono text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
               />
             </div>
+
+            {formError && (
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{formError}</span>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-1">
               <button
