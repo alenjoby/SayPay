@@ -82,7 +82,12 @@ export function useSayPayVault(opts: UseVaultOptions) {
     const stop = vault.onEvent(async (ev: VaultEvent) => {
       const { lang, nameOf, onAnnounce } = o.current;
       const now = await vault.chainTime();
-      onAnnounce(describeEvent(ev, { lang, nameOf, me: deviceAddress(vault.scope),
+      // Address book first, then the demo people (guardians, beneficiary) from the deployment.
+      const named = (addr: string) =>
+        nameOf(addr) ??
+        vault.deployment.people?.find((p) => p.address.toLowerCase() === addr.toLowerCase())?.name ??
+        null;
+      onAnnounce(describeEvent(ev, { lang, nameOf: named, me: deviceAddress(vault.scope),
                                      threshold: vault.deployment.threshold, now }), ev.name);
       refresh(vault);
     });
@@ -120,8 +125,15 @@ export function useSayPayVault(opts: UseVaultOptions) {
     /** Is this phone the wallet owner right now? (false after a recovery moved it) */
     isOwner: !!(status && me && status.owner.toLowerCase() === me.toLowerCase()),
     refresh: () => refresh(vault),
-    send: (to: string, amountEth: number | string, approve: Approve) =>
-      run((v) => v.send(to, amountEth, approve, onProgress)),
+    /** Resolves to the transaction hash once confirmed, or null if it didn't happen. */
+    send: async (to: string, amountEth: number | string, approve: Approve): Promise<string | null> => {
+      let hash: string | null = null;
+      const ok = await run((v) => v.send(to, amountEth, approve, (p) => {
+        if (p.stage === 'confirmed') hash = p.hash;
+        onProgress(p);
+      }));
+      return ok ? hash : null;
+    },
     ping: (approve: Approve) => run((v) => v.ping(approve, onProgress)),
     cancelRecovery: (approve: Approve) => run((v) => v.cancelRecovery(approve, onProgress)),
     executeRecovery: (approve: Approve) => run((v) => v.executeRecovery(approve, onProgress)),

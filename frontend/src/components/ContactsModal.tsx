@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AccessibleDialog } from './AccessibleDialog';
 import {
   Users,
   Plus,
@@ -118,9 +119,8 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <AccessibleDialog
+      onClose={onClose}
       aria-labelledby="contacts-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-sm animate-fade-in"
     >
@@ -366,6 +366,6 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </AccessibleDialog>
   );
 };

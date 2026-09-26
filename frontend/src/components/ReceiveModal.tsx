@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AccessibleDialog } from './AccessibleDialog';
 import { QrCode, Copy, Check, Volume2, Share2, ArrowDownLeft } from 'lucide-react';
 import { speakText, SupportedLanguage } from '../utils/i18n';
 import { audioCues } from '../utils/audioCues';
@@ -38,9 +39,8 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <AccessibleDialog
+      onClose={onClose}
       aria-labelledby="receive-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-sm animate-fade-in"
     >
@@ -132,6 +132,6 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </AccessibleDialog>
   );
 };

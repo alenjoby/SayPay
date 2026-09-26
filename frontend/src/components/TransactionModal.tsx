@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { AccessibleDialog } from './AccessibleDialog';
 import { Fingerprint, CheckCircle2, ShieldCheck, X, Volume2, ArrowUpRight } from 'lucide-react';
 import { audioCues } from '../utils/audioCues';
 import { speakText, SupportedLanguage } from '../utils/i18n';
@@ -90,9 +91,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <AccessibleDialog
+      onClose={onClose}
       aria-labelledby="dialog-title"
       aria-describedby="dialog-desc"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
@@ -218,6 +218,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </AccessibleDialog>
   );
 };
