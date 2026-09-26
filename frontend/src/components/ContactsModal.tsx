@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AccessibleDialog } from './AccessibleDialog';
 import {
   Users,
@@ -14,10 +14,20 @@ import {
   Phone,
   ArrowRight,
   AlertCircle,
+  Mic,
+  MicOff,
 } from 'lucide-react';
 import { Contact } from '../utils/walletState';
 import { speakText, SupportedLanguage } from '../utils/i18n';
 import { audioCues } from '../utils/audioCues';
+
+export type ContactsVoiceAction =
+  | { type: 'open_add' }
+  | { type: 'set_name'; value: string }
+  | { type: 'set_address'; value: string }
+  | { type: 'search'; value: string }
+  | { type: 'save' }
+  | null;
 
 interface ContactsModalProps {
   isOpen: boolean;
@@ -25,6 +35,8 @@ interface ContactsModalProps {
   currentLang: SupportedLanguage;
   /** Voice "save this as Ravi": open the add form with this name filled in. */
   initialNewName?: string;
+  voiceAction?: ContactsVoiceAction;
+  onClearVoiceAction?: () => void;
   onClose: () => void;
   onSelectForSend: (contact: Contact) => void;
   onAddContact?: (newContact: Contact) => void;
@@ -36,6 +48,8 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
   contacts,
   currentLang,
   initialNewName,
+  voiceAction,
+  onClearVoiceAction,
   onClose,
   onSelectForSend,
   onAddContact,
@@ -47,6 +61,21 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
   const [newAddress, setNewAddress] = useState('');
   const [newRelationship, setNewRelationship] = useState('Friend');
   const [formError, setFormError] = useState<string | null>(null);
+  const [activeMicField, setActiveMicField] = useState<'search' | 'name' | 'address' | null>(null);
+
+  // Audio orientation when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      audioCues.playIntentRecognized();
+      const prompt =
+        currentLang === 'hi'
+          ? `एड्रेस बुक खुल गई है। आपके पास ${contacts.length} संपर्क हैं। नया संपर्क जोड़ने के लिए 'ऐड कांटेक्ट' कहें, या 'बंद करो' कहें।`
+          : currentLang === 'ar'
+          ? `تم فتح دفتر العناوين. لديك ${contacts.length} جهات اتصال. يمكنك قول 'إضافة جهة اتصال'، أو البحث بالاسم، أو قول 'إغلاق'.`
+          : `Address Book opened. You have ${contacts.length} saved contacts. You can say 'Add contact', say a name to search, or say 'Close'.`;
+      speakText(prompt, currentLang);
+    }
+  }, [isOpen, currentLang]);
 
   useEffect(() => {
     if (isOpen && initialNewName) {
@@ -55,23 +84,16 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
     }
   }, [isOpen, initialNewName]);
 
-  if (!isOpen) return null;
-
-  const filteredContacts = contacts.filter((c) =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.relationship.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.address.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleSaveContact = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Execute Save Contact logic (with automatic mock address fallback for voice users)
+  const executeSaveContact = (customName?: string, customAddr?: string) => {
     setFormError(null);
-    const trimmedName = newName.trim();
-    const trimmedAddress = newAddress.trim();
+    const trimmedName = (customName !== undefined ? customName : newName).trim();
+    const rawAddress = (customAddr !== undefined ? customAddr : newAddress).trim();
 
-    if (!trimmedName || !trimmedAddress) {
-      setFormError('Please fill in both the contact name and Ethereum address.');
+    if (!trimmedName) {
+      setFormError('Please fill in the contact name.');
       audioCues.playWarning();
+      speakText('Please fill in the contact name.', currentLang);
       return;
     }
 
@@ -85,12 +107,18 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
       return;
     }
 
-    const isValidEth = /^0x[a-fA-F0-9]{40}$/.test(trimmedAddress);
-    if (!isValidEth) {
-      setFormError('Invalid Ethereum address. Must be a 42-character hex address starting with 0x.');
-      audioCues.playWarning();
-      speakText('Invalid address format. Please enter a valid 42-character 0x address.', currentLang);
-      return;
+    let finalAddress = rawAddress;
+    if (!finalAddress) {
+      const randHex = Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+      finalAddress = `0x${randHex}`;
+    } else {
+      const isValidEth = /^0x[a-fA-F0-9]{40}$/.test(finalAddress);
+      if (!isValidEth) {
+        setFormError('Invalid Ethereum address. Must be a 42-character hex address starting with 0x.');
+        audioCues.playWarning();
+        speakText('Invalid address format. Please enter a valid 42-character 0x address.', currentLang);
+        return;
+      }
     }
 
     const colors = ['bg-emerald-600', 'bg-slate-900', 'bg-blue-600', 'bg-violet-600', 'bg-teal-600'];
@@ -99,7 +127,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
     const created: Contact = {
       id: `c_${Date.now()}`,
       name: trimmedName,
-      address: trimmedAddress,
+      address: finalAddress,
       relationship: newRelationship,
       avatarBg: randomBg,
       isRecent: true,
@@ -116,6 +144,91 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
     setNewAddress('');
     setFormError(null);
     setShowAddForm(false);
+  };
+
+  // Handle external voice actions from main voice bar
+  useEffect(() => {
+    if (!isOpen || !voiceAction) return;
+
+    if (voiceAction.type === 'open_add') {
+      setShowAddForm(true);
+      audioCues.playIntentRecognized();
+    } else if (voiceAction.type === 'set_name') {
+      setShowAddForm(true);
+      setNewName(voiceAction.value);
+      audioCues.playSuccess();
+    } else if (voiceAction.type === 'set_address') {
+      setShowAddForm(true);
+      setNewAddress(voiceAction.value);
+      audioCues.playSuccess();
+    } else if (voiceAction.type === 'search') {
+      setSearchQuery(voiceAction.value);
+      audioCues.playIntentRecognized();
+    } else if (voiceAction.type === 'save') {
+      executeSaveContact();
+    }
+
+    if (onClearVoiceAction) {
+      onClearVoiceAction();
+    }
+  }, [voiceAction, isOpen]);
+
+  // Inline Speech Recognition for specific inputs
+  const startListeningForField = (field: 'search' | 'name' | 'address') => {
+    if (typeof window === 'undefined') return;
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) return;
+
+    try {
+      const rec = new SpeechRec();
+      rec.lang = currentLang === 'hi' ? 'hi-IN' : currentLang === 'ar' ? 'ar-SA' : 'en-US';
+      rec.continuous = false;
+      rec.interimResults = false;
+
+      rec.onstart = () => {
+        setActiveMicField(field);
+        audioCues.playListeningStarted();
+      };
+
+      rec.onresult = (evt: any) => {
+        const spoken = evt.results[0][0].transcript.trim().replace(/[.,!?]/g, '');
+        audioCues.playSuccess();
+        if (field === 'search') {
+          setSearchQuery(spoken);
+          speakText(`Searching for ${spoken}`, currentLang);
+        } else if (field === 'name') {
+          setNewName(spoken);
+          speakText(`Name set to ${spoken}`, currentLang);
+        } else if (field === 'address') {
+          setNewAddress(spoken);
+        }
+      };
+
+      rec.onerror = () => {
+        setActiveMicField(null);
+      };
+
+      rec.onend = () => {
+        setActiveMicField(null);
+      };
+
+      rec.start();
+    } catch {
+      setActiveMicField(null);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const filteredContacts = contacts.filter((c) =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.relationship.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.address.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleSaveContact = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeSaveContact();
   };
 
   return (
@@ -163,21 +276,37 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
               placeholder="Search by name, relation, or address..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 text-xs font-semibold text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
+              className="w-full pl-9 pr-16 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 text-xs font-semibold text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
             />
-            {searchQuery && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-zinc-400 hover:text-zinc-600 text-xs px-1 cursor-pointer"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
               <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs"
+                type="button"
+                onClick={() => startListeningForField('search')}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  activeMicField === 'search'
+                    ? 'bg-[#FF5500] text-white animate-pulse'
+                    : 'text-zinc-400 hover:text-[#FF5500] hover:bg-orange-50'
+                }`}
+                title="Speak to search contacts"
               >
-                ✕
+                <Mic className="w-3.5 h-3.5" />
               </button>
-            )}
+            </div>
           </div>
 
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="px-3.5 py-2.5 rounded-xl btn-orange text-white text-xs font-black transition flex items-center gap-1.5 shrink-0 shadow-sm"
+            className="px-3.5 py-2.5 rounded-xl btn-orange text-white text-xs font-black transition flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer"
           >
             <UserPlus className="w-4 h-4 text-white" />
             <span>{showAddForm ? 'Cancel' : 'Add Contact'}</span>
@@ -190,9 +319,12 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
             onSubmit={handleSaveContact}
             className="mb-4 p-4 rounded-2xl bg-zinc-50 border border-zinc-200 space-y-3 shrink-0 animate-fade-in"
           >
-            <div className="text-xs font-bold text-zinc-900 flex items-center gap-1.5 font-display">
-              <Plus className="w-4 h-4 text-[#FF5500]" />
-              <span>Add New Trusted Contact</span>
+            <div className="text-xs font-bold text-zinc-900 flex items-center justify-between font-display">
+              <div className="flex items-center gap-1.5">
+                <Plus className="w-4 h-4 text-[#FF5500]" />
+                <span>Add New Trusted Contact</span>
+              </div>
+              <span className="text-[11px] font-mono text-zinc-400">Voice or manual entry</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -200,14 +332,28 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
                 <label className="block text-[11px] font-bold text-zinc-600 mb-1">
                   Name / Spoken Label:
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Amma, Priya, Sister"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-3 py-2 bg-white rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Amma, Priya, Sister"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="w-full px-3 py-2 pr-9 bg-white rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => startListeningForField('name')}
+                    className={`absolute right-1.5 p-1.5 rounded-lg transition cursor-pointer ${
+                      activeMicField === 'name'
+                        ? 'bg-[#FF5500] text-white animate-pulse'
+                        : 'text-zinc-400 hover:text-[#FF5500] hover:bg-orange-50'
+                    }`}
+                    title="Speak contact name"
+                  >
+                    <Mic className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -229,17 +375,33 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-zinc-600 mb-1">
-                Sepolia Address:
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="0x..."
-                value={newAddress}
-                onChange={(e) => setNewAddress(e.target.value)}
-                className="w-full px-3 py-2 bg-white rounded-xl border border-zinc-200 font-mono text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-bold text-zinc-600">
+                  Sepolia Address:
+                </label>
+                <span className="text-[10px] text-zinc-400 font-mono">Auto-generated if blank</span>
+              </div>
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  placeholder="0x... (leave empty to auto-generate mock address)"
+                  value={newAddress}
+                  onChange={(e) => setNewAddress(e.target.value)}
+                  className="w-full px-3 py-2 pr-9 bg-white rounded-xl border border-zinc-200 font-mono text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
+                />
+                <button
+                  type="button"
+                  onClick={() => startListeningForField('address')}
+                  className={`absolute right-1.5 p-1.5 rounded-lg transition cursor-pointer ${
+                    activeMicField === 'address'
+                      ? 'bg-[#FF5500] text-white animate-pulse'
+                      : 'text-zinc-400 hover:text-[#FF5500] hover:bg-orange-50'
+                  }`}
+                  title="Speak address"
+                >
+                  <Mic className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             {formError && (

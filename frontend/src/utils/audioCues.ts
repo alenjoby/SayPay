@@ -263,6 +263,34 @@ class AudioCueSystem {
     osc.start(now);
     osc.stop(now + 0.3);
   }
+
+  /**
+   * Sound 9: Interface State Rebuild and Transition Earcon
+   * Solves silent interface updates by producing a crisp acoustic marker
+   * whenever any tab, window, modal, or asynchronous screen rebuild occurs.
+   */
+  public playInterfaceTransition() {
+    if (!this.soundEnabled) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+
+    osc.frequency.setValueAtTime(329.63, now); // E4
+    osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.08); // E5
+
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.15);
+  }
 }
 
 export const audioCues = new AudioCueSystem();

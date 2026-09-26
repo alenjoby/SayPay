@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AccessibleDialog } from './AccessibleDialog';
 import {
   Sliders,
@@ -73,6 +73,19 @@ export const AccessibilitySettingsModal: React.FC<AccessibilitySettingsModalProp
       status: 'active',
     };
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      audioCues.playIntentRecognized();
+      const prompt =
+        local.spokenLanguage === 'hi'
+          ? 'एक्सेसिबिलिटी सेटिंग्स खुल गई हैं। आवाज की गति या ईयरकॉन्स बदलने के लिए कहें, या "बंद करो" कहें।'
+          : local.spokenLanguage === 'ar'
+          ? 'تم فتح إعدادات إمكانية الوصول. يمكنك ضبط سرعة الصوت أو تفعيل الإشارات الصوتية، أو قول "إغلاق".'
+          : 'Accessibility Settings opened. Say "Faster speech", "Slower speech", or say "Close".';
+      speakText(prompt, local.spokenLanguage);
+    }
+  }, [isOpen, local.spokenLanguage]);
 
   if (!isOpen) return null;
 

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Volume2, Eye, Mic, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { speakText, SupportedLanguage } from '../utils/i18n';
 import { audioCues } from '../utils/audioCues';
+import logoImg from '../../Assets/logo.png';
 
 interface ModeOnboardingModalProps {
   isOpen: boolean;
@@ -49,18 +50,11 @@ export const ModeOnboardingModal: React.FC<ModeOnboardingModalProps> = ({
         tabIndex={-1}
       >
         {/* Header Icon + Label */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-2xl bg-[#FF5500]/10 text-[#FF5500] flex items-center justify-center">
-            <Volume2 className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
-              Accessibility Setup
-            </span>
-            <h2 id="onboarding-title" className="text-xl sm:text-2xl font-black text-zinc-950 font-display">
-              Welcome to SayPay
-            </h2>
-          </div>
+        <div className="flex items-center justify-between pb-4 mb-4 border-b border-zinc-100">
+          <img src={logoImg} alt="SayPay" className="h-7 w-auto object-contain" />
+          <span className="text-[11px] font-mono uppercase font-bold text-zinc-400 tracking-wider">
+            Accessibility Setup
+          </span>
         </div>
 
         <p id="onboarding-desc" className="text-sm text-zinc-600 mb-6 leading-relaxed">

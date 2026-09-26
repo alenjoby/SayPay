@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AccessibleDialog } from './AccessibleDialog';
 import { QrCode, Copy, Check, Volume2, Share2, ArrowDownLeft } from 'lucide-react';
 import { speakText, SupportedLanguage } from '../utils/i18n';
@@ -20,6 +20,20 @@ export const ReceiveModal: React.FC<ReceiveModalProps> = ({
   onClose,
 }) => {
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      audioCues.playIntentRecognized();
+      const ending = address.slice(-4).split('').join(' ');
+      const prompt =
+        currentLang === 'hi'
+          ? `पैसे पाने की विंडो खुल गई है। आपका पता 0x71C8 समाप्त ${ending} पर है। पता कॉपी करने के लिए कहें 'कॉपी एड्रेस' या 'बंद करो' कहें।`
+          : currentLang === 'ar'
+          ? `تم فتح نافذة الاستلام. عنوانك ينتهي بـ ${ending}. يمكنك قول 'نسخ العنوان' أو 'إغلاق'.`
+          : `Receive Money opened. Your public address ends in ${ending}. Say 'Copy address' to copy, or say 'Close'.`;
+      speakText(prompt, currentLang);
+    }
+  }, [isOpen, address, currentLang]);
 
   if (!isOpen) return null;
 

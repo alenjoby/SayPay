@@ -29,6 +29,20 @@ export const GuardiansModal: React.FC<GuardiansModalProps> = ({
   const [inactivitySeconds, setInactivitySeconds] = useState<number>(120);
   const [graceSeconds, setGraceSeconds] = useState<number>(120);
 
+  // Initial audio orientation when opened
+  useEffect(() => {
+    if (isOpen) {
+      audioCues.playIntentRecognized();
+      const prompt =
+        currentLang === 'hi'
+          ? `सोशल गार्जियन खुल गए हैं। आपके पास ${guardians.length} गार्जियन सक्रिय हैं। रिकवरी के लिए दो हस्ताक्षर आवश्यक हैं। 'ऐड गार्जियन' कहें या 'बंद करो' कहें।`
+          : currentLang === 'ar'
+          ? `تم فتح نافذة الأوصياء. لديك ${guardians.length} أوصياء نشطون. يلزم توقيعان للاسترداد. قل 'إضافة وصي' أو قل 'إغلاق'.`
+          : `Social Guardians opened. You have ${guardians.length} active guardians. Two signatures required for recovery. Say 'Add guardian' or say 'Close'.`;
+      speakText(prompt, currentLang);
+    }
+  }, [isOpen, currentLang, guardians.length]);
+
   // Recovery countdown effect
   useEffect(() => {
     if (recoveryState !== 'in_progress') return;

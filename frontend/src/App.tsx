@@ -517,11 +517,11 @@ export const App: React.FC = () => {
               data-aos-delay="150"
               className="md:col-span-2 lg:col-span-6 flex items-center justify-center"
             >
-              <div className="w-full h-full min-h-[320px] sm:min-h-[420px] rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 bg-white p-2.5 flex items-center justify-center">
+              <div className="w-full aspect-[4/3] rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 bg-white p-2 sm:p-3 flex items-center justify-center">
                 <img
                   src={saypayWhyImg}
                   alt="SayPay - Why Choose SayPay Usability Architecture"
-                  className="w-full h-full object-cover object-center rounded-2xl max-h-[460px]"
+                  className="w-full h-full object-contain rounded-2xl"
                 />
               </div>
             </div>
