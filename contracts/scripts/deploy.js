@@ -29,6 +29,14 @@ async function main() {
   const env = process.env;
   const [deployer, ...signers] = await ethers.getSigners();
   const local = ["hardhat", "localhost"].includes(network.name);
+  if (!deployer) {
+    throw new Error(
+      local
+        ? "No accounts: is `npx hardhat node` running in another terminal?"
+        : "No deployer key. Put DEPLOYER_PRIVATE_KEY=<your MetaMask test key> in contracts/.env " +
+          "(check the file is really named .env, not .env.txt: `dir -Force .env*`), then run again."
+    );
+  }
   // Demo wallets are for real networks; the local node's unlocked test accounts are simpler.
   const demo = !local && PEOPLE.every(([k]) => env[k]);
 
