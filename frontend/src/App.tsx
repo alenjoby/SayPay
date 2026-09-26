@@ -21,6 +21,11 @@ import {
 import { LiveAnnouncer } from './components/LiveAnnouncer';
 import { InteractiveWalletDemo } from './components/InteractiveWalletDemo';
 import { FunctionalWalletPage } from './components/FunctionalWalletPage';
+import { AudioWaveCanvas } from './components/AudioWaveCanvas';
+import { Interactive3DTilt } from './components/Interactive3DTilt';
+import { LiveVoiceCommandSimulator } from './components/LiveVoiceCommandSimulator';
+import { AnimatedCounter } from './components/AnimatedStatsCounter';
+import { BiometricPasskeyRadar } from './components/BiometricPasskeyRadar';
 import { audioCues } from './utils/audioCues';
 import { SupportedLanguage, translations, speakText } from './utils/i18n';
 import { hasUserCreatedWallet } from './utils/walletState';
@@ -97,24 +102,24 @@ export const App: React.FC = () => {
 
       {/* 1. Header / Navbar (Industrial Minimalist Style) */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-zinc-200/80 px-4 sm:px-8 py-3.5 transition-all">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
+        <div className="max-w-6xl mx-auto relative flex items-center justify-between gap-4">
+          {/* Navigation Links (Left) */}
+          <nav className="flex items-center gap-6 text-sm font-semibold text-zinc-600">
+            <a href="#features" className="hidden md:inline-block hover:text-zinc-950 transition">Features</a>
+            <a href="#accessibility" className="hidden md:inline-block hover:text-zinc-950 transition">Accessibility</a>
+            <a href="#security" className="hidden lg:inline-block hover:text-zinc-950 transition">Security</a>
+            <a href="#faq" className="hidden lg:inline-block hover:text-zinc-950 transition">FAQ</a>
+          </nav>
+
+          {/* Logo (Centered) */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
             <a href="#top" className="flex items-center gap-2.5 group outline-none" aria-label="SayPay Home">
               <div className="w-8 h-8 rounded-xl bg-[#FF5500] flex items-center justify-center font-black text-white text-sm shadow-sm group-hover:scale-105 transition">
                 S
               </div>
-              <span className="text-xl font-extrabold tracking-tight text-zinc-900">SayPay</span>
+              <span className="text-xl font-extrabold tracking-tight text-zinc-900 font-display">SayPay</span>
             </a>
           </div>
-
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-zinc-600">
-            <a href="#features" className="hover:text-zinc-950 transition">Features</a>
-            <a href="#accessibility" className="hover:text-zinc-950 transition">Accessibility</a>
-            <a href="#security" className="hover:text-zinc-950 transition">Security</a>
-            <a href="#faq" className="hover:text-zinc-950 transition">FAQ</a>
-          </nav>
 
           {/* Right Action Controls */}
           <div className="flex items-center gap-2.5">
@@ -178,11 +183,16 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* 2. Hero Section (Industrial Minimalist Style) */}
+      {/* 2. Hero Section (Industrial Minimalist Style with Dynamic Canvas) */}
       <section className="pt-16 pb-20 px-4 sm:px-8 text-center relative overflow-hidden bg-gradient-to-b from-white via-zinc-50 to-[#FAFAFA]">
-        <div className="max-w-3xl mx-auto space-y-6">
+        {/* Dynamic Background Audio Waveform Canvas */}
+        <div className="absolute inset-x-0 bottom-0 h-96 pointer-events-none opacity-45 overflow-hidden z-0">
+          <AudioWaveCanvas isActive={soundEnabled} />
+        </div>
+
+        <div className="max-w-3xl mx-auto space-y-6 relative z-10">
           {/* Eyebrow Pill */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#FF5500]/10 border border-[#FF5500]/25 text-[#FF5500] text-xs font-bold tracking-wide">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#FF5500]/10 border border-[#FF5500]/25 text-[#FF5500] text-xs font-bold tracking-wide animate-float">
             <Radio className="w-3.5 h-3.5 animate-pulse" />
             <span>Voice-First Crypto Smart Wallet</span>
           </div>
@@ -240,17 +250,19 @@ export const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Central Phone Mockup (The App Showcase) */}
-        <div id="demo" className="mt-12">
-          <InteractiveWalletDemo
-            lang={lang}
-            onLanguageChange={handleLanguageChange}
-            onAnnounce={handleAnnounce}
-          />
+        {/* Central Phone Mockup (The App Showcase) with 3D Tilt Glare */}
+        <div id="demo" className="mt-12 relative z-10 max-w-sm mx-auto">
+          <Interactive3DTilt maxTilt={7}>
+            <InteractiveWalletDemo
+              lang={lang}
+              onLanguageChange={handleLanguageChange}
+              onAnnounce={handleAnnounce}
+            />
+          </Interactive3DTilt>
         </div>
 
         {/* Platform compatibility labels */}
-        <div className="mt-8 flex items-center justify-center gap-6 text-xs text-slate-400 font-medium">
+        <div className="mt-8 flex items-center justify-center gap-6 text-xs text-slate-500 font-medium relative z-10">
           <span className="flex items-center gap-1.5">
             <Check className="w-3.5 h-3.5 text-[#00A850]" />
             Android & Desktop PWA
@@ -263,6 +275,11 @@ export const App: React.FC = () => {
             <Check className="w-3.5 h-3.5 text-[#00A850]" />
             Testnet Smart Contracts
           </span>
+        </div>
+
+        {/* Live Interactive Voice Simulator */}
+        <div className="mt-14 relative z-10 px-2 sm:px-4">
+          <LiveVoiceCommandSimulator />
         </div>
       </section>
 
@@ -385,9 +402,9 @@ export const App: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm">
-              <span className="text-5xl font-black text-slate-900 tracking-tight block tabular-nums">
-                +70%
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group">
+              <span className="text-5xl font-black text-slate-900 tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
+                <AnimatedCounter end={70} prefix="+" suffix="%" />
               </span>
               <h3 className="font-bold text-slate-800 text-sm mt-2">Longer Task Duration</h3>
               <p className="text-xs text-slate-500 mt-1">
@@ -395,9 +412,9 @@ export const App: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm">
-              <span className="text-5xl font-black text-[#FF5500] tracking-tight block tabular-nums">
-                0
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group">
+              <span className="text-5xl font-black text-[#FF5500] tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
+                <AnimatedCounter end={0} reverse={true} />
               </span>
               <h3 className="font-bold text-slate-800 text-sm mt-2">Silent Popups in SayPay</h3>
               <p className="text-xs text-slate-500 mt-1">
@@ -405,9 +422,9 @@ export const App: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm">
-              <span className="text-5xl font-black text-slate-900 tracking-tight block tabular-nums">
-                12 Words
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group">
+              <span className="text-5xl font-black text-slate-900 tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
+                <AnimatedCounter end={12} suffix=" Words" />
               </span>
               <h3 className="font-bold text-slate-800 text-sm mt-2">Seed Phrases Eliminated</h3>
               <p className="text-xs text-slate-500 mt-1">
@@ -460,6 +477,11 @@ export const App: React.FC = () => {
                 Personal names, contacts, and phone records remain strictly in local device storage. The public blockchain only sees smart contract wallet interactions.
               </p>
             </div>
+          </div>
+
+          {/* Interactive Biometric Passkey Radar Sandbox */}
+          <div className="mt-12">
+            <BiometricPasskeyRadar />
           </div>
         </div>
       </section>

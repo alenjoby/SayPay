@@ -1504,20 +1504,16 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       {/* 1. Global Floating Pill Navigation Bar */}
       <div className="sticky top-3 z-40 px-3 sm:px-6">
         <header className="max-w-6xl mx-auto bg-white/95 backdrop-blur-xl border border-zinc-200/80 rounded-3xl px-4 sm:px-6 py-3 shadow-sm transition-all">
-          <div className="flex items-center justify-between gap-3">
-            {/* Brand + Network Indicator */}
-            <div className="flex items-center gap-3">
+          <div className="relative flex items-center justify-between gap-3">
+            {/* Left Controls: Return to Landing Page & Earphones Indicator */}
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={onBackToLanding}
-                className="flex items-center gap-2.5 group focus:outline-none cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-zinc-100 hover:bg-zinc-200/70 border border-zinc-200 text-xs font-bold text-zinc-700 transition cursor-pointer"
                 title="Return to Landing Page"
               >
-                <div className="w-8 h-8 rounded-xl bg-[#FF5500] flex items-center justify-center font-black text-white text-sm shadow-sm group-hover:scale-105 transition">
-                  S
-                </div>
-                <span className="font-extrabold text-lg text-zinc-900 tracking-tight font-display">
-                  SayPay
-                </span>
+                <ArrowLeft className="w-3.5 h-3.5 text-zinc-500" />
+                <span className="hidden sm:inline">Landing</span>
               </button>
 
               {/* Compulsory Earphones Privacy Indicator (ONLY in Blind Mode) */}
@@ -1542,6 +1538,22 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   </span>
                 </button>
               )}
+            </div>
+
+            {/* Brand Logo (Centered) */}
+            <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
+              <button
+                onClick={onBackToLanding}
+                className="flex items-center gap-2.5 group focus:outline-none cursor-pointer"
+                title="SayPay Smart Vault"
+              >
+                <div className="w-8 h-8 rounded-xl bg-[#FF5500] flex items-center justify-center font-black text-white text-sm shadow-sm group-hover:scale-105 transition">
+                  S
+                </div>
+                <span className="font-extrabold text-lg text-zinc-900 tracking-tight font-display hidden sm:inline">
+                  SayPay
+                </span>
+              </button>
             </div>
 
             {/* Right Controls: Web3 Account Dropdown, Settings, Mode Toggle */}
