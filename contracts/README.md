@@ -49,8 +49,25 @@ a guardian vetoes → skip → start again → skip → Sara claims.
 
 If you restart `npx hardhat node`, run `npm run deploy:local` again and reload.
 
-Sepolia: copy `.env.example` to `.env`, fill in an RPC URL, a throwaway key with
-faucet ETH and the guardian/beneficiary addresses, then `npm run deploy:sepolia`.
+### Sepolia (public testnet)
+
+You need a throwaway MetaMask account with Sepolia test ETH (a faucet gives it;
+0.3 ETH is plenty). Nothing else: the RPC defaults to a free public endpoint.
+
+```bash
+cp .env.example .env          # then paste the MetaMask account's private key:
+                              # DEPLOYER_PRIVATE_KEY=...  (with or without 0x)
+npm run wallets               # once: creates the demo people's test wallets in .env
+npm run deploy:sepolia        # deploys, puts 0.1 ETH in the vault, gives each person gas
+npm run verify:sepolia        # optional, needs ETHERSCAN_API_KEY: source code on Etherscan
+npm run tester -- sepolia     # tester page on Sepolia: http://localhost:5174
+```
+
+`deploy:sepolia` writes `deployments/sepolia.json` (address, ABI, people) and
+prints the Etherscan link. On Sepolia each transaction takes ~12 s (the tester
+says "Pending", then "Confirmed", with an Etherscan link) and the 2-minute timers
+run in real time: there is no "Skip 2 minutes". `.env` holds test keys only and
+is git-ignored; never commit it or paste keys anywhere.
 
 ## Functions
 
