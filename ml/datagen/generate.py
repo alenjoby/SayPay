@@ -23,6 +23,7 @@ from .templates_ar import AR, ARABIZI
 from .templates_en_hi import EN, HI_DEVA, HI_LATIN, MIX_HI_EN
 from .templates_extra import EXTRA
 from .templates_v4 import V4
+from .templates_v5 import V5
 
 # Arabizi amounts (spoken form, gold)
 AMOUNTS_ARABIZI = [
@@ -57,7 +58,7 @@ def load_templates() -> list[dict]:
             add(intent, variety, block)
     for intent, block in ARABIZI.items():
         add(intent, "arabizi", block)
-    for tag, bank in (("x", EXTRA), ("v4_", V4)):
+    for tag, bank in (("x", EXTRA), ("v4_", V4), ("v5_", V5)):
         for intent, by_var in bank.items():
             for variety, block in by_var.items():
                 for i, t in enumerate(_lines(block)):
@@ -99,7 +100,7 @@ def _script_filter(pool: list, script: str, rng: random.Random) -> list:
     """Latin-script Hindi gets Latin fillers; Devanagari Hindi mostly Devanagari."""
     if script.startswith("hi_latin"):
         return [p for p in pool if p[0].isascii()]
-    if script == "hi_deva" and rng.random() < 0.7:
+    if script == "hi_deva" and rng.random() < 0.4:
         deva = [p for p in pool if p[0] and not p[0].isascii()]
         return deva or pool
     return pool

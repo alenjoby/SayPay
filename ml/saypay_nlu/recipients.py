@@ -101,7 +101,9 @@ class ContactIndex:
             latin = to_latin(f)
             key = phonetic_key(f)
             ratio = fuzz.ratio(latin, contact.latin) / 100
-            if key and key == contact.key and len(key.replace(" ", "")) >= 2:
+            # Same consonant skeleton. A 2-letter word ("سر" in "كلمة السر") is too
+            # short to be a name on sound alone.
+            if key and key == contact.key and len(key.replace(" ", "")) >= 2 and len(f) >= 3:
                 best = max(best, 0.88 + 0.1 * ratio)
             elif len(contact.latin) >= 4 and ratio >= 0.85:
                 best = max(best, 0.9 * ratio)

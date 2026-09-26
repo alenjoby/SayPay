@@ -17,6 +17,9 @@ class IntentRequest(BaseModel):
                                 examples=[["Amma", "Ahmed", "Rahul"]])
     reply_lang: Literal["ar", "en", "hi"] | None = Field(
         None, description="language of readback.text; default: the language the user spoke")
+    default_unit: str | None = Field(
+        None, examples=["AED"], description="wallet currency used when a send names none "
+        "(then unit_assumed=true and the readback says it); if unset, the API asks for it")
 
 
 class RecipientOut(BaseModel):
@@ -61,6 +64,7 @@ class IntentResponse(BaseModel):
     alternatives: list[Alternative]
     amount: float | None = None
     unit: str | None = Field(None, description="ETH, AED, SAR, USD, INR, ... or null if unsaid")
+    unit_assumed: bool = Field(False, description="unit came from default_unit, not the user")
     recipient: RecipientOut | None = None
     contact: str | None = Field(None, description="shortcut: recipient.contact when type=contact")
     phone: str | None = None

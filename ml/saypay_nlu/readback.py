@@ -143,6 +143,7 @@ _T = {
         "choose": "Did you want to {a}, or {b}?",
         "missing_amount": "How much should I send{to}?",
         "missing_recipient": "Who should I send {amount} to? Say a name or a phone number.",
+        "missing_unit": "{amount} what? Say dirhams, dollars, rupees or ETH.",
         "self": "That is your own wallet. Nothing was sent.",
         "new_address": "a new address you have never paid",
         "clipboard": "the address you copied",
@@ -166,6 +167,7 @@ _T = {
         "choose": "تقصد {a} أو {b}؟",
         "missing_amount": "كم المبلغ اللي تبي ترسله{to}؟",
         "missing_recipient": "لمين أرسل {amount}؟ قل الاسم أو رقم الجوال.",
+        "missing_unit": "{amount} إيش؟ درهم، ريال، دولار ولا إيثيريوم؟",
         "self": "هذي محفظتك نفسها. ما انرسل شي.",
         "new_address": "عنوان جديد ما حولت له قبل",
         "clipboard": "العنوان اللي نسخته",
@@ -189,6 +191,7 @@ _T = {
         "choose": "क्या आप {a} चाहते हैं या {b}?",
         "missing_amount": "{to}कितने पैसे भेजूँ?",
         "missing_recipient": "{amount} किसे भेजूँ? नाम या फ़ोन नंबर बोलिए।",
+        "missing_unit": "{amount} क्या? रुपये, दिरहम, डॉलर या ईथर बोलिए।",
         "self": "यह आपका अपना वॉलेट है। कुछ नहीं भेजा गया।",
         "new_address": "एक नया पता जिस पर आपने पहले पैसे नहीं भेजे",
         "clipboard": "कॉपी किया हुआ पता",
@@ -253,6 +256,9 @@ def build_readback(result, preferred_lang: str | None = None) -> dict:
         text = t["self"]
     elif c.get("type") == "missing" and "amount" in c.get("slots", []):
         text = t["missing_amount"].format(to=to)
+    elif c.get("type") == "missing" and "unit" in c.get("slots", []):
+        text = t["missing_unit"].format(amount=amount or "")
+        text = text[0].upper() + text[1:]
     elif c.get("type") == "missing" and "recipient" in c.get("slots", []):
         text = t["missing_recipient"].format(amount=amount or "")
     elif c.get("type") == "choose_intent":

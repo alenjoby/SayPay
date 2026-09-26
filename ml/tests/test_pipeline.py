@@ -50,10 +50,50 @@ C = ["Amma", "Ahmed", "Rahul", "Mohammed Ali", "Sara"]
     ("لا ترسل", "cancel"),
 ])
 def test_intent(text, intent):
-    r = parse(text, C)
+    r = parse(text, C, default_unit="AED")
     assert r.intent == intent, (r.intent, r.scores)
     assert r.confidence >= 0.8
     assert not r.needs_clarification
+
+
+def test_unit_missing_asks_unless_wallet_currency_given():
+    r = parse("send 10 to amma", C)
+    assert r.needs_clarification and r.clarification == {"type": "missing", "slots": ["unit"]}
+    assert r.readback["text"].startswith("Ten what?")
+    r = parse("send 10 to amma", C, default_unit="AED")
+    assert not r.needs_clarification and (r.unit, r.unit_assumed) == ("AED", True)
+    assert "ten dirhams" in r.readback["text"]
+
+
+@pytest.mark.parametrize("text,intent", [
+    ("نسيت كلمة السر", "recovery_help"),
+    ("I forgot my PIN", "recovery_help"),
+    ("मैं पासवर्ड भूल गया", "recovery_help"),
+])
+def test_forgot_secret_is_recovery(text, intent):
+    r = parse(text, C)
+    assert r.intent == intent
+    assert r.recipient is None  # "السر" is not the contact Sara
+
+
+def test_pay_scanned_qr_is_send_and_asks_amount():
+    r = parse("Pay the QR code", C)
+    assert r.intent == "send" and r.recipient["type"] == "qr"
+    assert r.clarification == {"type": "missing", "slots": ["amount"]}
+
+
+def test_my_qr_is_receive_without_recipient():
+    r = parse("Show my QR code so someone can pay me", C)
+    assert r.intent == "receive" and r.recipient is None
+    assert "scanned" not in r.readback["text"]
+
+
+@pytest.mark.parametrize("text,lang", [
+    ("kam rasidi", "ar"), ("pichhle transactions dikhao", "hi"), ("cancel karo", "hi"),
+    ("What's my balance", "en"),
+])
+def test_readback_language(text, lang):
+    assert parse(text, C).readback["lang"] == lang
 
 
 def test_send_full_slots():
