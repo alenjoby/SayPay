@@ -17,7 +17,9 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@types/aos": "^3.0.8",
     "@types/canvas-confetti": "^1.9.0",
+    "aos": "^2.3.4",
     "canvas-confetti": "^1.9.4",
     "lucide-react": "^1.48.0",
     "react": "^19.3.0",

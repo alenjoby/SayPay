@@ -208,3 +208,34 @@
   background-size: 200% 100%;
   animation: shimmerEffect 2.8s infinite;
 }
+
+/* Slowly flowing organic wave underline for "with your voice" */
+@keyframes waveFlowSlow {
+  0% {
+    background-position-x: 0;
+  }
+  100% {
+    background-position-x: 36px;
+  }
+}
+
+.animated-voice-wave {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.animated-voice-wave::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 9px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 9' fill='none'%3E%3Cpath d='M0 4.5 Q 9 0.5 18 4.5 T 36 4.5' stroke='%23FF5500' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 36px 9px;
+  animation: waveFlowSlow 3.2s linear infinite;
+  opacity: 0.85;
+}
+

@@ -29,6 +29,8 @@ import { BiometricPasskeyRadar } from './components/BiometricPasskeyRadar';
 import { audioCues } from './utils/audioCues';
 import { SupportedLanguage, translations, speakText } from './utils/i18n';
 import { hasUserCreatedWallet } from './utils/walletState';
+import AOS from 'aos';
+import 'aos/dist/aos.css';
 
 export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<'landing' | 'wallet'>('landing');
@@ -40,6 +42,15 @@ export const App: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const t = translations[lang];
+
+  useEffect(() => {
+    AOS.init({
+      duration: 750,
+      easing: 'ease-out-cubic',
+      once: true,
+      offset: 60,
+    });
+  }, []);
 
   useEffect(() => {
     const isRtl = lang === 'ar';
@@ -192,27 +203,43 @@ export const App: React.FC = () => {
 
         <div className="max-w-3xl mx-auto space-y-6 relative z-10">
           {/* Eyebrow Pill */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#FF5500]/10 border border-[#FF5500]/25 text-[#FF5500] text-xs font-bold tracking-wide animate-float">
+          <div
+            data-aos="fade-down"
+            data-aos-duration="600"
+            className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#FF5500]/10 border border-[#FF5500]/25 text-[#FF5500] text-xs font-bold tracking-wide animate-float"
+          >
             <Radio className="w-3.5 h-3.5 animate-pulse" />
             <span>Voice-First Crypto Smart Wallet</span>
           </div>
 
           {/* Hero Headline */}
-          <h1 className="text-4xl sm:text-6xl font-black text-zinc-900 tracking-tight leading-[1.1]">
+          <h1
+            data-aos="fade-up"
+            data-aos-duration="750"
+            className="text-4xl sm:text-6xl font-black text-zinc-900 tracking-tight leading-[1.1]"
+          >
             The crypto wallet you control{' '}
-            <span className="text-[#FF5500] underline decoration-[#FF5500]/40 decoration-wavy">
+            <span className="text-[#FF5500] animated-voice-wave">
               with your voice
             </span>
           </h1>
 
           {/* Hero Subtitle */}
-          <p className="text-base sm:text-lg text-zinc-600 max-w-2xl mx-auto font-normal leading-relaxed">
+          <p
+            data-aos="fade-up"
+            data-aos-delay="100"
+            className="text-base sm:text-lg text-zinc-600 max-w-2xl mx-auto font-normal leading-relaxed"
+          >
             Built from accessibility research for blind and visually impaired users. Speak naturally in Arabic,
             English, or Hindi: zero seed phrases, zero silent popups, and zero hexadecimal addresses.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <div
+            data-aos="fade-up"
+            data-aos-delay="200"
+            className="flex flex-wrap items-center justify-center gap-3 pt-2"
+          >
             <button
               onClick={() => {
                 audioCues.playSuccess();
@@ -233,7 +260,7 @@ export const App: React.FC = () => {
                     lang === 'hi'
                       ? 'कोई सक्रिय वॉलेट नहीं मिला। कृपया पहले अपना स्मार्ट वॉलेट बनाएं।'
                       : lang === 'ar'
-                      ? 'لم يتم العثور على محفظة نشطة. يرجى إنشاء محفظتك الذكية أولاً.'
+                      ? 'لم يتم العथور على محفظة نشطة. يرجى إنشاء محفظتك الذكية أولاً.'
                       : 'No existing wallet found on this device. Opening wallet creation.';
                   speakText(noWalletMsg, lang);
                   setOpenCreateDirectly(true);
@@ -251,7 +278,12 @@ export const App: React.FC = () => {
         </div>
 
         {/* Central Phone Mockup (The App Showcase) with 3D Tilt Glare */}
-        <div id="demo" className="mt-12 relative z-10 max-w-sm mx-auto">
+        <div
+          id="demo"
+          data-aos="zoom-in"
+          data-aos-delay="250"
+          className="mt-12 relative z-10 max-w-sm mx-auto"
+        >
           <Interactive3DTilt maxTilt={7}>
             <InteractiveWalletDemo
               lang={lang}
@@ -262,7 +294,11 @@ export const App: React.FC = () => {
         </div>
 
         {/* Platform compatibility labels */}
-        <div className="mt-8 flex items-center justify-center gap-6 text-xs text-slate-500 font-medium relative z-10">
+        <div
+          data-aos="fade-up"
+          data-aos-delay="300"
+          className="mt-8 flex items-center justify-center gap-6 text-xs text-slate-500 font-medium relative z-10"
+        >
           <span className="flex items-center gap-1.5">
             <Check className="w-3.5 h-3.5 text-[#00A850]" />
             Android & Desktop PWA
@@ -278,7 +314,11 @@ export const App: React.FC = () => {
         </div>
 
         {/* Live Interactive Voice Simulator */}
-        <div className="mt-14 relative z-10 px-2 sm:px-4">
+        <div
+          data-aos="fade-up"
+          data-aos-delay="350"
+          className="mt-14 relative z-10 px-2 sm:px-4"
+        >
           <LiveVoiceCommandSimulator />
         </div>
       </section>
@@ -286,7 +326,7 @@ export const App: React.FC = () => {
       {/* 3. Section: "Every feature you need in crypto. Spoken out loud." (Trust Wallet Style Bento Grid) */}
       <section id="features" className="py-20 px-4 sm:px-8 bg-white border-y border-slate-200/80">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-14">
+          <div data-aos="fade-up" className="text-center max-w-2xl mx-auto mb-14">
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
               Every feature you need in crypto. Spoken out loud.
             </h2>
@@ -298,7 +338,11 @@ export const App: React.FC = () => {
           {/* Asymmetrical Bento Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Card 1: Multilingual Voice Control */}
-            <div className="tw-card p-8 md:col-span-2 flex flex-col justify-between">
+            <div
+              data-aos="fade-up"
+              data-aos-delay="100"
+              className="tw-card p-8 md:col-span-2 flex flex-col justify-between"
+            >
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-[#FF5500]/10 text-[#FF5500] flex items-center justify-center mb-6">
                   <Mic className="w-6 h-6" />
@@ -324,7 +368,11 @@ export const App: React.FC = () => {
             </div>
 
             {/* Card 2: Seedless Social Vault */}
-            <div className="tw-card p-8 flex flex-col justify-between">
+            <div
+              data-aos="fade-up"
+              data-aos-delay="200"
+              className="tw-card p-8 flex flex-col justify-between"
+            >
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center mb-6">
                   <Shield className="w-6 h-6 text-[#FF5500]" />
@@ -344,7 +392,11 @@ export const App: React.FC = () => {
             </div>
 
             {/* Card 3: Zero Silent Popups */}
-            <div className="tw-card p-8 flex flex-col justify-between">
+            <div
+              data-aos="fade-up"
+              data-aos-delay="100"
+              className="tw-card p-8 flex flex-col justify-between"
+            >
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center mb-6">
                   <Volume2 className="w-6 h-6 text-[#FF5500]" />
@@ -363,7 +415,11 @@ export const App: React.FC = () => {
             </div>
 
             {/* Card 4: Human Contact Book */}
-            <div className="tw-card p-8 md:col-span-2 flex flex-col justify-between">
+            <div
+              data-aos="fade-up"
+              data-aos-delay="200"
+              className="tw-card p-8 md:col-span-2 flex flex-col justify-between"
+            >
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-[#FF5500]/10 text-[#FF5500] flex items-center justify-center mb-6">
                   <UserCheck className="w-6 h-6" />
@@ -389,7 +445,7 @@ export const App: React.FC = () => {
       {/* 4. Section: Research Numbers Strip (Minimal, Clean) */}
       <section id="accessibility" className="py-20 px-4 sm:px-8 bg-slate-50">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-12">
+          <div data-aos="fade-up" className="text-center max-w-2xl mx-auto mb-12">
             <span className="text-xs uppercase font-extrabold tracking-widest text-slate-500">
               The Usability Gap
             </span>
@@ -402,7 +458,11 @@ export const App: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group">
+            <div
+              data-aos="fade-up"
+              data-aos-delay="100"
+              className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group"
+            >
               <span className="text-5xl font-black text-slate-900 tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
                 <AnimatedCounter end={70} prefix="+" suffix="%" />
               </span>
@@ -412,7 +472,11 @@ export const App: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group">
+            <div
+              data-aos="fade-up"
+              data-aos-delay="200"
+              className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group"
+            >
               <span className="text-5xl font-black text-[#FF5500] tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
                 <AnimatedCounter end={0} reverse={true} />
               </span>
@@ -422,7 +486,11 @@ export const App: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group">
+            <div
+              data-aos="fade-up"
+              data-aos-delay="300"
+              className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group"
+            >
               <span className="text-5xl font-black text-slate-900 tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
                 <AnimatedCounter end={12} suffix=" Words" />
               </span>
@@ -438,7 +506,7 @@ export const App: React.FC = () => {
       {/* 5. Section: Security Architecture (Industrial Split Layout) */}
       <section id="security" className="py-20 px-4 sm:px-8 bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto">
-          <div className="max-w-xl mb-12">
+          <div data-aos="fade-up" className="max-w-xl mb-12">
             <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5500]">
               Deliberate Architecture
             </span>
@@ -448,7 +516,11 @@ export const App: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+            <div
+              data-aos="fade-up"
+              data-aos-delay="100"
+              className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3"
+            >
               <div className="w-10 h-10 rounded-xl bg-zinc-950 text-[#FF5500] flex items-center justify-center font-bold">
                 <Lock className="w-5 h-5" />
               </div>
@@ -458,7 +530,11 @@ export const App: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+            <div
+              data-aos="fade-up"
+              data-aos-delay="200"
+              className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3"
+            >
               <div className="w-10 h-10 rounded-xl bg-zinc-950 text-[#FF5500] flex items-center justify-center font-bold">
                 <Shield className="w-5 h-5" />
               </div>
@@ -468,7 +544,11 @@ export const App: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+            <div
+              data-aos="fade-up"
+              data-aos-delay="300"
+              className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-3"
+            >
               <div className="w-10 h-10 rounded-xl bg-zinc-950 text-[#FF5500] flex items-center justify-center font-bold">
                 <UserCheck className="w-5 h-5" />
               </div>
@@ -479,8 +559,8 @@ export const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Interactive Biometric Passkey Radar Sandbox */}
-          <div className="mt-12">
+          {/* Redesigned Physical Biometric Authorization Card */}
+          <div data-aos="fade-up" data-aos-delay="200" className="mt-12">
             <BiometricPasskeyRadar />
           </div>
         </div>
@@ -489,7 +569,7 @@ export const App: React.FC = () => {
       {/* 6. Section: Frequently Asked Questions (Accordion) */}
       <section id="faq" className="py-20 px-4 sm:px-8 bg-slate-50">
         <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-12">
+          <div data-aos="fade-up" className="text-center mb-12">
             <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Got questions?</h2>
             <p className="text-sm text-slate-500 mt-1">Everything you need to know about SayPay</p>
           </div>
@@ -513,7 +593,12 @@ export const App: React.FC = () => {
                 a: 'No. The AI model only creates a proposed transaction. The transaction details are read out loud, and money can only be sent once you physically scan your fingerprint or face via device Passkey.',
               },
             ].map((faq, idx) => (
-              <div key={idx} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+              <div
+                key={idx}
+                data-aos="fade-up"
+                data-aos-delay={idx * 80}
+                className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm"
+              >
                 <button
                   onClick={() => toggleFaq(idx)}
                   className="w-full p-5 text-left flex items-center justify-between font-bold text-slate-900 hover:text-slate-700 transition"
@@ -537,7 +622,11 @@ export const App: React.FC = () => {
 
       {/* 7. Bottom CTA Banner (Industrial High-Contrast Hardware Style) */}
       <section className="py-20 px-4 sm:px-8">
-        <div className="max-w-6xl mx-auto rounded-[2.5rem] bg-[#09090B] text-white p-10 sm:p-16 flex flex-col md:flex-row items-center justify-between gap-10 shadow-2xl relative overflow-hidden border border-zinc-800">
+        <div
+          data-aos="zoom-in"
+          data-aos-duration="700"
+          className="max-w-6xl mx-auto rounded-[2.5rem] bg-[#09090B] text-white p-10 sm:p-16 flex flex-col md:flex-row items-center justify-between gap-10 shadow-2xl relative overflow-hidden border border-zinc-800"
+        >
           <div className="max-w-xl space-y-4">
             <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5500]">
               Accessibility First Web3
