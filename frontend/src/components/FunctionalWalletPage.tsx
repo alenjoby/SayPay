@@ -77,13 +77,14 @@ import { FundWalletModal } from './FundWalletModal';
 import { SwapModal } from './SwapModal';
 import { SendModal } from './SendModal';
 import { ReceiveModal } from './ReceiveModal';
-import { ContactsModal } from './ContactsModal';
+import { ContactsModal, ContactsVoiceAction } from './ContactsModal';
 import { GuardiansModal } from './GuardiansModal';
 import { AccessibilitySettingsModal, AccessibilitySettings } from './AccessibilitySettingsModal';
 import { HeadphoneSafetyModal } from './HeadphoneSafetyModal';
 import { VoiceResultCard, VoiceCard } from './VoiceResultCard';
 import { headphoneSafety, HeadphoneStatus } from '../utils/headphoneDetector';
 import { PasskeySignatureResult, signTransactionWithPasskey } from '../utils/passkeyAuth';
+import logoImg from '../../Assets/logo.png';
 
 // ---- Voice language switch ------------------------------------------------
 // The recogniser writes a language name in the language it is listening in,
@@ -398,6 +399,145 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     ? userState.tokens.reduce((acc, tok) => acc + (tok.balance * tok.priceUSD), 0)
     : userState.balanceETH * userState.ethRateUSD;
 
+  // Anti-Silent-Interface Telemetry Engine (Eliminates Silent Screen Rebuilds)
+  const [latestInterfaceEvent, setLatestInterfaceEvent] = useState<string>('Wallet ready');
+  const notifyInterfaceChange = (
+    description: string,
+    type: 'tab' | 'modal' | 'balance' | 'tx' | 'status' | 'alert' = 'tab'
+  ) => {
+    setLatestInterfaceEvent(description);
+    if (type === 'balance' || type === 'tx') {
+      if (accessibilitySettings.earconsEnabled) audioCues.playIncomingPayment();
+    } else if (type === 'alert') {
+      if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
+    } else {
+      if (accessibilitySettings.earconsEnabled) audioCues.playInterfaceTransition();
+    }
+
+    const fullMessage = `Interface updated: ${description}`;
+    announce(fullMessage, type === 'alert');
+    if (accessibilityMode === 'blind') {
+      speakText(fullMessage, lang);
+    }
+  };
+
+  const switchTab = (tab: 'crypto' | 'nfts' | 'approvals' | 'trending' | 'activity') => {
+    setActiveTab(tab);
+    const descriptions: Record<string, string> = {
+      crypto: `Crypto tab: portfolio value is $${totalBalanceUSD.toFixed(2)} USD`,
+      nfts: `NFTs tab: ${userState.nfts?.length || 0} badges in collection`,
+      approvals: `Approvals tab: ${userState.approvals?.length || 0} active token approvals`,
+      trending: 'Trending tab: live crypto market rates',
+      activity: `Activity tab: ${transactions.length} transaction records`,
+    };
+    notifyInterfaceChange(descriptions[tab] || `${tab} tab opened`, 'tab');
+  };
+
+  const [contactsVoiceAction, setContactsVoiceAction] = useState<ContactsVoiceAction>(null);
+
+  const openSendModal = (preFill?: { contact?: string; amount?: number }) => {
+    setIsSendOpen(true);
+    if (preFill) setSendPreFill(preFill);
+    notifyInterfaceChange('Send payment window opened', 'modal');
+    audioCues.playIntentRecognized();
+    const prompt = preFill?.contact
+      ? `Send Money opened. Ready to send ${preFill.amount || 0.1} Sepolia ETH to ${preFill.contact}. Say 'Confirm' or 'Fingerprint' to send, or say 'Cancel'.`
+      : `Send Money opened. Available balance is ${userState.balanceETH.toFixed(4)} Sepolia ETH. Say an amount and recipient, like 'Send 0.05 ETH to Alice', or say 'Cancel'.`;
+    speakAndFollowUp(prompt, lang);
+  };
+  const closeSendModal = () => {
+    setIsSendOpen(false);
+    notifyInterfaceChange('Send payment window closed, returned to overview', 'modal');
+    speakAndFollowUp('Send window closed. Returned to wallet overview.', lang);
+  };
+
+  const openReceiveModal = () => {
+    setIsReceiveOpen(true);
+    notifyInterfaceChange('Receive window opened with QR code', 'modal');
+    audioCues.playIntentRecognized();
+    const ending = userState.address.slice(-4).split('').join(' ');
+    const prompt = `Receive Money opened. Your public address ends in ${ending}. Say 'Copy address' to copy, or say 'Close'.`;
+    speakAndFollowUp(prompt, lang);
+  };
+  const closeReceiveModal = () => {
+    setIsReceiveOpen(false);
+    notifyInterfaceChange('Receive window closed, returned to overview', 'modal');
+    speakAndFollowUp('Receive window closed. Returned to wallet overview.', lang);
+  };
+
+  const openSwapModal = () => {
+    setIsSwapOpen(true);
+    notifyInterfaceChange('Swap tokens window opened', 'modal');
+    audioCues.playIntentRecognized();
+    const prompt = 'Token Swap opened. Say an amount to exchange, like "Swap 0.01 ETH for USDC", or say "Close".';
+    speakAndFollowUp(prompt, lang);
+  };
+  const closeSwapModal = () => {
+    setIsSwapOpen(false);
+    notifyInterfaceChange('Swap window closed, returned to overview', 'modal');
+    speakAndFollowUp('Swap window closed. Returned to wallet overview.', lang);
+  };
+
+  const openFundModal = () => {
+    setIsFundOpen(true);
+    notifyInterfaceChange('Fund wallet cash deposit window opened', 'modal');
+    audioCues.playIntentRecognized();
+    const prompt = 'Deposit Faucet opened. Say "Deposit 0.1 ETH" to add mock testnet cash, or say "Close".';
+    speakAndFollowUp(prompt, lang);
+  };
+  const closeFundModal = () => {
+    setIsFundOpen(false);
+    notifyInterfaceChange('Fund window closed, returned to overview', 'modal');
+    speakAndFollowUp('Deposit window closed. Returned to wallet overview.', lang);
+  };
+
+  const openContactsModal = (initialName?: string) => {
+    setIsContactsOpen(true);
+    if (initialName) setContactPreFill(initialName);
+    notifyInterfaceChange('Contacts address book opened', 'modal');
+    audioCues.playIntentRecognized();
+    const prompt =
+      lang === 'hi'
+        ? `एड्रेस बुक खुल गई है। आपके पास ${userState.contacts.length} संपर्क हैं। नया संपर्क जोड़ने के लिए 'ऐड कांटेक्ट' कहें, या 'बंद करो' कहें।`
+        : lang === 'ar'
+        ? `تم فتح دفتر العناوين. لديك ${userState.contacts.length} جهات اتصال. يمكنك قول 'إضافة جهة اتصال'، أو البحث بالاسم، أو قول 'إغلاق'.`
+        : `Address Book opened. You have ${userState.contacts.length} saved contacts. You can say 'Add contact', say a name to search, or say 'Close'.`;
+    speakAndFollowUp(prompt, lang);
+  };
+  const closeContactsModal = () => {
+    setIsContactsOpen(false);
+    setContactPreFill(undefined);
+    setContactsVoiceAction(null);
+    notifyInterfaceChange('Contacts window closed, returned to overview', 'modal');
+    speakAndFollowUp('Address book closed. Returned to wallet overview.', lang);
+  };
+
+  const openGuardiansModal = () => {
+    setIsGuardiansOpen(true);
+    notifyInterfaceChange('Social recovery guardians window opened', 'modal');
+    audioCues.playIntentRecognized();
+    const prompt = `Social Guardians opened. You have ${userState.guardians.length} guardians configured. Two signatures required for recovery. Say 'Add guardian' or say 'Close'.`;
+    speakAndFollowUp(prompt, lang);
+  };
+  const closeGuardiansModal = () => {
+    setIsGuardiansOpen(false);
+    notifyInterfaceChange('Guardians window closed, returned to overview', 'modal');
+    speakAndFollowUp('Guardians window closed. Returned to wallet overview.', lang);
+  };
+
+  const openSettingsModal = () => {
+    setIsSettingsOpen(true);
+    notifyInterfaceChange('Accessibility settings window opened', 'modal');
+    audioCues.playIntentRecognized();
+    const prompt = 'Accessibility Settings opened. Say "Faster speech", "Slower speech", or say "Close".';
+    speakAndFollowUp(prompt, lang);
+  };
+  const closeSettingsModal = () => {
+    setIsSettingsOpen(false);
+    notifyInterfaceChange('Settings window closed, returned to overview', 'modal');
+    speakAndFollowUp('Settings window closed. Returned to wallet overview.', lang);
+  };
+
   // 6. Incoming Notification Banner
   const [incomingAlert, setIncomingAlert] = useState<{
     show: boolean;
@@ -676,18 +816,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     };
   }, [activeUserId, lang, accessibilitySettings]);
 
-  // Voice Recognition setup (Active ONLY in Blind / Voice-Assisted Mode)
+  // Voice Recognition setup (Active for both Blind and Visual modes)
   useEffect(() => {
-    if (accessibilityMode !== 'blind') {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {}
-      }
-      setIsListening(false);
-      return;
-    }
-
     if (typeof window !== 'undefined') {
       const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRec) {
@@ -749,7 +879,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         };
       }
     }
-  }, [lang, accessibilitySettings, accessibilityMode]);
+  }, [lang, accessibilitySettings]);
 
   // Half-Duplex Audio Engine (UX-01): Mute speech recognition while TTS is speaking
   useEffect(() => {
@@ -805,6 +935,15 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     setIsLocked(false);
     audioCues.playSuccess();
     confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+
+    const welcomeMsg =
+      mode === 'blind'
+        ? `SayPay wallet created and unlocked! Welcome ${newUser.name}. You are on the Crypto tab. Available tabs are: Crypto, NFTs, Approvals, Trending, and Activity. You also have Send, Receive, Swap, Fund, Contacts, and Guardians. Ask 'What tabs are there?' or say 'Go to Send' anytime.`
+        : `SayPay wallet created! Welcome ${newUser.name}.`;
+    setVoiceFeedback(welcomeMsg);
+    announce(welcomeMsg);
+    speakText(welcomeMsg, lang);
+    notifyInterfaceChange('Wallet created and unlocked on Crypto tab', 'tab');
   };
 
   // Stealth Screen Curtain Privacy Shield Handlers
@@ -851,10 +990,14 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         setPinAttempts(0);
         setLockoutTimeRemaining(0);
         audioCues.playSuccess();
-        const welcome = `Vault unlocked. Welcome back, ${userState.name}.`;
+        const welcome =
+          accessibilityMode === 'blind'
+            ? `Vault unlocked with biometric passkey. Welcome back, ${userState.name}. You are on the Crypto tab. Your portfolio balance is $${totalBalanceUSD.toFixed(2)} USD. Available tabs are: Crypto, NFTs, Approvals, Trending, and Activity. Ask 'What tabs are there?' or say 'Go to Send' anytime.`
+            : `Vault unlocked with biometric passkey. Welcome back, ${userState.name}.`;
         setVoiceFeedback(welcome);
-        setAriaAnnouncement(welcome);
+        announce(welcome);
         speakText(welcome, lang);
+        notifyInterfaceChange('Vault unlocked with biometric passkey on Crypto tab', 'status');
       } else {
         setPinError(authResult.error || 'Passkey authentication cancelled');
         audioCues.playWarning();
@@ -911,10 +1054,14 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       setPinAttempts(0);
       setLockoutTimeRemaining(0);
       audioCues.playSuccess();
-      const welcome = `Vault unlocked. Welcome back, ${userState.name}.`;
+      const welcome =
+        accessibilityMode === 'blind'
+          ? `Vault unlocked. Welcome back, ${userState.name}. You are on the Crypto tab. Your portfolio balance is $${totalBalanceUSD.toFixed(2)} USD. Available tabs are: Crypto, NFTs, Approvals, Trending, and Activity. Ask 'What tabs are there?' or say 'Go to Send' anytime.`
+          : `Vault unlocked. Welcome back, ${userState.name}.`;
       setVoiceFeedback(welcome);
-      setAriaAnnouncement(welcome);
+      announce(welcome);
       speakText(welcome, lang);
+      notifyInterfaceChange('Vault unlocked with PIN on Crypto tab', 'status');
     } else {
       const nextAttempts = pinAttempts + 1;
       setPinAttempts(nextAttempts);
@@ -1015,47 +1162,370 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       return;
     }
 
-    // Direct voice matchers for new multi-token sections
-    if (lower.includes('fund') || lower.includes('add cash') || lower.includes('deposit') || lower.includes('faucet')) {
-      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
-      setIsFundOpen(true);
-      speakAndFollowUp('Opening Fund Wallet window. Select mock cash to deposit.', lang);
+    // Querying available tabs, navigation options, or general help
+    if (
+      lower.includes('what tabs') ||
+      lower.includes('all tabs') ||
+      lower.includes('which tabs') ||
+      lower.includes('list tabs') ||
+      lower.includes('show tabs') ||
+      lower.includes('what can i do') ||
+      lower.includes('where can i go') ||
+      lower.includes('what are the options') ||
+      lower.includes('what options') ||
+      lower.includes('available options') ||
+      lower.includes('help me navigate') ||
+      lower.includes('navigation options') ||
+      lower.includes('menu options') ||
+      lower === 'tabs' ||
+      lower === 'help' ||
+      lower === 'options' ||
+      lower.includes('टैब') ||
+      lower.includes('विकल्प') ||
+      lower.includes('मदद') ||
+      lower.includes('تبويب') ||
+      lower.includes('خيارات') ||
+      lower.includes('قائمة')
+    ) {
+      if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
+      const tabMsg =
+        lang === 'hi'
+          ? 'से-पे स्मार्ट वॉलेट में पाँच मुख्य टैब हैं: क्रिप्टो, एनएफटी, अप्रूवल, ट्रेंडिंग और एक्टिविटी। साथ ही आप सेंड, रिसीव, स्वैप, फंड, कांटेक्ट्स और गार्डियन विंडो खोल सकते हैं। किसी भी टैब पर जाने के लिए बोलें, जैसे: गो टू सेंड या गो टू एक्टिविटी।'
+          : lang === 'ar'
+          ? 'تحتوي محفظة سي-باي على خمسة تبويبات رئيسية: العملات المشفرة، والمقتنيات، والموافقات، والأسعار، والنشاط. يمكنك أيضاً فتح نوافذ الإرسال، الاستلام، التبديل، الإيداع، جهات الاتصال، والأوصياء. للانتقال، قل مثلاً: اذهب إلى الإرسال أو افتح النشاط.'
+          : 'SayPay smart wallet has five main tabs: Crypto for your balances, NFTs for badges, Approvals for permissions, Trending for market rates, and Activity for your history. You can also open Send, Receive, Swap, Fund, Contacts, or Guardians. Just say: Go to Send, or Open Activity.';
+      setVoiceFeedback(tabMsg);
+      announce(tabMsg);
+      speakAndFollowUp(tabMsg, lang);
       return;
     }
 
-    if (lower.includes('swap') || lower.includes('exchange')) {
-      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
-      setIsSwapOpen(true);
-      speakAndFollowUp('Opening Swap window. Swap tokens with passkey authorization.', lang);
+    // Direct voice navigation: Crypto Tab
+    if (
+      lower.includes('go to crypto') ||
+      lower.includes('open crypto') ||
+      lower.includes('switch to crypto') ||
+      lower.includes('show crypto') ||
+      lower.includes('view crypto') ||
+      lower.includes('crypto tab') ||
+      lower === 'crypto' ||
+      lower.includes('क्रिप्टो टैब') ||
+      lower.includes('تبويب العملات')
+    ) {
+      switchTab('crypto');
+      const msg = `Switched to Crypto tab. Total portfolio value is $${totalBalanceUSD.toFixed(2)}.`;
+      setVoiceFeedback(msg);
+      speakAndFollowUp(msg, lang);
       return;
     }
 
-    if (lower.includes('nft') || lower.includes('collectible')) {
-      setActiveTab('nfts');
-      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
-      speakAndFollowUp(`Displaying your NFT collection. You have ${userState.nfts?.length || 0} badges.`, lang);
+    // Direct voice navigation: NFTs Tab
+    if (
+      lower.includes('go to nft') ||
+      lower.includes('open nft') ||
+      lower.includes('switch to nft') ||
+      lower.includes('show nft') ||
+      lower.includes('nft tab') ||
+      lower.includes('collectibles') ||
+      lower.includes('badges') ||
+      lower === 'nfts' ||
+      lower.includes('एनएफटी') ||
+      lower.includes('المقتنيات')
+    ) {
+      switchTab('nfts');
+      const msg = `Switched to NFTs tab. You have ${userState.nfts?.length || 0} collectible badges.`;
+      setVoiceFeedback(msg);
+      speakAndFollowUp(msg, lang);
       return;
     }
 
-    if (lower.includes('approval') || lower.includes('permission') || lower.includes('security check')) {
-      setActiveTab('approvals');
-      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
-      speakAndFollowUp(`Showing active token approvals. You have ${userState.approvals?.length || 0} approvals.`, lang);
+    // Direct voice navigation: Approvals Tab
+    if (
+      lower.includes('go to approval') ||
+      lower.includes('open approval') ||
+      lower.includes('switch to approval') ||
+      lower.includes('show approval') ||
+      lower.includes('approval tab') ||
+      lower.includes('permissions') ||
+      lower.includes('security check') ||
+      lower === 'approvals' ||
+      lower.includes('अनुमति') ||
+      lower.includes('الموافقات')
+    ) {
+      switchTab('approvals');
+      const msg = `Switched to Approvals tab. Showing ${userState.approvals?.length || 0} active token permissions.`;
+      setVoiceFeedback(msg);
+      speakAndFollowUp(msg, lang);
       return;
     }
 
-    if (lower.includes('trend') || lower.includes('market') || lower.includes('price')) {
-      setActiveTab('trending');
-      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
-      speakAndFollowUp('Showing market trends. Bitcoin is at $88,450, Ethereum is at $2,693.', lang);
+    // Direct voice navigation: Trending Tab
+    if (
+      lower.includes('go to trend') ||
+      lower.includes('open trend') ||
+      lower.includes('switch to trend') ||
+      lower.includes('show trend') ||
+      lower.includes('trend tab') ||
+      lower.includes('market rates') ||
+      lower.includes('crypto prices') ||
+      lower === 'trending' ||
+      lower.includes('ट्रेंडिंग') ||
+      lower.includes('الأسعار')
+    ) {
+      switchTab('trending');
+      const msg = 'Switched to Trending tab. Bitcoin is at $88,450, Ethereum is at $2,693.';
+      setVoiceFeedback(msg);
+      speakAndFollowUp(msg, lang);
       return;
     }
 
-    if (lower.includes('crypto') || lower.includes('token') || lower.includes('asset')) {
-      setActiveTab('crypto');
-      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
-      speakAndFollowUp(`Showing crypto assets. Total portfolio value is $${totalBalanceUSD.toFixed(2)}.`, lang);
+    // Direct voice navigation: Activity / History Tab
+    if (
+      lower.includes('go to activity') ||
+      lower.includes('open activity') ||
+      lower.includes('switch to activity') ||
+      lower.includes('show activity') ||
+      lower.includes('activity tab') ||
+      lower.includes('go to history') ||
+      lower.includes('open history') ||
+      lower.includes('show history') ||
+      lower.includes('view transactions') ||
+      lower === 'activity' ||
+      lower === 'history' ||
+      lower.includes('एक्टिविटी') ||
+      lower.includes('हिस्ट्री') ||
+      lower.includes('النشاط') ||
+      lower.includes('السجل')
+    ) {
+      switchTab('activity');
+      const msg = `Switched to Activity tab. Showing ${transactions.length} transactions.`;
+      setVoiceFeedback(msg);
+      speakAndFollowUp(msg, lang);
       return;
+    }
+
+    // Modal navigation: Send
+    if (
+      lower.includes('open send') ||
+      lower.includes('go to send') ||
+      lower.includes('send window') ||
+      lower.includes('transfer window') ||
+      lower.includes('भेजने की विंडो') ||
+      lower.includes('نافذة الإرسال')
+    ) {
+      setIsSendOpen(true);
+      notifyInterfaceChange('Send payment window opened', 'modal');
+      const msg = 'Opened Send payment window. Tell me the amount and recipient, or say Close.';
+      setVoiceFeedback(msg);
+      speakAndFollowUp(msg, lang);
+      return;
+    }
+
+    // ----------------------------------------------------
+    // IN-MODAL SPECIFIC VOICE COMMANDS
+    // ----------------------------------------------------
+    if (isContactsOpen) {
+      if (
+        lower.includes('add contact') ||
+        lower.includes('new contact') ||
+        lower.includes('create contact') ||
+        lower.includes('नया संपर्क') ||
+        lower.includes('إضافة جهة اتصال')
+      ) {
+        setContactsVoiceAction({ type: 'open_add' });
+        speakAndFollowUp("Add Contact form opened. Speak the contact's name, or say 'Save contact'.", lang);
+        return;
+      }
+
+      if (
+        lower.startsWith('name is ') ||
+        lower.startsWith('name ') ||
+        lower.startsWith('contact name ') ||
+        lower.startsWith('call them ') ||
+        lower.startsWith('save this as ') ||
+        (lower.startsWith('add ') && !lower.includes('guardian') && !lower.includes('cash') && !lower.includes('fund'))
+      ) {
+        const rawName = spokenText
+          .replace(/^(name is|name|contact name|call them|save this as|add)\s+/i, '')
+          .replace(/[.,!?]/g, '')
+          .trim();
+        if (rawName && !rawName.toLowerCase().includes('contact')) {
+          setContactsVoiceAction({ type: 'set_name', value: rawName });
+          speakAndFollowUp(`Contact name set to ${rawName}. Say 'Save contact' to save.`, lang);
+          return;
+        }
+      }
+
+      if (
+        lower === 'save' ||
+        lower === 'save contact' ||
+        lower === 'save this' ||
+        lower.includes('सेव') ||
+        lower.includes('حفظ')
+      ) {
+        setContactsVoiceAction({ type: 'save' });
+        return;
+      }
+
+      if (lower.startsWith('search ') || lower.startsWith('find ')) {
+        const query = spokenText.replace(/^(search|find)\s+/i, '').replace(/[.,!?]/g, '').trim();
+        setContactsVoiceAction({ type: 'search', value: query });
+        speakAndFollowUp(`Searching contacts for ${query}.`, lang);
+        return;
+      }
+
+      if (lower.includes('clear search') || lower.includes('show all')) {
+        setContactsVoiceAction({ type: 'search', value: '' });
+        speakAndFollowUp('Search cleared. Showing all contacts.', lang);
+        return;
+      }
+    }
+
+    if (isReceiveOpen) {
+      if (lower.includes('copy') || lower.includes('copy address') || lower.includes('कॉपी') || lower.includes('نسخ')) {
+        navigator.clipboard.writeText(userState.address);
+        setCopiedAddress(true);
+        setTimeout(() => setCopiedAddress(false), 2000);
+        audioCues.playSuccess();
+        speakAndFollowUp('Wallet address copied to clipboard.', lang);
+        return;
+      }
+    }
+
+    if (isSendOpen) {
+      if (
+        lower === 'confirm' ||
+        lower === 'send now' ||
+        lower === 'fingerprint' ||
+        lower === 'approve' ||
+        lower.includes('कन्फर्म') ||
+        lower.includes('تأكيد')
+      ) {
+        setModalVoiceTrigger('fingerprint');
+        setTimeout(() => setModalVoiceTrigger(null), 1500);
+        return;
+      }
+    }
+
+    // Modal navigation: Send
+    if (
+      lower.includes('open send') ||
+      lower.includes('go to send') ||
+      lower.includes('send window') ||
+      lower.includes('transfer window') ||
+      lower.includes('भेजने की विंडो') ||
+      lower.includes('نافذة الإرسال')
+    ) {
+      openSendModal();
+      return;
+    }
+
+    // Modal navigation: Receive
+    if (
+      lower.includes('open receive') ||
+      lower.includes('go to receive') ||
+      lower.includes('receive window') ||
+      lower.includes('show qr') ||
+      lower.includes('qr code') ||
+      lower.includes('my address') ||
+      lower.includes('पाने की विंडो') ||
+      lower.includes('نافذة الاستلام')
+    ) {
+      openReceiveModal();
+      return;
+    }
+
+    // Modal navigation: Swap
+    if (
+      lower.includes('open swap') ||
+      lower.includes('go to swap') ||
+      lower.includes('swap window') ||
+      lower.includes('exchange window')
+    ) {
+      openSwapModal();
+      return;
+    }
+
+    // Modal navigation: Fund / Deposit
+    if (
+      lower.includes('open fund') ||
+      lower.includes('go to fund') ||
+      lower.includes('fund window') ||
+      lower.includes('deposit window') ||
+      lower.includes('add cash window') ||
+      lower.includes('faucet')
+    ) {
+      openFundModal();
+      return;
+    }
+
+    // Modal navigation: Contacts
+    if (
+      lower.includes('open contact') ||
+      lower.includes('go to contact') ||
+      lower.includes('show contact') ||
+      lower.includes('address book') ||
+      lower.includes('contact list') ||
+      lower.includes('संपर्क') ||
+      lower.includes('جهات الاتصال')
+    ) {
+      openContactsModal();
+      return;
+    }
+
+    // Modal navigation: Guardians
+    if (
+      lower.includes('open guardian') ||
+      lower.includes('go to guardian') ||
+      lower.includes('social recovery window') ||
+      lower.includes('guardian window') ||
+      lower.includes('गार्डियन') ||
+      lower.includes('الأوصياء')
+    ) {
+      openGuardiansModal();
+      return;
+    }
+
+    // Modal navigation: Settings
+    if (
+      lower.includes('open setting') ||
+      lower.includes('go to setting') ||
+      lower.includes('accessibility setting') ||
+      lower.includes('सेटिंग') ||
+      lower.includes('الإعدادات')
+    ) {
+      openSettingsModal();
+      return;
+    }
+
+    // Close any open modal
+    if (
+      lower.includes('close window') ||
+      lower.includes('close dialog') ||
+      lower.includes('exit window') ||
+      lower === 'close' ||
+      lower === 'exit' ||
+      lower === 'back' ||
+      (lower === 'done' && !isContactsOpen) ||
+      lower.includes('विंडो बंद करो') ||
+      lower.includes('إغلاق النافذة')
+    ) {
+      if (isSendOpen || isReceiveOpen || isSwapOpen || isFundOpen || isContactsOpen || isGuardiansOpen || isSettingsOpen) {
+        setIsSendOpen(false);
+        setIsReceiveOpen(false);
+        setIsSwapOpen(false);
+        setIsFundOpen(false);
+        setIsContactsOpen(false);
+        setIsGuardiansOpen(false);
+        setIsSettingsOpen(false);
+        setContactPreFill(undefined);
+        setContactsVoiceAction(null);
+        notifyInterfaceChange('Window closed. Returned to wallet overview.', 'modal');
+        const msg = 'Window closed. Returned to wallet overview.';
+        setVoiceFeedback(msg);
+        speakAndFollowUp(msg, lang);
+        return;
+      }
     }
 
     // SayPay intent model for money commands (local keyword parser as fallback).
@@ -1736,13 +2206,17 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       >
         {/* Top Header */}
         <header className="p-4 sm:p-6 flex items-center justify-between max-w-4xl mx-auto w-full">
-          <button
-            onClick={onBackToLanding}
-            className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 transition text-xs font-bold cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to Home</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBackToLanding}
+              className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 transition text-xs font-bold cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Home</span>
+            </button>
+            <div className="h-4 w-px bg-zinc-200" />
+            <img src={logoImg} alt="SayPay" className="h-6 w-auto object-contain" />
+          </div>
 
           <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-zinc-200 text-[11px] font-mono text-zinc-600 shadow-xs">
             <span className="w-2 h-2 rounded-full bg-[#FF5500] animate-ping" />
@@ -1762,9 +2236,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             </div>
 
             <div>
-              <h1 className="text-2xl font-black font-display tracking-tight text-zinc-950">
-                SayPay Vault
-              </h1>
+              <div className="flex justify-center mb-2">
+                <img src={logoImg} alt="SayPay" className="h-8 w-auto object-contain" />
+              </div>
               <p className="text-xs text-zinc-500 mt-1">
                 Hardware passkey and biometric security gate
               </p>
@@ -2041,19 +2515,14 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       <div className="sticky top-3 z-40 px-3 sm:px-6">
         <header className="max-w-6xl mx-auto bg-white/95 backdrop-blur-xl border border-zinc-200/80 rounded-3xl px-3 sm:px-6 py-2.5 sm:py-3 shadow-sm transition-all">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
-            {/* Left Group: Brand Logo & Landing Link & Earphone Status */}
+            {/* Left Group: Brand Logo & Landing Link & Earphone Status & Zero Silent Changes */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <button
                 onClick={onBackToLanding}
                 className="flex items-center gap-2 group focus:outline-none cursor-pointer"
                 title="SayPay Smart Vault"
               >
-                <div className="w-8 h-8 rounded-xl bg-[#FF5500] flex items-center justify-center font-black text-white text-sm shadow-xs group-hover:scale-105 transition">
-                  S
-                </div>
-                <span className="font-extrabold text-base sm:text-lg text-zinc-900 tracking-tight font-display">
-                  SayPay
-                </span>
+                <img src={logoImg} alt="SayPay" className="h-8 w-auto object-contain group-hover:scale-105 transition" />
               </button>
 
               <div className="h-4 w-px bg-zinc-200 hidden md:block" />
@@ -2067,7 +2536,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 <span>Landing</span>
               </button>
 
-              {/* Compulsory Earphones Privacy Indicator (ONLY in Blind Mode) */}
+              {/* Earphones Privacy Indicator (Non-blocking) */}
               {accessibilityMode === 'blind' && (
                 <button
                   onClick={() => {
@@ -2077,13 +2546,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold transition cursor-pointer ${
                     headphoneStatus.isConnected
                       ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                      : 'bg-orange-50 border-[#FF5500]/40 text-[#FF5500] animate-pulse'
+                      : 'bg-amber-50 border-amber-300 text-amber-900'
                   }`}
-                  title="Earphones Audio Privacy Gate"
+                  title="Earphones Audio Privacy Advisory"
                 >
                   <Headphones className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">
-                    {headphoneStatus.isConnected ? 'Earphones Active' : 'Earphones Required'}
+                    {headphoneStatus.isConnected ? 'Earphones Active' : 'Earphones Recommended'}
                   </span>
                 </button>
               )}
@@ -2601,12 +3070,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4 mt-6 pt-5 border-t border-zinc-100 w-full min-w-0 max-w-full">
                   {/* Action 1: Send */}
                   <button
-                    onClick={() => {
-                      audioCues.playIntentRecognized();
-                      setSendPreFill({});
-                      setIsSendOpen(true);
-                      speakAndFollowUp('Opening send window. Select a contact or enter recipient address.', lang);
-                    }}
+                    onClick={() => openSendModal({})}
                     className="min-w-0 flex-1 flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
                   >
                     <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl btn-orange text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
@@ -2617,11 +3081,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
                   {/* Action 2: Receive */}
                   <button
-                    onClick={() => {
-                      audioCues.playIntentRecognized();
-                      setIsReceiveOpen(true);
-                      speakAndFollowUp(`Your receiving address ends in ${userState.address.slice(-4).split('').join(' ')}. QR code is displayed on screen.`, lang);
-                    }}
+                    onClick={() => openReceiveModal()}
                     className="min-w-0 flex-1 flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
                   >
                     <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-zinc-50 border border-zinc-200 text-zinc-800 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
@@ -2632,11 +3092,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
                   {/* Action 3: Swap */}
                   <button
-                    onClick={() => {
-                      audioCues.playIntentRecognized();
-                      setIsSwapOpen(true);
-                      speakAndFollowUp('Opening swap window. You can exchange Sepolia ETH for USDC.', lang);
-                    }}
+                    onClick={() => openSwapModal()}
                     className="min-w-0 flex-1 flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
                   >
                     <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
@@ -2647,11 +3103,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
                   {/* Action 4: Fund (+ Add Cash) */}
                   <button
-                    onClick={() => {
-                      audioCues.playIntentRecognized();
-                      setIsFundOpen(true);
-                      speakAndFollowUp('Opening deposit window to add mock testnet funds.', lang);
-                    }}
+                    onClick={() => openFundModal()}
                     className="min-w-0 flex-1 flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
                   >
                     <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
@@ -2664,11 +3116,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               {/* Quick Pills for Contacts and Guardians */}
               <div className="flex flex-wrap items-center justify-center gap-3 mt-4 pt-3 border-t border-zinc-100/60 text-xs">
                 <button
-                  onClick={() => {
-                    audioCues.playIntentRecognized();
-                    setIsContactsOpen(true);
-                    speakAndFollowUp(`Opening contacts. You have ${userState.contacts.length} saved contacts.`, lang);
-                  }}
+                  onClick={() => openContactsModal()}
                   className="px-3.5 py-1.5 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold inline-flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Users className="w-3.5 h-3.5 text-zinc-600" />
@@ -2676,11 +3124,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 </button>
 
                 <button
-                  onClick={() => {
-                    audioCues.playIntentRecognized();
-                    setIsGuardiansOpen(true);
-                    speakAndFollowUp(`Opening guardians. You have ${userState.guardians.length} guardians configured.`, lang);
-                  }}
+                  onClick={() => openGuardiansModal()}
                   className="px-3.5 py-1.5 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold inline-flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
@@ -2755,10 +3199,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               <div className="flex items-center justify-between border-b border-zinc-200 pb-2 mb-6 overflow-x-auto">
                 <div className="flex items-center gap-2 sm:gap-4">
                   <button
-                    onClick={() => {
-                      audioCues.playIntentRecognized();
-                      setActiveTab('crypto');
-                    }}
+                    onClick={() => switchTab('crypto')}
                     className={`pb-2 px-1 text-sm font-black transition relative cursor-pointer ${
                       activeTab === 'crypto'
                         ? 'text-zinc-950 border-b-2 border-[#FF5500]'
@@ -2769,10 +3210,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   </button>
 
                   <button
-                    onClick={() => {
-                      audioCues.playIntentRecognized();
-                      setActiveTab('nfts');
-                    }}
+                    onClick={() => switchTab('nfts')}
                     className={`pb-2 px-1 text-sm font-black transition relative cursor-pointer flex items-center gap-1.5 ${
                       activeTab === 'nfts'
                         ? 'text-zinc-950 border-b-2 border-[#FF5500]'
@@ -2786,10 +3224,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   </button>
 
                   <button
-                    onClick={() => {
-                      audioCues.playIntentRecognized();
-                      setActiveTab('approvals');
-                    }}
+                    onClick={() => switchTab('approvals')}
                     className={`pb-2 px-1 text-sm font-black transition relative cursor-pointer flex items-center gap-1.5 ${
                       activeTab === 'approvals'
                         ? 'text-zinc-950 border-b-2 border-[#FF5500]'
@@ -2805,10 +3240,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   </button>
 
                   <button
-                    onClick={() => {
-                      audioCues.playIntentRecognized();
-                      setActiveTab('trending');
-                    }}
+                    onClick={() => switchTab('trending')}
                     className={`pb-2 px-1 text-sm font-black transition relative cursor-pointer ${
                       activeTab === 'trending'
                         ? 'text-zinc-950 border-b-2 border-[#FF5500]'
@@ -2819,10 +3251,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   </button>
 
                   <button
-                    onClick={() => {
-                      audioCues.playIntentRecognized();
-                      setActiveTab('activity');
-                    }}
+                    onClick={() => switchTab('activity')}
                     className={`pb-2 px-1 text-sm font-black transition relative cursor-pointer ${
                       activeTab === 'activity'
                         ? 'text-zinc-950 border-b-2 border-[#FF5500]'
@@ -3167,84 +3596,82 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         </div>
       </div>
 
-        {/* Floating Voice Control Capsule at Bottom (Active in Blind Mode, or while speaking / receiving voice cards / processing speech) */}
-        {(accessibilityMode === 'blind' || isListening || isProcessingVoice || voiceCard !== null) && (
-          <div className="fixed bottom-6 inset-x-0 z-40 flex flex-col items-center px-4 pointer-events-none">
-            <VoiceResultCard card={voiceCard} listening={isListening} processing={isProcessingVoice} transcript={transcript} />
-            <div className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-3xl p-2.5 shadow-2xl border border-zinc-800 backdrop-blur-xl flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 pl-1 overflow-hidden">
-                <button
-                  onClick={toggleMic}
-                  aria-label={isListening ? 'Stop listening' : 'Start voice command'}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center transition cursor-pointer flex-shrink-0 ${
-                    isListening
-                      ? 'bg-[#FF5500] text-white animate-pulse'
-                      : 'bg-zinc-800 hover:bg-zinc-700 text-[#FF5500]'
-                  }`}
-                  title={isListening ? 'Stop listening' : 'Start voice command'}
-                >
-                  {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                </button>
-                <div className="text-xs truncate font-medium">
-                  <div className="text-white truncate font-display font-bold">
-                    {transcript || voiceFeedback}
-                  </div>
-                  <div className="text-[10px] text-zinc-400 font-mono">
-                    Tap mic or hold Spacebar to speak
-                  </div>
+        {/* Floating Voice Control Capsule at Bottom (Always available on top of all screens and modals) */}
+        <div className="fixed bottom-6 inset-x-0 z-[70] flex flex-col items-center px-4 pointer-events-none">
+          <VoiceResultCard card={voiceCard} listening={isListening} processing={isProcessingVoice} transcript={transcript} />
+          <div className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-3xl p-2.5 shadow-2xl border border-zinc-800 backdrop-blur-xl flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 pl-1 overflow-hidden">
+              <button
+                onClick={toggleMic}
+                aria-label={isListening ? 'Stop listening' : 'Start voice command'}
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition cursor-pointer flex-shrink-0 ${
+                  isListening
+                    ? 'bg-[#FF5500] text-white animate-pulse'
+                    : 'bg-zinc-800 hover:bg-zinc-700 text-[#FF5500]'
+                }`}
+                title={isListening ? 'Stop listening' : 'Start voice command'}
+              >
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
+              <div className="text-xs truncate font-medium">
+                <div className="text-white truncate font-display font-bold">
+                  {transcript || voiceFeedback}
+                </div>
+                <div className="text-[10px] text-zinc-400 font-mono">
+                  Tap mic or hold Spacebar to speak
                 </div>
               </div>
-
-              <div className="flex items-center gap-1 pr-2 flex-shrink-0">
-                <button
-                  onClick={() => simulateSpokenInput('Check my balance')}
-                  className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition cursor-pointer"
-                >
-                  Balance
-                </button>
-                <button
-                  onClick={() => simulateSpokenInput('Send 0.1 ETH to Priya')}
-                  className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition cursor-pointer"
-                >
-                  Send ETH
-                </button>
-              </div>
             </div>
-            <form
-              className="flex items-center gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const text = typedCommand.trim();
-                if (!text) return;
-                setTypedCommand('');
-                setTranscript(text);
-                handleProcessCommand(text);
-              }}
-            >
-              <label htmlFor="typed-command" className="sr-only">
-                Type a command instead of speaking
-              </label>
-              <input
-                id="typed-command"
-                type="text"
-                dir="auto"
-                autoComplete="off"
-                value={typedCommand}
-                onChange={(e) => setTypedCommand(e.target.value)}
-                placeholder="Or type: Send 0.1 ETH to Priya"
-                className="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded-full px-4 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
-              />
+
+            <div className="flex items-center gap-1 pr-2 flex-shrink-0">
               <button
-                type="submit"
-                className="px-4 py-2 rounded-full bg-[#FF5500] hover:bg-[#e64d00] text-white text-sm font-bold transition cursor-pointer flex-shrink-0"
+                onClick={() => simulateSpokenInput('Check my balance')}
+                className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition cursor-pointer"
               >
-                Run command
+                Balance
               </button>
-            </form>
+              <button
+                onClick={() => simulateSpokenInput('Send 0.1 ETH to Priya')}
+                className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition cursor-pointer"
+              >
+                Send ETH
+              </button>
             </div>
           </div>
-        )}
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const text = typedCommand.trim();
+              if (!text) return;
+              setTypedCommand('');
+              setTranscript(text);
+              handleProcessCommand(text);
+            }}
+          >
+            <label htmlFor="typed-command" className="sr-only">
+              Type a command instead of speaking
+            </label>
+            <input
+              id="typed-command"
+              type="text"
+              dir="auto"
+              autoComplete="off"
+              value={typedCommand}
+              onChange={(e) => setTypedCommand(e.target.value)}
+              placeholder="Or type: Send 0.1 ETH to Priya"
+              className="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded-full px-4 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-full bg-[#FF5500] hover:bg-[#e64d00] text-white text-sm font-bold transition cursor-pointer flex-shrink-0"
+            >
+              Run command
+            </button>
+          </form>
+          </div>
+        </div>
       </main>
 
       {/* Modals */}
@@ -3259,7 +3686,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         isOpen={isSettingsOpen}
         settings={accessibilitySettings}
         onUpdateSettings={handleUpdateSettings}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={closeSettingsModal}
       />
 
       <HeadphoneSafetyModal
@@ -3284,7 +3711,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         availableBalanceETH={userState.balanceETH}
         ethRateUSD={userState.ethRateUSD}
         externalVoiceTrigger={modalVoiceTrigger}
-        onClose={() => setIsSendOpen(false)}
+        onClose={closeSendModal}
         onConfirmSend={handleConfirmSend}
       />
 
@@ -3293,7 +3720,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         address={userState.address}
         userName={userState.name}
         currentLang={lang}
-        onClose={() => setIsReceiveOpen(false)}
+        onClose={closeReceiveModal}
       />
 
       <ContactsModal
@@ -3301,11 +3728,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         initialNewName={contactPreFill}
         contacts={userState.contacts}
         currentLang={lang}
-        onClose={() => { setIsContactsOpen(false); setContactPreFill(undefined); }}
+        voiceAction={contactsVoiceAction}
+        onClearVoiceAction={() => setContactsVoiceAction(null)}
+        onClose={closeContactsModal}
         onSelectForSend={(contact) => {
-          setIsContactsOpen(false);
-          setSendPreFill({ contact: contact.name });
-          setIsSendOpen(true);
+          closeContactsModal();
+          openSendModal({ contact: contact.name });
         }}
         onAddContact={handleAddContact}
         onDeleteContact={handleDeleteContact}
@@ -3315,7 +3743,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         isOpen={isGuardiansOpen}
         guardians={userState.guardians}
         currentLang={lang}
-        onClose={() => setIsGuardiansOpen(false)}
+        onClose={closeGuardiansModal}
         onAnnounce={(msg) => {
           setAriaAnnouncement(msg);
           setVoiceFeedback(msg);
@@ -3341,8 +3769,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
           const fundMsg = `Deposit successful! Your new balance is ${updatedUser.balanceETH.toFixed(4)} Sepolia ETH.`;
           speakAndFollowUp(fundMsg, lang);
+          notifyInterfaceChange(`Deposit confirmed: balance updated to ${updatedUser.balanceETH.toFixed(4)} ETH`, 'balance');
         }}
-        onClose={() => setIsFundOpen(false)}
+        onClose={closeFundModal}
       />
 
       {/* Token Swap Modal */}
@@ -3356,8 +3785,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
           const swapMsg = `Swap completed! Your new balance is ${updatedUser.balanceETH.toFixed(4)} Sepolia ETH.`;
           speakAndFollowUp(swapMsg, lang);
+          notifyInterfaceChange(`Swap confirmed: balance updated to ${updatedUser.balanceETH.toFixed(4)} ETH`, 'balance');
         }}
-        onClose={() => setIsSwapOpen(false)}
+        onClose={closeSwapModal}
       />
 
       {/* Stealth Screen Curtain Overlay for Shoulder-Surfing Privacy */}

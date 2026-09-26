@@ -15,6 +15,7 @@ import { audioCues } from '../utils/audioCues';
 import { speakText, SupportedLanguage, detectLanguage } from '../utils/i18n';
 import { parseVoiceIntent } from '../utils/intentParser';
 import { TransactionModal } from './TransactionModal';
+import logoImg from '../../Assets/logo.png';
 
 interface InteractiveWalletDemoProps {
   lang: SupportedLanguage;
@@ -183,10 +184,7 @@ export const InteractiveWalletDemo: React.FC<InteractiveWalletDemoProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-[#FF5500] flex items-center justify-center font-bold text-white text-xs">
-                S
-              </div>
-              <span className="font-bold text-xs text-slate-900">SayPay Vault</span>
+              <img src={logoImg} alt="SayPay" className="h-6 w-auto object-contain" />
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500]" />
             </div>
 
