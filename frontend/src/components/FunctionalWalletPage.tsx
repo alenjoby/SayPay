@@ -195,6 +195,11 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const [voiceFeedback, setVoiceFeedback] = useState('Tap Mic or hold Spacebar to speak');
   const [ariaAnnouncement, setAriaAnnouncement] = useState('');
   const recognitionRef = useRef<any>(null);
+  // Latest transcript and command handler, read when recognition ends. The
+  // recognition callbacks are created in an effect, so reading state there
+  // directly would see an old render (and act on the previous sentence).
+  const latestTranscriptRef = useRef('');
+  const processCommandRef = useRef<(text: string) => void>(() => {});
 
   // 5. Persistent Transaction History (Database)
   const [transactions, setTransactions] = useState<TransactionRecord[]>(() =>
@@ -491,6 +496,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           for (let i = 0; i < event.results.length; i++) {
             current += event.results[i][0].transcript;
           }
+          latestTranscriptRef.current = current;
           setTranscript(current);
         };
 
@@ -501,8 +507,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
         recognition.onend = () => {
           setIsListening(false);
-          if (transcript.trim()) {
-            handleProcessCommand(transcript);
+          const heard = latestTranscriptRef.current;
+          latestTranscriptRef.current = '';
+          if (heard.trim()) {
+            processCommandRef.current(heard);
           }
         };
 
@@ -1018,6 +1026,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
     }
   };
+
+  processCommandRef.current = handleProcessCommand;
 
   const simulateSpokenInput = (text: string) => {
     setTranscript(text);
