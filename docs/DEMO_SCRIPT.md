@@ -9,7 +9,7 @@ Record the app's actions first, then add the narration as a voice-over **on top*
 
 - [ ] Fresh chain: restart `npx hardhat node` → `npm run deploy:local` → wallet shows **2.5 ETH**
 - [ ] Model running (`/health`); say 97.5% only if it shows `v3+mmbert`, otherwise 96.7%
-- [ ] App in Chrome/Edge, Voice-Assisted mode; contract tester open in another window (off-camera)
+- [ ] App in Chrome/Edge, Voice-Assisted mode; a terminal in `contracts/` ready (off-camera) for `npm run demo ...`
 - [ ] Off-camera: SAY "change to Arabic"
 - [ ] Record **system audio + mic** (OBS or Win+Alt+R), earphones on
 - [ ] Record each scene separately and cut; if a voice line misfires, type it in the box instead
@@ -45,7 +45,7 @@ Point at the typed box under the voice bar.
 ## 1:30–1:55 Blockchain: no seed phrase, and it doesn't assume you're alive
 
 1. SAY: **"fingerprint"** → Windows Hello → *"Pending." → "Confirmed." → "Sent 0.1 test ETH to Amma."* Balance **2.5 → 2.4**.
-2. In the tester (cut in for 2 s): Guardian Ahmed → **Propose recovery** → the app **interrupts**: *"…started moving your wallet to a new phone. If this wasn't you, say cancel recovery."*
+2. Off-camera, in a terminal in `contracts/`: `npm run demo recovery` (acts as Guardian Ahmed) → the app **interrupts**: *"…started moving your wallet to a new phone. If this wasn't you, say cancel recovery."*
    SAY: **"cancel recovery"** → *"Recovery cancelled. Your wallet is safe."*
 
 **Narrator:** "A real transaction on our SayPayVault contract, signed by a key that only unlocks with your fingerprint. Lose your phone and guardians restore it, but you can always stop them, and they can never move your money. If you're gone, an inheritance switch passes it to your family. Tested, and on the Sepolia testnet."

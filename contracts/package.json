@@ -11,7 +11,8 @@
     "abi": "node scripts/export-abi.js",
     "tester": "node scripts/serve-tester.js",
     "wallets": "node scripts/make-demo-wallets.js",
-    "verify:sepolia": "hardhat run scripts/verify.js --network sepolia"
+    "verify:sepolia": "hardhat run scripts/verify.js --network sepolia",
+    "demo": "node scripts/demo.js"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.2",

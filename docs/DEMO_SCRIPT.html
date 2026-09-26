@@ -21,7 +21,7 @@ Record the app's actions first, then add the narration as a voice-over <strong>o
 <ul>
 <li class="task"><label><input type="checkbox" id="d1"> <span>Fresh chain: restart <code>npx hardhat node</code> → <code>npm run deploy:local</code> → wallet shows <strong>2.5 ETH</strong></span></label></li>
 <li class="task"><label><input type="checkbox" id="d2"> <span>Model running (<code>/health</code>); say 97.5% only if it shows <code>v3+mmbert</code>, otherwise 96.7%</span></label></li>
-<li class="task"><label><input type="checkbox" id="d3"> <span>App in Chrome/Edge, Voice-Assisted mode; contract tester open in another window (off-camera)</span></label></li>
+<li class="task"><label><input type="checkbox" id="d3"> <span>App in Chrome/Edge, Voice-Assisted mode; a terminal in <code>contracts/</code> ready (off-camera) for <code>npm run demo ...</code></span></label></li>
 <li class="task"><label><input type="checkbox" id="d4"> <span>Off-camera: SAY &quot;change to Arabic&quot;</span></label></li>
 <li class="task"><label><input type="checkbox" id="d5"> <span>Record <strong>system audio + mic</strong> (OBS or Win+Alt+R), earphones on</span></label></li>
 <li class="task"><label><input type="checkbox" id="d6"> <span>Record each scene separately and cut; if a voice line misfires, type it in the box instead</span></label></li>
@@ -48,7 +48,7 @@ Point at the typed box under the voice bar.</p>
 <h2>1:30–1:55 Blockchain: no seed phrase, and it doesn't assume you're alive</h2>
 <ol>
 <li>SAY: <strong>&quot;fingerprint&quot;</strong> → Windows Hello → <em>&quot;Pending.&quot; → &quot;Confirmed.&quot; → &quot;Sent 0.1 test ETH to Amma.&quot;</em> Balance <strong>2.5 → 2.4</strong>.</li>
-<li>In the tester (cut in for 2 s): Guardian Ahmed → <strong>Propose recovery</strong> → the app <strong>interrupts</strong>: <em>&quot;…started moving your wallet to a new phone. If this wasn't you, say cancel recovery.&quot;</em>
+<li>Off-camera, in a terminal in <code>contracts/</code>: <code>npm run demo recovery</code> (acts as Guardian Ahmed) → the app <strong>interrupts</strong>: <em>&quot;…started moving your wallet to a new phone. If this wasn't you, say cancel recovery.&quot;</em>
 SAY: <strong>&quot;cancel recovery&quot;</strong> → <em>&quot;Recovery cancelled. Your wallet is safe.&quot;</em></li>
 </ol>
 <p><strong>Narrator:</strong> &quot;A real transaction on our SayPayVault contract, signed by a key that only unlocks with your fingerprint. Lose your phone and guardians restore it, but you can always stop them, and they can never move your money. If you're gone, an inheritance switch passes it to your family. Tested, and on the Sepolia testnet.&quot;</p>

@@ -131,6 +131,11 @@ Contacts in the demo wallet: Amma, Priya, Zaid, Fatima, Sara.
 
 ## Guardian recovery and inheritance demo
 
+Quickest way, without leaving the app: in a terminal in `contracts/`, run
+`npm run demo recovery` (a guardian starts moving your wallet: the app warns you, say
+"cancel recovery"), `npm run demo inheritance` (say "I'm here") or `npm run demo deposit`
+(Amma sends you 0.1 ETH). Or use the contract tester:
+
 Open the contract tester (http://localhost:5174) next to the app. It lets you act as a
 guardian or the beneficiary.
 
