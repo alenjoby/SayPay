@@ -1,0 +1,84 @@
+# BLIND Hindi test set (hi). Written and frozen BEFORE the v5 data changes; never used
+# for training, tuning or error analysis. Mimics Chrome hi-IN speech output: Devanagari
+# with English loanwords in Devanagari, digits and the rupee sign; plus Hinglish and
+# Indian English.
+# Columns: intent<TAB>script<TAB>text<TAB>amount<TAB>unit<TAB>contact
+check_balance	hi_deva	मेरा बैलेंस चेक करो	-	-	-
+check_balance	hi_deva	अकाउंट में कितने पैसे हैं	-	-	-
+check_balance	hi_deva	वॉलेट में कितना बचा है	-	-	-
+check_balance	hi_deva	मेरे पास कितने पैसे बचे हैं	-	-	-
+check_balance	hi_deva	बैलेंस बताओ	-	-	-
+check_balance	hi_deva	मेरे खाते में कितना पैसा है	-	-	-
+check_balance	hi_deva	अभी मेरा टोटल बैलेंस कितना है	-	-	-
+check_balance	hi_latin	mere wallet me kitna balance hai	-	-	-
+check_balance	hi_latin	balance check kar do	-	-	-
+check_balance	en	what is my current balance please	-	-	-
+send	hi_deva	राहुल को ₹500 भेजो	500	INR	Rahul
+send	hi_deva	प्रिया को 200 रुपए सेंड करो	200	INR	Priya
+send	hi_deva	अहमद को 50 दिरहम ट्रांसफर कर दो	50	AED	Ahmed
+send	hi_deva	मम्मी को हज़ार रुपए भेज दो	1000	INR	Amma
+send	hi_deva	पापा को 0.1 ईथर भेजो	0.1	ETH	Dad
+send	hi_deva	भाई को 20 डॉलर भेज दीजिए	20	USD	Brother
+send	hi_deva	फातिमा को 300 रुपये पे कर दो	300	INR	Fatima
+send	hi_deva	खालिद को 75 दिरहम भेजना है	75	AED	Khalid
+send	hi_deva	सारा को ढाई सौ रुपए भेजो	250	INR	Sara
+send	hi_deva	मोहम्मद अली को 100 दिरहम भेज दो	100	AED	Mohammed Ali
+send	hi_deva	राहुल को डेढ़ हज़ार भेजो	1500	-	Rahul
+send	hi_deva	मुझे प्रिया को 50 डॉलर भेजने हैं	50	USD	Priya
+send	hi_deva	प्लीज़ अम्मा को 2000 रुपए ट्रांसफर करो	2000	INR	Amma
+send	hi_deva	राहुल को पैसे भेजो	-	-	Rahul
+send	hi_deva	500 रुपए भेजो	500	INR	-
+send	hi_latin	rahul ko 500 rs bhej do	500	INR	Rahul
+send	hi_latin	priya ko 1000 rupees transfer karo	1000	INR	Priya
+send	hi_latin	papa ko 50 dirham send kar do	50	AED	Dad
+send	hi_latin	bhaiya ko 0.05 eth bhejna hai	0.05	ETH	Brother
+send	en	Send 500 rupees to Rahul	500	INR	Rahul
+send	en	Kindly transfer 1000 rupees to Priya's wallet	1000	INR	Priya
+send	en	Please send 20 dirhams to my brother	20	AED	Brother
+receive	hi_deva	राहुल से 500 रुपए मांगो	500	INR	Rahul
+receive	hi_deva	प्रिया से पैसे मंगवाओ	-	-	Priya
+receive	hi_deva	मेरा वॉलेट एड्रेस बताओ	-	-	-
+receive	hi_deva	मेरा क्यूआर कोड दिखाओ	-	-	-
+receive	hi_deva	मुझे पैसे रिसीव करने हैं	-	-	-
+receive	hi_deva	अहमद को बोलो मुझे 50 दिरहम भेजे	50	AED	Ahmed
+receive	hi_deva	पैसे लेने के लिए मेरा एड्रेस शेयर करो	-	-	-
+receive	hi_latin	mera qr code dikhao	-	-	-
+receive	hi_latin	ahmed se 100 dirham mangwa do	100	AED	Ahmed
+history	hi_deva	मेरी पिछली ट्रांजैक्शन दिखाओ	-	-	-
+history	hi_deva	पिछले लेनदेन बताओ	-	-	-
+history	hi_deva	मैंने इस हफ्ते किसको पैसे भेजे	-	-	-
+history	hi_deva	मेरी हिस्ट्री दिखाओ	-	-	-
+history	hi_deva	आज कौन कौन से पेमेंट हुए	-	-	-
+history	hi_latin	last ke transactions dikhao	-	-	-
+history	hi_latin	is mahine kitne payment kiye	-	-	-
+tx_status	hi_deva	राहुल को जो पैसे भेजे वो पहुंचे क्या	-	-	Rahul
+tx_status	hi_deva	मेरा लास्ट ट्रांसफर हुआ या नहीं	-	-	-
+tx_status	hi_deva	कल वाला पेमेंट सक्सेसफुल हुआ क्या	-	-	-
+tx_status	hi_deva	प्रिया को पैसे मिले या नहीं	-	-	Priya
+tx_status	hi_deva	मेरा ट्रांजैक्शन अभी तक पेंडिंग क्यों है	-	-	-
+tx_status	hi_latin	payment ho gaya kya	-	-	-
+tx_status	hi_latin	ahmed ko paise mile kya	-	-	Ahmed
+add_contact	hi_deva	इस नंबर को अली नाम से सेव करो	-	-	-
+add_contact	hi_deva	नया कॉन्टैक्ट जोड़ो नाम रवि	-	-	-
+add_contact	hi_deva	रवि को कॉन्टैक्ट में ऐड करो	-	-	-
+add_contact	hi_latin	is address ko ravi naam se save karo	-	-	-
+add_contact	hi_deva	कॉपी किया हुआ एड्रेस सुरेश के नाम से सेव करो	-	-	-
+recovery_help	hi_deva	मेरा फोन खो गया	-	-	-
+recovery_help	hi_deva	मेरा फोन चोरी हो गया वॉलेट कैसे वापस लूं	-	-	-
+recovery_help	hi_deva	मैं पासवर्ड भूल गया	-	-	-
+recovery_help	hi_deva	वॉलेट नहीं खुल रहा	-	-	-
+recovery_help	hi_deva	नए फोन में वॉलेट कैसे चालू करूं	-	-	-
+recovery_help	hi_latin	mera phone kho gaya wallet recover karna hai	-	-	-
+recovery_help	hi_latin	pin bhool gaya	-	-	-
+cancel	hi_deva	रुको मत भेजो	-	-	-
+cancel	hi_deva	कैंसिल करो	-	-	-
+cancel	hi_deva	रहने दो	-	-	-
+cancel	hi_deva	नहीं नहीं मत भेजना	-	-	-
+cancel	hi_latin	ruk jao cancel kar do	-	-	-
+cancel	hi_deva	अभी नहीं बाद में	-	-	-
+unknown	hi_deva	आज मौसम कैसा है	-	-	-
+unknown	hi_deva	एक गाना चलाओ	-	-	-
+unknown	hi_deva	मेरे लिए कैब बुक करो	-	-	-
+unknown	hi_latin	mujhe ek joke sunao	-	-	-
+unknown	hi_deva	दिल्ली की फ्लाइट बुक करो	-	-	-
+unknown	en	what time is it in Dubai	-	-	-
