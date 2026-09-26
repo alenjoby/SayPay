@@ -4,17 +4,17 @@ Every item comes from the project spec. Tick it only when it passes **with the
 screen off or eyes closed**, unless it is a visual check. Write the failing step
 and what happened next to anything that fails.
 
-## ⚠️ Known gaps (expect these to fail; decide: fix or cut)
+## Status of the gaps found before the final test
 
 | # | Spec says | Now |
 |---|---|---|
-| G1 | Main wallet uses the contract (balance, send, recovery) | **Still simulated** in the wallet screen. The chain works in `/chain-test.html` and the contract tester; wiring is 4 small hooks (`frontend/src/chain/README.md`). |
-| G2 | "Every voice action also works by typing" | **No text box** for commands (only mic + 2 demo buttons). |
-| G3 | Confirmation steps are a real `<dialog>`, focus moves in and back | Popups are `<div>`s; no `<dialog>` in the code. |
-| G4 | Amounts read in words ("zero point one test ETH") | Voice read-backs: ✅ words. Contract announcements: digits ("0.1 test ETH"). |
-| G5 | Installable as a PWA on Android | No manifest. |
-| G6 | Guardian and beneficiary screens | Only in the contract tester page, not in the app. |
-| G7 | Manglish | Replaced by Arabic (team decision: Arabic → English → Hindi). |
+| G1 | The app uses the contract | ✅ **Fixed.** Balance comes from SayPayVault; sends go through it (Pending → Confirmed → Sent); guardian actions from other phones are announced; "cancel recovery", "I'm here", "finish recovery" call the contract. |
+| G2 | "Every voice action also works by typing" | ✅ **Fixed.** Text box under the voice bar: "Type a command instead of speaking". |
+| G3 | Confirmation steps are a real `<dialog>`, focus moves in and back | ✅ **Fixed** for Send, Receive, Contacts, Guardians, Transaction, Settings. (Create Wallet, Fund, Swap, onboarding popups are still `<div>`s.) |
+| G4 | Amounts read in words ("zero point one test ETH") | ⚠️ Contract announcements still say "0.1 test ETH". The send wording in the app currently comes from the old parser ("Prepared transfer: Sending 0.05…"), not the model's read-back. |
+| G5 | Installable as a PWA on Android | ❌ Not done. |
+| G6 | Guardian and beneficiary screens | Contract tester page only (fine for the demo). |
+| G7 | Manglish | Replaced by Arabic (team decision). |
 
 ---
 
@@ -24,7 +24,8 @@ and what happened next to anything that fails.
 - [ ] **Model**: `cd ml` → `python -m uvicorn app.main:app --port 8000` → http://localhost:8000/health shows `"status":"ok"` (and `v3+mmbert` if the mmBERT files are in `ml/models/mmbert_fp32/`)
 - [ ] **Contract**: Sepolia: `cd contracts` → `npm run wallets` (once) → `npm run deploy:sepolia` → Etherscan link opens and shows the contract
       *(or local: `npx hardhat node` + `npm run deploy:local`)*
-- [ ] **Frontend**: `cd frontend` → `npm run dev` (start **after** the deploy) → http://localhost:5173 opens in **Edge**
+- [ ] **Frontend**: `cd frontend` → `npm install` → `npm run dev` (start **after** the deploy) → http://localhost:5173 opens in **Edge**
+- [ ] The wallet's ETH balance equals the vault's balance (0.1 on Sepolia by default, 2.5 locally), **not** a made-up number
 - [ ] **Contract tester** (guardians / beneficiary): `cd contracts` → `npm run tester -- sepolia` → http://localhost:5174
 - [ ] Earphones plugged in; Windows volume up; Edge Natural voices present (Settings → speech, or just listen: it should sound human)
 
@@ -55,6 +56,7 @@ Pick the page language (EN / हिंदी / العربية) **before** speaki
 - [ ] "Ask Priya for 20 dollars" → **never** opens Send
 - [ ] "Book a flight" → "Sorry, I didn't understand"
 - [ ] Model server stopped → app still works with the basic parser (grey card)
+- [ ] **Typed fallback**: type each command above in "Type a command instead of speaking" → same result as speaking
 
 **Numbers for the pitch (spec: held-out test set vs English-only baseline)**
 - [ ] `cd ml/scripts` → `python evaluate.py --sets blind_v2,blind_hi,blind_en` → note accuracy for `v3` and `english_only`
@@ -69,6 +71,8 @@ Pick the page language (EN / हिंदी / العربية) **before** speaki
 - [ ] Cancel the fingerprint → nothing is sent, and it says so
 - [ ] Approve → 5-second undo window; "undo" within 5 s cancels
 - [ ] Sent amount equals the spoken amount (0.05 stays 0.05)
+- [ ] After the undo window you hear **"Pending." → "Confirmed." → "Sent 0.05 test ETH to Amma."**, and the balance drops by exactly that amount (check Etherscan: one transaction, not two)
+- [ ] History shows the payment; on Sepolia its hash opens on Etherscan
 
 ## 3. Blockchain (spec: contract module)
 
@@ -82,6 +86,12 @@ Pick the page language (EN / हिंदी / العربية) **before** speaki
 - [ ] **Inheritance with the 2-minute timer** (spec success criterion): no owner activity 2 min → Start inheritance → announced → wait 2 min → Beneficiary Sara claims → all funds to Sara, wallet closed
 - [ ] **Veto**: start inheritance → a guardian vetoes (or owner pings) → stopped, announced
 - [ ] Only one recovery at a time (second propose refused)
+
+**The same, from the wallet app itself** (voice or typed)
+- [ ] A guardian proposes recovery (tester) → the app interrupts with the **alert**: "…started moving your wallet to a new phone. If this wasn't you, say cancel recovery."
+- [ ] Say/type **"cancel recovery"** → fingerprint → "Recovery cancelled. Your wallet is safe."
+- [ ] Start inheritance (tester) → the app announces it → say/type **"I'm here"** → fingerprint → inheritance stopped
+- [ ] Second browser profile opens the app with **`?device=newphone`**; after guardians approve and 2 min pass, say/type **"finish recovery"** → "This phone now controls your wallet"; the first browser hears "Your wallet moved to your new phone"
 
 ## 4. Accessibility (spec: Web module)
 
@@ -97,7 +107,8 @@ Pick the page language (EN / हिंदी / العربية) **before** speaki
 - [ ] Pending and Confirmed have different sounds
 
 **Focus**
-- [ ] A confirmation popup takes focus when it opens; focus returns to the button that opened it when it closes (see G3)
+- [ ] A popup (Send, Receive, Contacts, Guardians) takes focus when it opens and its title is read; **Escape** closes it; focus returns to the button that opened it
+- [ ] Inside the Send popup, pressing **Space** still starts the mic (it must not press a button)
 - [ ] Focus never jumps while typing or speaking
 - [ ] Tab order is logical; focus outline always visible
 
@@ -134,7 +145,7 @@ Pick the page language (EN / हिंदी / العربية) **before** speaki
 - [ ] 7 Before/after clip: same steps in MetaMask with a screen reader (silence) vs SayPay
 - [ ] Whole demo under 4 minutes, run twice without errors
 - [ ] **Backup demo video recorded** (spec success criterion)
-- [ ] Plan B if Wi-Fi fails: local chain (`npx hardhat node` + `deploy:local`) and the typed fallback (G2)
+- [ ] Plan B if Wi-Fi fails: local chain (`npx hardhat node` + `deploy:local`, then restart `npm run dev`); if speech fails: the typed command box
 
 ## 7. "Done means" (spec)
 
