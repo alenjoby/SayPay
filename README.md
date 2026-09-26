@@ -97,7 +97,8 @@ closed the start window with X, or if you get "port already in use".
 
 ### Using it
 
-Open the wallet, then **hold Space and talk**. You can also type commands in the box
+Open the wallet, **tap Space, talk, then tap Space again** to send it (or hold Space
+while you talk; the mic button works the same way). You can also type commands in the box
 under the voice bar.
 
 ## Try saying
