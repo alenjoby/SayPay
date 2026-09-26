@@ -5,3 +5,4 @@ typechain-types/
 coverage/
 .env
 deployments/hardhat.json
+deployments/localhost.json

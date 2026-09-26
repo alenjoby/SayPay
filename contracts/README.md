@@ -30,6 +30,25 @@ npm run deploy:local     # terminal 2: deploys, funds with 2.5 ETH, 2-minute tim
 This writes `deployments/localhost.json` (address, ABI, deploy block, settings)
 for the web app. Test accounts: #0 owner, #1-3 guardians, #4 beneficiary.
 
+### Tester page
+
+```bash
+npm run tester           # terminal 3: http://localhost:5174
+```
+
+Pick who you are (owner, a guardian, the beneficiary, the new phone, Amma), press
+a button, and watch the wallet state, the countdowns and the event log. **Skip 2
+minutes** moves the local chain's clock so you don't wait for the timers. Events
+go to an aria-live region (and can be spoken aloud), and every refused action
+says why ("Only the owner can do that."). Works offline.
+
+Try the demo story: send to Amma → a guardian tries to send (refused) → Guardian
+Ahmed proposes recovery to "New phone", Guardian Priya approves → execute (too
+early) → skip → execute → the old phone is locked out → skip → start inheritance →
+a guardian vetoes → skip → start again → skip → Sara claims.
+
+If you restart `npx hardhat node`, run `npm run deploy:local` again and reload.
+
 Sepolia: copy `.env.example` to `.env`, fill in an RPC URL, a throwaway key with
 faucet ETH and the guardian/beneficiary addresses, then `npm run deploy:sepolia`.
 

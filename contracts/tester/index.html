@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SayPayVault Tester</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #16181d; --muted: #5d6470; --line: #dde1e7;
+    --accent: #1f6feb; --accent-text: #ffffff; --ok: #1a7f37; --warn: #9a6700; --bad: #cf222e;
+    --chip: #eef1f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --card: #171a21; --text: #e8eaee; --muted: #9aa3b2; --line: #2a2f3a;
+      --accent: #4c8dff; --accent-text: #0b0d12; --ok: #3fb950; --warn: #d29922; --bad: #f85149;
+      --chip: #222733;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 22px; margin: 0 0 2px; }
+  h2 { font-size: 15px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .04em;
+       color: var(--muted); }
+  p.sub { margin: 0 0 16px; color: var(--muted); }
+  .grid { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .span2 { grid-column: 1 / -1; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .row:last-child { margin-bottom: 0; }
+  label { color: var(--muted); font-size: 13px; }
+  label.check { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; }
+  select, input { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+                  border-radius: 7px; padding: 7px 9px; min-height: 36px; }
+  input[type=number] { width: 110px; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--chip); color: var(--text);
+           border-radius: 7px; padding: 7px 12px; min-height: 36px; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--accent);
+                                                                     outline-offset: 2px; }
+  .group { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+  .group:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  .who { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 99px; background: var(--chip);
+          font-size: 13px; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  #log { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; }
+  #log li { padding: 7px 0; border-bottom: 1px solid var(--line); }
+  #log li:last-child { border-bottom: 0; }
+  #log .t { color: var(--muted); font-size: 12px; margin-right: 8px; font-variant-numeric: tabular-nums; }
+  #log .ev { font-weight: 600; margin-right: 6px; }
+  #banner { display: none; margin-bottom: 14px; border-color: var(--bad); }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  th { color: var(--muted); font-weight: 500; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<main>
+  <h1>SayPayVault tester</h1>
+  <p class="sub">Local chain only. Pick who you are, press a button, and watch the state and the
+    event log. Every event is announced to screen readers.</p>
+
+  <div id="banner" class="card" role="alert"></div>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="h-state">
+      <h2 id="h-state">Wallet state</h2>
+      <dl>
+        <dt>Contract</dt><dd id="s-addr">…</dd>
+        <dt>Owner</dt><dd id="s-owner">…</dd>
+        <dt>Balance</dt><dd id="s-bal">…</dd>
+        <dt>Recovery</dt><dd id="s-rec">…</dd>
+        <dt>Inheritance</dt><dd id="s-inh">…</dd>
+        <dt>Chain time</dt><dd id="s-time">…</dd>
+      </dl>
+      <div class="row" style="margin-top:12px">
+        <button id="b-skip" title="Local chain only">Skip 2 minutes</button>
+        <button id="b-refresh">Refresh</button>
+        <label class="check"><input type="checkbox" id="speak"> Speak events aloud</label>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-act">
+      <h2 id="h-act">Act as</h2>
+      <div class="row">
+        <label for="actor" class="sr">Account</label>
+        <select id="actor" aria-describedby="actor-role"></select>
+        <span id="actor-role" class="pill"></span>
+      </div>
+
+      <div class="group">
+        <div class="who">Owner</div>
+        <div class="row">
+          <label for="to">Send to</label>
+          <select id="to"></select>
+          <label for="amt">ETH</label>
+          <input id="amt" type="number" min="0" step="0.01" value="0.1">
+          <button class="primary" data-act="send">Send</button>
+        </div>
+        <div class="row">
+          <button data-act="ping">Ping (I'm alive)</button>
+          <button data-act="cancelRecovery">Cancel recovery</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="who">Guardians: lost phone</div>
+        <div class="row">
+          <label for="newowner">New phone</label>
+          <select id="newowner"></select>
+          <button data-act="proposeRecovery">Propose recovery</button>
+          <button data-act="approveRecovery">Approve recovery</button>
+        </div>
+        <div class="row">
+          <button data-act="executeRecovery">Execute recovery</button>
+          <span class="who">anyone, after the delay</span>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="who">Inheritance</div>
+        <div class="row">
+          <button data-act="startInheritance">Start inheritance</button>
+          <button data-act="vetoInheritance">Veto (guardian)</button>
+          <button data-act="claimInheritance">Claim (beneficiary)</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="who">Money in</div>
+        <div class="row">
+          <button data-act="deposit">Deposit 1 ETH from this account</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-log">
+      <h2 id="h-log">Events</h2>
+      <ol id="log" aria-label="Contract events, newest first"></ol>
+    </section>
+
+    <section class="card" aria-labelledby="h-acc">
+      <h2 id="h-acc">Accounts</h2>
+      <table>
+        <thead><tr><th>Name</th><th>Role</th><th class="num">ETH</th></tr></thead>
+        <tbody id="accounts"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <div id="live" class="sr" aria-live="polite"></div>
+  <div id="alert" class="sr" aria-live="assertive"></div>
+</main>
+
+<script src="/ethers.js"></script>
+<script>
+const RPC = "http://127.0.0.1:8545";
+const NAMES = ["Owner phone", "Guardian Ahmed", "Guardian Priya", "Guardian Khalid",
+               "Beneficiary Sara", "New phone", "Amma", "Rahul"];
+const $ = (id) => document.getElementById(id);
+
+const ERRORS = {
+  NotOwner: "Only the owner can do that.",
+  NotGuardian: "Only a guardian can do that.",
+  NotBeneficiary: "Only the beneficiary can claim.",
+  VaultClosed: "The vault is closed: the inheritance was claimed.",
+  BadAddress: "That address isn't allowed here.",
+  InsufficientBalance: "Not enough money in the vault.",
+  TransferFailed: "The transfer failed.",
+  RecoveryActive: "A recovery is already running.",
+  NoRecovery: "There is no recovery running.",
+  WrongNewOwner: "That isn't the phone being recovered to.",
+  AlreadyApproved: "This guardian already approved.",
+  RecoveryNotReady: "Not yet: needs enough approvals and the delay to pass.",
+  OwnerStillActive: "The owner was active recently; the inactivity period hasn't passed.",
+  InheritanceActive: "The inheritance has already started.",
+  NoInheritance: "No inheritance is running.",
+  GraceNotOver: "The grace period isn't over yet.",
+};
+
+let provider, vault, dep, accounts = [], offset = 0, state = null, busy = false;
+
+function nameOf(addr) {
+  if (!addr || addr === ethers.ZeroAddress) return "none";
+  const i = accounts.findIndex((a) => a.toLowerCase() === addr.toLowerCase());
+  return i >= 0 ? NAMES[i] : addr.slice(0, 8) + "…";
+}
+function roleOf(addr) {
+  const a = addr.toLowerCase();
+  if (state && state.owner_.toLowerCase() === a) return "owner";
+  if (dep.guardians.some((g) => g.toLowerCase() === a)) return "guardian";
+  if (dep.beneficiary.toLowerCase() === a) return "beneficiary";
+  return "—";
+}
+const eth = (wei) => {
+  const s = ethers.formatEther(wei);
+  return (Math.round(Number(s) * 10000) / 10000).toString();
+};
+const chainNow = () => Math.floor(Date.now() / 1000) + offset;
+function left(ts) {
+  const s = Number(ts) - chainNow();
+  if (s <= 0) return "now";
+  return s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`;
+}
+
+function announce(text, urgent = false) {
+  const el = urgent ? $("alert") : $("live");
+  el.textContent = "";
+  setTimeout(() => { el.textContent = text; }, 100);
+  if ($("speak").checked && "speechSynthesis" in window) {
+    speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+  }
+}
+
+function log(ev, text, cls = "") {
+  const li = document.createElement("li");
+  const t = new Date().toLocaleTimeString();
+  li.innerHTML = `<span class="t">${t}</span><span class="ev ${cls}"></span><span class="msg"></span>`;
+  li.querySelector(".ev").textContent = ev;
+  li.querySelector(".msg").textContent = text;
+  $("log").prepend(li);
+}
+
+function describe(ev) {
+  const a = ev.args;
+  switch (ev.name) {
+    case "Deposited": return [`Received ${eth(a.amount)} test ETH from ${nameOf(a.from)}.`];
+    case "Sent": return [`Sent ${eth(a.amount)} test ETH to ${nameOf(a.to)}. Confirmed.`];
+    case "Pinged": return ["Owner is active. Timer reset."];
+    case "RecoveryProposed":
+      return [`${nameOf(a.guardian)} started a recovery to ${nameOf(a.newOwner)}. ` +
+              `If this wasn't you, cancel it.`, true];
+    case "RecoveryApproved":
+      return [`${nameOf(a.guardian)} approved the recovery. ${a.approvals} of ${dep.threshold} approvals.` +
+              (a.readyAt > 0n ? ` Recovery can finish in ${left(a.readyAt)}.` : "")];
+    case "RecoveryExecuted":
+      return [`Recovery complete. ${nameOf(a.newOwner)} now controls the wallet.`, true];
+    case "RecoveryCancelled": return [`Recovery cancelled by ${nameOf(a.by)}. The wallet is safe.`];
+    case "InheritanceStarted":
+      return [`The wallet has been inactive. Inheritance can be claimed in ${left(a.claimableAt)} ` +
+              `unless the owner or a guardian stops it.`, true];
+    case "InheritanceVetoed": return [`Inheritance stopped by ${nameOf(a.by)}. The owner is active.`];
+    case "InheritanceClaimed":
+      return [`${eth(a.amount)} test ETH passed to ${nameOf(a.beneficiary)}. The vault is closed.`, true];
+    default: return [ev.name];
+  }
+}
+
+async function syncTime() {
+  const b = await provider.getBlock("latest");
+  offset = Math.max(0, Number(b.timestamp) - Math.floor(Date.now() / 1000));
+}
+
+async function refresh() {
+  state = await vault.status();
+  $("s-addr").textContent = dep.address;
+  $("s-owner").textContent = nameOf(state.owner_);
+  $("s-bal").textContent = `${eth(state.balance)} test ETH` + (state.closed_ ? " (closed)" : "");
+  renderTimers();
+  const rows = await Promise.all(accounts.map(async (a, i) =>
+    `<tr><td>${NAMES[i]}</td><td>${roleOf(a)}</td><td class="num">${eth(await provider.getBalance(a))}</td></tr>`));
+  $("accounts").innerHTML = rows.join("");
+  $("actor-role").textContent = roleOf($("actor").value);
+}
+
+function renderTimers() {
+  if (!state) return;
+  let rec = "none";
+  if (state.pendingOwner_ !== ethers.ZeroAddress) {
+    rec = `to ${nameOf(state.pendingOwner_)}: ${state.approvals_} of ${dep.threshold} approvals`;
+    if (state.recoveryReadyAt_ > 0n) {
+      const l = left(state.recoveryReadyAt_);
+      rec += l === "now" ? " (ready to execute)" : ` (can execute in ${l})`;
+    }
+  }
+  $("s-rec").textContent = rec;
+  let inh;
+  if (state.closed_) inh = "claimed";
+  else if (state.inheritanceStartedAt_ > 0n) {
+    const l = left(state.inheritanceClaimableAt);
+    inh = l === "now" ? "grace period over: beneficiary can claim" : `grace period, claimable in ${l}`;
+  } else {
+    const l = left(state.inactiveAt);
+    inh = l === "now" ? "owner inactive: anyone can start it" : `owner active (inactive in ${l})`;
+  }
+  $("s-inh").textContent = inh;
+  $("s-time").textContent = new Date(chainNow() * 1000).toLocaleTimeString() +
+    (offset > 0 ? ` (+${Math.round(offset / 60)} min skipped)` : "");
+}
+
+async function run(act) {
+  if (busy) return;
+  busy = true;
+  document.querySelectorAll("button").forEach((b) => (b.disabled = true));
+  const who = $("actor").value;
+  try {
+    const signer = await provider.getSigner(who);
+    const v = vault.connect(signer);
+    let tx;
+    if (act === "send") tx = await v.send($("to").value, ethers.parseEther($("amt").value || "0"));
+    else if (act === "proposeRecovery" || act === "approveRecovery") tx = await v[act]($("newowner").value);
+    else if (act === "deposit") tx = await signer.sendTransaction({ to: dep.address, value: ethers.parseEther("1") });
+    else tx = await v[act]();
+    const rc = await tx.wait();
+    for (const lg of rc.logs) {
+      let ev;
+      try { ev = vault.interface.parseLog(lg); } catch { ev = null; }
+      if (!ev) continue;
+      const [text, urgent] = describe(ev);
+      log(ev.name, text, urgent ? "warn" : "ok");
+      announce(text, !!urgent);
+    }
+  } catch (e) {
+    const name = e.revert?.name || (() => {
+      try { return vault.interface.parseError(e.data || e.info?.error?.data)?.name; } catch { return null; }
+    })();
+    const text = name ? `${NAMES[accounts.indexOf(who)]}: ${ERRORS[name] || name}`
+                      : (e.shortMessage || e.message);
+    log(name || "Error", text, "bad");
+    announce(`Not done. ${text}`, true);
+  } finally {
+    await syncTime();
+    await refresh();
+    busy = false;
+    document.querySelectorAll("button").forEach((b) => (b.disabled = false));
+  }
+}
+
+async function skip() {
+  await provider.send("evm_increaseTime", [120]);
+  await provider.send("evm_mine", []);
+  await syncTime();
+  await refresh();
+  const text = "Skipped 2 minutes.";
+  log("Time", text);
+  announce(text);
+}
+
+function fillSelect(id, idxs, def) {
+  $(id).innerHTML = idxs.map((i) => `<option value="${accounts[i]}">${NAMES[i]}</option>`).join("");
+  if (def !== undefined) $(id).value = accounts[def];
+}
+
+async function init() {
+  try {
+    dep = await (await fetch("/deployment.json", { cache: "no-store" })).json();
+    provider = new ethers.JsonRpcProvider(RPC);
+    accounts = (await provider.send("eth_accounts", [])).slice(0, NAMES.length);
+    vault = new ethers.Contract(dep.address, dep.abi, provider);
+    if ((await provider.getCode(dep.address)) === "0x") throw new Error(
+      "No contract at the deployed address. Restarted the node? Run `npm run deploy:local` again.");
+  } catch (e) {
+    $("banner").style.display = "block";
+    $("banner").textContent = "Can't reach the local chain or the deployment. Start `npx hardhat node`, " +
+      "then `npm run deploy:local`, then reload. (" + e.message + ")";
+    return;
+  }
+  fillSelect("actor", NAMES.map((_, i) => i), 0);
+  fillSelect("to", [6, 7, 4, 1], 6);
+  fillSelect("newowner", [5, 7], 5);
+  document.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", () => run(b.dataset.act)));
+  $("b-skip").addEventListener("click", skip);
+  $("b-refresh").addEventListener("click", refresh);
+  $("actor").addEventListener("change", () => { $("actor-role").textContent = roleOf($("actor").value); });
+  // Mine one block so its timestamp tells us how far local chain time is ahead
+  // of the wall clock (after "Skip 2 minutes" in an earlier session).
+  await provider.send("evm_mine", []);
+  await syncTime();
+  await refresh();
+  setInterval(renderTimers, 1000);
+}
+init();
+</script>
+</body>
+</html>
