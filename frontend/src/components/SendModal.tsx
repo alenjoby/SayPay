@@ -53,6 +53,14 @@ export const SendModal: React.FC<SendModalProps> = ({
     }
   }, [initialContact, contacts]);
 
+  // The modal stays mounted while closed, so a spoken amount must be copied in
+  // here; useState's initial value alone would keep the first amount (0.1).
+  useEffect(() => {
+    if (isOpen && initialAmount) {
+      setAmountStr(initialAmount.toString());
+    }
+  }, [initialAmount, isOpen]);
+
   // Handle external voice triggers (e.g. user says "fingerprint" or "confirm" or "cancel")
   useEffect(() => {
     if (!isOpen) return;
