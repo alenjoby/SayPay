@@ -235,7 +235,107 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   // recognition callbacks are created in an effect, so reading state there
   // directly would see an old render (and act on the previous sentence).
   const latestTranscriptRef = useRef('');
-  const processCommandRef = useRef<(text: string) => void>(() => {});
+  const processCommandRef = useRef<(text: string) => void | Promise<void>>(() => {});
+
+  // ---- Mic controller ------------------------------------------------------
+  // One tracked state instead of blind start/stop retries (which failed silently
+  // when Chrome was still stopping). 'hold' = Space held: listen until release.
+  // 'auto' = tap / hands-free re-listen: Chrome ends by itself after a pause.
+  type MicState = 'idle' | 'starting' | 'listening' | 'stopping';
+  const micStateRef = useRef<MicState>('idle');
+  const micSessionRef = useRef({ done: true, released: false, discard: false });
+  const micRestartRef = useRef<'hold' | 'auto' | null>(null);
+  const micFallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Run what was heard, once per listening session (the fastest of: final result after release, onend, fallback). */
+  const finishListening = (session = micSessionRef.current) => {
+    if (session.done) return;
+    session.done = true;
+    if (micFallbackTimer.current) clearTimeout(micFallbackTimer.current);
+    const heard = latestTranscriptRef.current.trim();
+    latestTranscriptRef.current = '';
+    if (session.discard || !heard) {
+      setIsProcessingVoice(false);
+      if (!session.discard) setVoiceFeedback('Tap Mic or hold Spacebar to speak');
+      return;
+    }
+    setIsProcessingVoice(true);
+    Promise.resolve(processCommandRef.current(heard)).finally(() => setIsProcessingVoice(false));
+  };
+
+  const beginListening = (mode: 'hold' | 'auto') => {
+    const rec = recognitionRef.current;
+    stopSpeaking();
+    if (rec && micStateRef.current === 'stopping') {
+      // The previous command is still being finished: let it finish, then start again.
+      micRestartRef.current = mode;
+      return;
+    }
+    if (rec && mode === 'hold' && micStateRef.current !== 'idle' && !rec.continuous) {
+      // Space pressed during a hands-free session, which Chrome would end at the
+      // first pause: drop it and restart in hold mode.
+      micSessionRef.current.discard = true;
+      micRestartRef.current = 'hold';
+      micStateRef.current = 'stopping';
+      try {
+        rec.abort();
+      } catch {
+        /* already stopped */
+      }
+      return;
+    }
+    micSessionRef.current = { done: false, released: false, discard: false };
+    latestTranscriptRef.current = '';
+    setTranscript('');
+    if (!rec) {
+      setVoiceFeedback('Speech recognition is not available in this browser. Type the command instead.');
+      return;
+    }
+    if (micStateRef.current === 'idle') {
+      rec.continuous = mode === 'hold';
+      try {
+        rec.start();
+        micStateRef.current = 'starting';
+      } catch {
+        micStateRef.current = 'idle';
+      }
+    }
+    // 'starting' / 'listening' in the same mode: already on; this session simply continues.
+  };
+
+  /** Space released / mic tapped off: act on the words as soon as they are final. */
+  const releaseListening = () => {
+    const rec = recognitionRef.current;
+    const session = micSessionRef.current;
+    if (!rec || session.done) return;
+    session.released = true;
+    setIsProcessingVoice(true);
+    setVoiceFeedback('Processing speech command...');
+    if (micStateRef.current === 'starting' || micStateRef.current === 'listening') {
+      micStateRef.current = 'stopping';
+      try {
+        rec.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+    // Chrome can take 1-2 s to report the end; don't make the user wait for it.
+    micFallbackTimer.current = setTimeout(() => finishListening(session), 1200);
+  };
+
+  /** Cut the mic without running what it heard (e.g. the app itself starts talking). */
+  const cancelListening = () => {
+    micSessionRef.current.discard = true;
+    const rec = recognitionRef.current;
+    if (rec && micStateRef.current !== 'idle') {
+      micStateRef.current = 'stopping';
+      try {
+        rec.abort();
+      } catch {
+        /* already stopped */
+      }
+    }
+  };
 
   // 5. Persistent Transaction History (Database)
   const [transactions, setTransactions] = useState<TransactionRecord[]>(() =>
@@ -341,23 +441,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   }, [accessibilityMode]);
 
   // Voice Loop Helper: Speaks and automatically listens in Blind Mode
-  const startListening = () => {
-    setTranscript('');
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        try {
-          recognitionRef.current.stop();
-          setTimeout(() => {
-            try {
-              recognitionRef.current?.start();
-            } catch (err) {}
-          }, 150);
-        } catch (err) {}
-      }
-    }
-  };
+  const startListening = () => beginListening('auto');
 
   const speakAndFollowUp = (
     msg: string,
@@ -370,10 +454,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     speakText(msg, spokenLang, () => {
       if (accessibilityMode === 'blind' && shouldPromptListen) {
         setTimeout(() => {
-          if (!isListening) {
+          if (micStateRef.current === 'idle' && !isCurrentlySpeaking()) {
             startListening();
           }
-        }, 400);
+        }, 250);
       }
     });
   };
@@ -564,11 +648,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRec) {
         const recognition = new SpeechRec();
-        recognition.continuous = true;
+        recognition.continuous = false;
         recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
         recognition.lang = lang === 'hi' ? 'hi-IN' : lang === 'ar' ? 'ar-SA' : 'en-US';
 
         recognition.onstart = () => {
+          micStateRef.current = micStateRef.current === 'stopping' ? 'stopping' : 'listening';
           setIsListening(true);
           if (accessibilitySettings.earconsEnabled) {
             audioCues.playListeningStarted();
@@ -583,29 +669,36 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           }
           latestTranscriptRef.current = current;
           setTranscript(current);
+          // Act on the final words right away instead of waiting for Chrome's slower onend:
+          // after Space is released, or in tap / hands-free mode (one sentence per session).
+          const last = event.results[event.results.length - 1];
+          if (last?.isFinal && (micSessionRef.current.released || !recognition.continuous)) finishListening();
         };
 
-        recognition.onerror = () => {
-          setIsListening(false);
-          setIsProcessingVoice(false);
-          setVoiceFeedback('Could not hear clearly. Tap mic or hold Spacebar to retry.');
+        recognition.onerror = (event: any) => {
+          const err = event?.error;
+          if (err === 'aborted' || err === 'no-speech') return; // onend follows
+          if (err === 'not-allowed' || err === 'service-not-allowed') {
+            setVoiceFeedback('Microphone blocked. Allow the microphone, or type the command instead.');
+          } else {
+            setVoiceFeedback('Could not hear clearly. Tap mic or hold Spacebar to retry.');
+          }
         };
 
         recognition.onend = () => {
+          micStateRef.current = 'idle';
           setIsListening(false);
-          setIsProcessingVoice(false);
-          const heard = latestTranscriptRef.current;
-          latestTranscriptRef.current = '';
-          if (heard.trim()) {
-            processCommandRef.current(heard);
-          } else {
-            setVoiceFeedback('Tap Mic or hold Spacebar to speak');
-          }
+          finishListening();
+          const again = micRestartRef.current;
+          micRestartRef.current = null;
+          if (again) beginListening(again);
         };
 
         recognitionRef.current = recognition;
 
         return () => {
+          micSessionRef.current.discard = true;
+          micStateRef.current = 'idle';
           try {
             recognition.abort();
           } catch (e) {}
@@ -617,17 +710,15 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   // Half-Duplex Audio Engine (UX-01): Mute speech recognition while TTS is speaking
   useEffect(() => {
     const unsubscribe = onSpeechStateChange((isSpeaking) => {
-      if (isSpeaking && recognitionRef.current && isListening) {
-        try {
-          recognitionRef.current.abort();
-        } catch (e) {}
-        setIsListening(false);
+      // Don't cut a user who is holding Space: their words win over the app's speech.
+      if (isSpeaking && micStateRef.current !== 'idle' && !isSpaceHeldRef.current) {
+        cancelListening();
       }
     });
     return () => {
       unsubscribe();
     };
-  }, [isListening]);
+  }, []);
 
   // Helper: Revoke smart contract approval
   const handleRevokeApproval = (approvalId: string, spenderName: string) => {
@@ -1281,44 +1372,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   // Spacebar Push-To-Talk: Hold Spacebar to record, release to stop and submit
   const isSpaceHeldRef = useRef(false);
 
-  const startVoiceListening = () => {
-    stopSpeaking();
-    setTranscript('');
-    latestTranscriptRef.current = '';
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        try {
-          recognitionRef.current.stop();
-          setTimeout(() => {
-            try {
-              recognitionRef.current?.start();
-            } catch (err) {}
-          }, 60);
-        } catch (err) {}
-      }
-    } else {
-      setVoiceFeedback('Listening... (Speech Recognition active)');
-    }
-  };
-
-  const stopVoiceListening = () => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
-    }
-  };
-
   const toggleMic = () => {
-    if (isListening) {
-      setIsProcessingVoice(true);
-      setVoiceFeedback('Processing speech command...');
-      stopVoiceListening();
-    } else {
-      startVoiceListening();
-    }
+    // Tap to talk: Chrome stops by itself after a short pause; tap again to finish early.
+    if (micStateRef.current === 'idle') beginListening('auto');
+    else releaseListening();
   };
 
   useEffect(() => {
@@ -1336,43 +1393,41 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code !== 'Space') return;
-      if (e.repeat) return; // Ignore auto-repeat events while key is held down
-      if (isInteractiveElement(e.target as HTMLElement | null)) return;
-
-      e.preventDefault();
+      if (e.code !== 'Space' || e.ctrlKey || e.altKey || e.metaKey) return;
+      if (isInteractiveElement(e.target as HTMLElement | null)) return; // typing a space
+      e.preventDefault(); // never "click" a focused button with Space
+      if (e.repeat || isSpaceHeldRef.current) return; // held down: keep listening
       isSpaceHeldRef.current = true;
       setIsProcessingVoice(false);
-      startVoiceListening();
+      beginListening('hold');
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code !== 'Space') return;
-      if (isInteractiveElement(e.target as HTMLElement | null)) return;
+      if (e.code !== 'Space' || !isSpaceHeldRef.current) return;
+      // Release is handled wherever focus is now, so the mic can't get stuck on.
+      e.preventDefault();
+      isSpaceHeldRef.current = false;
+      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+      // A short grace period so the last word isn't clipped, then stop.
+      setTimeout(releaseListening, 200);
+    };
 
-      if (isSpaceHeldRef.current) {
-        e.preventDefault();
-        isSpaceHeldRef.current = false;
-        // Keep mic listening for 350ms buffer so user's final words are not clipped,
-        // and show the processing indicator immediately.
-        setIsProcessingVoice(true);
-        setVoiceFeedback('Processing speech command...');
-        if (accessibilitySettings.earconsEnabled) {
-          audioCues.playIntentRecognized();
-        }
-        setTimeout(() => {
-          stopVoiceListening();
-        }, 350);
-      }
+    // Window lost focus while Space was held (Alt+Tab): don't leave the mic on.
+    const handleBlur = () => {
+      if (!isSpaceHeldRef.current) return;
+      isSpaceHeldRef.current = false;
+      releaseListening();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
     };
-  }, [accessibilitySettings.spacebarHotkey]);
+  }, [accessibilitySettings.spacebarHotkey, accessibilitySettings.earconsEnabled]);
 
   processCommandRef.current = handleProcessCommand;
 
@@ -1382,7 +1437,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     setVoiceFeedback(`Processing: "${text}"`);
     setTimeout(() => {
       handleProcessCommand(text);
-    }, 700);
+    }, 200);
   };
 
   // 5-second Grace Window countdown for reversible payments (NN/g Heuristic #5: Error Prevention)
