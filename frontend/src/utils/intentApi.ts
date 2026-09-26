@@ -10,9 +10,11 @@ import type { SupportedLanguage } from './i18n';
  * Arabic / English / Hindi code-switching, misspelled names and number words.
  *
  * Start the model:  cd ml && python -m uvicorn app.main:app --port 8000
- * Other URL:        VITE_INTENT_API_URL=http://host:8000 in frontend/.env
+ * By default the request goes to /saypay-api on this same server, which Vite
+ * forwards to the model on port 8000 (see vite.config.ts), so it also works
+ * through a Cloudflare tunnel. Other URL: VITE_INTENT_API_URL in frontend/.env
  */
-const API_URL = (import.meta.env.VITE_INTENT_API_URL as string | undefined) || 'http://localhost:8000';
+const API_URL = (import.meta.env.VITE_INTENT_API_URL as string | undefined) || '/saypay-api';
 const TIMEOUT_MS = 2500;
 
 // Commands about the app itself, not money: the local parser is exact for these.
