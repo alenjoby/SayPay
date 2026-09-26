@@ -9,7 +9,9 @@
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
     "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
     "abi": "node scripts/export-abi.js",
-    "tester": "node scripts/serve-tester.js"
+    "tester": "node scripts/serve-tester.js",
+    "wallets": "node scripts/make-demo-wallets.js",
+    "verify:sepolia": "hardhat run scripts/verify.js --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.2",
