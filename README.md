@@ -34,23 +34,15 @@ and you can type a command when speech doesn't work.
 
 ## Run it
 
-You need **Python 3.11+** and **Node.js 20+**.
+You need **Python 3.11+** and **Node.js 20+**. Use **Chrome or Edge**.
 
-- **Windows:** double-click `start.bat`
-- **Mac / Linux:** run `./start.sh`
+We recommend running it manually (below): you see each part start, and if something
+fails you see the error right away. The one-click script is just a shortcut that
+does the same steps for you.
 
-The first run installs everything and takes a few minutes. After that it starts in a
-few seconds and opens http://localhost:5173 in your browser.
+### Manually (recommended)
 
-Use **Chrome or Edge**, open the wallet, then **hold Space and talk**. You can also
-type commands in the box under the voice bar.
-
-To stop: press Enter in the start window (Windows) or Ctrl+C (Mac/Linux). On Windows,
-if you closed the window, run `stop.bat`.
-
-## Install it manually
-
-If the start script doesn't work for you, open four terminals in the `SayPay` folder.
+Open four terminals in the `SayPay` folder.
 
 **1. Voice model**
 ```
@@ -84,6 +76,29 @@ cd contracts
 npm run tester
 ```
 Open http://localhost:5174.
+
+`pip install` and `npm install` are only needed the first time. To stop, press Ctrl+C
+in each terminal.
+
+### One click
+
+- **Windows:** double-click `start.bat`
+- **Mac / Linux:** run `./start.sh`
+
+It runs the same four steps in the background and opens http://localhost:5173. The
+first run installs everything and takes a few minutes; after that it starts in a few
+seconds. If a step fails, it shows the error, and the full logs are in the `logs` folder.
+
+To stop: press Enter in the start window (Windows) or Ctrl+C (Mac/Linux).
+
+**`stop.bat`** (Windows): stops everything SayPay started (the model, the blockchain,
+the app and the tester, on ports 8000, 8545, 5173 and 5174). Double-click it if you
+closed the start window with X, or if you get "port already in use".
+
+### Using it
+
+Open the wallet, then **hold Space and talk**. You can also type commands in the box
+under the voice bar.
 
 ## Try saying
 
@@ -128,8 +143,8 @@ guardian or the beneficiary.
 
 ## If something goes wrong
 
-- **"Port is already in use":** SayPay is already running. Run `stop.bat` (Windows) or close
-  the other window.
+- **"Port is already in use":** SayPay is already running. Double-click `stop.bat` (Windows)
+  or close the other terminals.
 - **Voice doesn't work:** use Chrome or Edge and allow the microphone. Or type the command.
 - **The app says it isn't connected to the blockchain:** make sure `npx hardhat node` is
   running, then run `npm run deploy:local` again and reload the page.
