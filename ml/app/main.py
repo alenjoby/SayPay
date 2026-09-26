@@ -45,6 +45,35 @@ def intent(req: IntentRequest, debug: bool = False) -> IntentResponse:
     return IntentResponse(**body)
 
 
+_VOICE_MAP = {
+    "en": "en-US-JennyNeural",
+    "hi": "hi-IN-SwaraNeural",
+    "ar": "ar-SA-ZariyahNeural",
+}
+
+
+@app.get("/tts")
+async def tts(text: str = "", lang: str = "en"):
+    """Streams high-quality Microsoft Edge Neural TTS audio MP3."""
+    import edge_tts
+    from fastapi.responses import Response
+
+    cleaned_text = text.strip()
+    if not cleaned_text:
+        return Response(status_code=400, content=b"Missing text parameter")
+
+    voice = _VOICE_MAP.get(lang, "en-US-JennyNeural")
+    try:
+        communicate = edge_tts.Communicate(cleaned_text, voice)
+        audio_chunks = []
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_chunks.append(chunk["data"])
+        return Response(content=b"".join(audio_chunks), media_type="audio/mpeg")
+    except Exception as exc:
+        return Response(status_code=500, content=str(exc).encode("utf-8"))
+
+
 @app.get("/", include_in_schema=False)
 def tester() -> FileResponse:
     """Small voice/text test page for trying the model by hand."""

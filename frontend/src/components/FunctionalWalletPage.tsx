@@ -49,7 +49,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audioCues } from '../utils/audioCues';
-import { speakText, SupportedLanguage, detectLanguage, onSpeechStateChange, isCurrentlySpeaking } from '../utils/i18n';
+import { speakText, SupportedLanguage, detectLanguage, onSpeechStateChange, isCurrentlySpeaking, stopSpeaking } from '../utils/i18n';
 import { parseVoiceIntent, ParsedIntentResult } from '../utils/intentParser';
 import { understandCommand, sendBlocker } from '../utils/intentApi';
 import {
@@ -1115,9 +1115,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const isSpaceHeldRef = useRef(false);
 
   const startVoiceListening = () => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
+    stopSpeaking();
     setTranscript('');
     latestTranscriptRef.current = '';
     if (recognitionRef.current) {

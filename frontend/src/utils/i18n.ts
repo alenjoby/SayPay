@@ -222,10 +222,12 @@ export function detectLanguage(text: string): SupportedLanguage {
  * Speech Synthesis State Observers (Half-Duplex Audio Engine UX-01)
  */
 let activeSpeechCount = 0;
+let currentAudio: HTMLAudioElement | null = null;
 const speechListeners: Array<(isSpeaking: boolean) => void> = [];
 
 export function isCurrentlySpeaking(): boolean {
-  return activeSpeechCount > 0 || (typeof window !== 'undefined' && window.speechSynthesis?.speaking === true);
+  const isAudioPlaying = Boolean(currentAudio && !currentAudio.paused && !currentAudio.ended);
+  return activeSpeechCount > 0 || isAudioPlaying || (typeof window !== 'undefined' && window.speechSynthesis?.speaking === true);
 }
 
 export function onSpeechStateChange(listener: (isSpeaking: boolean) => void): () => void {
@@ -244,22 +246,34 @@ function notifySpeechState(speaking: boolean) {
   });
 }
 
-/**
- * Native Text-To-Speech Synthesis helper with onEnd callback support
- */
-export function speakText(
+export function stopSpeaking() {
+  if (currentAudio) {
+    try {
+      currentAudio.pause();
+      currentAudio.src = '';
+    } catch (e) {}
+    currentAudio = null;
+  }
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {}
+  }
+  activeSpeechCount = 0;
+  notifySpeechState(false);
+}
+
+function speakWithWebSpeech(
   text: string,
   lang: SupportedLanguage = 'en',
   onEnd?: () => void
 ) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
-
-  window.speechSynthesis.cancel(); // Cancel any existing speech
-  activeSpeechCount++;
-  notifySpeechState(true);
+  if (typeof window === 'undefined' || !window.speechSynthesis) {
+    if (onEnd) onEnd();
+    return;
+  }
 
   const utterance = new SpeechSynthesisUtterance(text);
-
   const langMap: Record<SupportedLanguage, string> = {
     en: 'en-US',
     hi: 'hi-IN',
@@ -267,19 +281,65 @@ export function speakText(
   };
 
   utterance.lang = langMap[lang] || 'en-US';
-  utterance.rate = 0.95; // Slightly measured rate for maximum intelligibility
+  utterance.rate = 0.95;
   utterance.pitch = 1.0;
 
   const cleanup = () => {
     activeSpeechCount = Math.max(0, activeSpeechCount - 1);
     notifySpeechState(false);
-    if (onEnd) {
-      onEnd();
-    }
+    if (onEnd) onEnd();
   };
 
   utterance.onend = cleanup;
   utterance.onerror = cleanup;
 
   window.speechSynthesis.speak(utterance);
+}
+
+/**
+ * Text-To-Speech Synthesis helper with Edge Neural TTS and Web Speech fallback
+ */
+export function speakText(
+  text: string,
+  lang: SupportedLanguage = 'en',
+  onEnd?: () => void
+) {
+  if (!text || !text.trim()) {
+    if (onEnd) onEnd();
+    return;
+  }
+
+  stopSpeaking();
+  activeSpeechCount++;
+  notifySpeechState(true);
+
+  if (typeof window === 'undefined') return;
+
+  // Use Microsoft Edge Neural TTS endpoint via backend proxy
+  const ttsUrl = `/saypay-api/tts?text=${encodeURIComponent(text.trim())}&lang=${lang}`;
+  const audio = new Audio();
+  currentAudio = audio;
+
+  let hasEnded = false;
+  const finish = () => {
+    if (hasEnded) return;
+    hasEnded = true;
+    currentAudio = null;
+    activeSpeechCount = Math.max(0, activeSpeechCount - 1);
+    notifySpeechState(false);
+    if (onEnd) onEnd();
+  };
+
+  audio.onended = finish;
+  audio.onerror = () => {
+    // If Edge TTS audio stream fails, fall back to local Web Speech API
+    currentAudio = null;
+    speakWithWebSpeech(text, lang, onEnd);
+  };
+
+  audio.play().catch(() => {
+    // If playback fails, fallback to local Web Speech API
+    currentAudio = null;
+    speakWithWebSpeech(text, lang, onEnd);
+  });
 }
