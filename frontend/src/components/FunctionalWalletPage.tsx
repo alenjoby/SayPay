@@ -50,9 +50,10 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audioCues } from '../utils/audioCues';
-import { speakText, SupportedLanguage, detectLanguage, onSpeechStateChange, isCurrentlySpeaking, stopSpeaking } from '../utils/i18n';
+import { speakText, SupportedLanguage, detectLanguage, onSpeechStateChange, isCurrentlySpeaking, stopSpeaking, stripEcho } from '../utils/i18n';
 import { parseVoiceIntent, ParsedIntentResult } from '../utils/intentParser';
-import { understandCommand, sendBlocker, toEth } from '../utils/intentApi';
+import { understandFollowUp, sendBlocker, toEth } from '../utils/intentApi';
+import type { PendingQuestion } from '../utils/intentApi';
 import { useSayPayVault } from '../chain';
 import {
   WalletUser,
@@ -294,6 +295,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   // directly would see an old render (and act on the previous sentence).
   const latestTranscriptRef = useRef('');
   const processCommandRef = useRef<(text: string) => void | Promise<void>>(() => {});
+  // The model's open question, so the next answer ("0.05", "Priya") completes it.
+  const pendingQuestionRef = useRef<PendingQuestion | null>(null);
+  // The last command was spoken (not typed): questions then open the mic for the answer.
+  const lastInputVoiceRef = useRef(false);
 
   // ---- Mic controller ------------------------------------------------------
   // One tracked state instead of blind start/stop retries (which failed silently
@@ -301,7 +306,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   // 'auto' = tap / hands-free re-listen: Chrome ends by itself after a pause.
   type MicState = 'idle' | 'starting' | 'listening' | 'stopping';
   const micStateRef = useRef<MicState>('idle');
-  const micSessionRef = useRef({ done: true, released: false, discard: false });
+  const micSessionRef = useRef({ done: true, released: false, discard: false, mode: 'auto' as 'hold' | 'auto' });
+  // Hands-free re-listens in a row that heard nothing usable: stop after 2, so noise or a
+  // TV can't keep the wallet in a "Sorry, I didn't understand" loop. Space / mic resets it.
+  const autoMissesRef = useRef(0);
   const micRestartRef = useRef<'hold' | 'auto' | null>(null);
   const micFallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tap Space (or the mic) once: keep listening until it is pressed again.
@@ -313,14 +321,19 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     session.done = true;
     micLatchedRef.current = false;
     if (micFallbackTimer.current) clearTimeout(micFallbackTimer.current);
-    const heard = latestTranscriptRef.current.trim();
+    // Drop the app's own voice if the mic caught it (speakers, no earphones).
+    const raw = latestTranscriptRef.current.trim();
+    const heard = stripEcho(raw);
+    if (raw && raw !== heard) console.info('[SayPay] ignored the app\'s own voice:', raw, '->', heard || '(nothing)');
     latestTranscriptRef.current = '';
     if (session.discard || !heard) {
+      if (!session.discard && session.mode === 'auto') autoMissesRef.current++;
       setIsProcessingVoice(false);
       if (!session.discard) setVoiceFeedback('Press Space or tap the mic to speak');
       return;
     }
     setIsProcessingVoice(true);
+    lastInputVoiceRef.current = true;
     Promise.resolve(processCommandRef.current(heard)).finally(() => setIsProcessingVoice(false));
   };
 
@@ -345,7 +358,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
       return;
     }
-    micSessionRef.current = { done: false, released: false, discard: false };
+    micSessionRef.current = { done: false, released: false, discard: false, mode };
+    if (mode === 'hold') autoMissesRef.current = 0; // the user asked to talk
     latestTranscriptRef.current = '';
     setTranscript('');
     if (!rec) {
@@ -646,18 +660,23 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const speakAndFollowUp = (
     msg: string,
     spokenLang: SupportedLanguage = lang,
-    shouldPromptListen: boolean = true
+    shouldPromptListen: boolean = true,
+    /** The app asked a question: listen for the answer in any mode. */
+    listenForAnswer: boolean = false
   ) => {
     setVoiceFeedback(msg);
     announce(msg);
 
-    speakText(msg, spokenLang, () => {
-      if (accessibilityMode === 'blind' && shouldPromptListen) {
+    speakText(msg, spokenLang, (finished) => {
+      if (!finished) return; // cut off: don't listen for an answer to something not heard
+      const handsFree = accessibilityMode === 'blind' && shouldPromptListen && autoMissesRef.current < 2;
+      if (handsFree || listenForAnswer) {
+        // A short gap so the mic doesn't catch the end of the app's own voice.
         setTimeout(() => {
           if (micStateRef.current === 'idle' && !isCurrentlySpeaking()) {
             startListening();
           }
-        }, 250);
+        }, 400);
       }
     });
   };
@@ -1545,11 +1564,18 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     }
 
     // SayPay intent model for money commands (local keyword parser as fallback).
-    const result = await understandCommand(
+    // An answer to the model's last question ("0.05", "Priya") is read together with it.
+    const result = await understandFollowUp(
       spokenText,
       userState.contacts.map((c) => c.name),
-      langChosenRef.current ? lang : undefined
+      langChosenRef.current ? lang : undefined,
+      pendingQuestionRef.current
     );
+    pendingQuestionRef.current =
+      result.source === 'model' && result.needsClarification && result.intent !== 'unknown'
+        ? { text: result.contextText, at: Date.now() }
+        : null;
+    autoMissesRef.current = result.intent === 'unknown' ? autoMissesRef.current + 1 : 0;
     // After the user chose a language, answer in it whatever language they spoke.
     const detected = langChosenRef.current ? lang : result.detectedLang;
     if (detected !== lang && !langChosenRef.current) {
@@ -1589,7 +1615,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     // speak its question and do nothing else.
     if (result.source === 'model' && result.needsClarification && result.readback) {
       if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
-      speakAndFollowUp(result.readback, detected);
+      // A question: listen for the answer right away (in every mode, when they spoke the command).
+      speakAndFollowUp(result.readback, detected, true, lastInputVoiceRef.current);
       return;
     }
 
@@ -2585,6 +2612,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               if (!text) return;
               setTypedCommand('');
               setTranscript(text);
+              lastInputVoiceRef.current = false;
               handleProcessCommand(text);
             }}
           >

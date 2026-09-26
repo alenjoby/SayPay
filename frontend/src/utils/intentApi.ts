@@ -140,6 +140,42 @@ export function toEth(amount: number | undefined | null, unit: string | null | u
   return { eth: Number(((amount * usd) / ethRateUSD).toFixed(4)), from: u };
 }
 
+/** The model's last question ("How much should I send to Priya?") and the words it was about. */
+export interface PendingQuestion {
+  text: string;
+  at: number;
+}
+const FOLLOW_UP_MS = 60_000;
+
+/**
+ * Understand an answer to the model's last question. The model reads one sentence at a
+ * time, so "0.05" alone doesn't say who it's for: the answer is joined to the sentence
+ * that was asked about ("send money to Priya" + "0.05"). A complete new command on its
+ * own ("cancel", "what's my balance") wins over the question.
+ */
+export async function understandFollowUp(
+  text: string,
+  contacts: string[],
+  replyLang: SupportedLanguage | undefined,
+  pending: PendingQuestion | null
+): Promise<UnderstoodCommand & { contextText: string }> {
+  const alone = await understandCommand(text, contacts, replyLang);
+  const standsAlone =
+    !pending ||
+    Date.now() - pending.at > FOLLOW_UP_MS ||
+    alone.source !== 'model' ||
+    (!alone.needsClarification && alone.intent !== 'unknown');
+  if (standsAlone) return { ...alone, contextText: text };
+
+  const contextText = `${pending!.text} ${text}`;
+  const joined = await understandCommand(contextText, contacts, replyLang);
+  if (joined.source !== 'model' || (joined.intent === 'unknown' && alone.intent !== 'unknown')) {
+    return { ...alone, contextText: text };
+  }
+  console.info('[SayPay] follow-up answer joined to the question:', contextText);
+  return { ...joined, rawText: text, contextText };
+}
+
 /** What to say when a send can't go ahead as understood. */
 export function sendBlocker(
   cmd: UnderstoodCommand,

@@ -17,7 +17,7 @@ import {
   X,
   Radio,
 } from 'lucide-react';
-import { speakText, SupportedLanguage } from '../utils/i18n';
+import { speakText, stopSpeaking, stripEcho, onSpeechStateChange, SupportedLanguage } from '../utils/i18n';
 import { audioCues } from '../utils/audioCues';
 import { registerWalletPasskey } from '../utils/passkeyAuth';
 import { createFreshWalletUser, Guardian, WalletUser } from '../utils/walletState';
@@ -63,10 +63,30 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
   // Voice Interaction State
   const [isVoiceListening, setIsVoiceListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [isAppSpeaking, setIsAppSpeaking] = useState(false);
+  useEffect(() => onSpeechStateChange(setIsAppSpeaking), []);
   const recognitionRef = useRef<any>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const stepRef = useRef<number>(1);
   stepRef.current = step;
+  const openRef = useRef(isOpen);
+  openRef.current = isOpen;
+
+  /**
+   * Say a prompt, then open the mic for the answer the moment the voice finishes.
+   * (Fixed timers opened the mic mid-sentence, so it heard the app's own "say Yes or No"
+   * and picked for the user, or saved the prompt as their name.)
+   */
+  const speakThenListen = (text: string, forStep: number) => {
+    stopVoiceRecognition();
+    speakText(text, currentLang, (finished) => {
+      if (finished && openRef.current && stepRef.current === forStep) {
+        setTimeout(() => {
+          if (openRef.current && stepRef.current === forStep) startVoiceRecognition(forStep);
+        }, 300);
+      }
+    });
+  };
 
   // Cleanup speech recognition on unmount or close
   const stopVoiceRecognition = () => {
@@ -84,6 +104,7 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
   // Start speech recognition for current step
   const startVoiceRecognition = (targetStep: number) => {
     stopVoiceRecognition();
+    stopSpeaking(); // the user wants to talk: don't talk over them (or into the mic)
 
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -106,7 +127,9 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
         setVoiceTranscript(spoken);
 
         if (e.results[0].isFinal) {
-          handleVoiceInputForStep(spoken, targetStep);
+          const own = stripEcho(spoken); // the app's own voice, caught by the mic
+          if (own) handleVoiceInputForStep(own, targetStep);
+          else setVoiceTranscript('');
         }
       };
 
@@ -127,36 +150,21 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
 
   // Dispatch spoken input according to step
   const handleVoiceInputForStep = (spoken: string, activeStep: number) => {
-    const lower = spoken.toLowerCase().replace(/[.,!?]/g, '').trim();
+    const lower = spoken.toLowerCase().replace(/[.,!?؟।]/g, '').trim();
+    const tokens = lower.split(/\s+/);
+    const saidWord = (...w: string[]) => w.some((x) => tokens.includes(x));
 
     if (activeStep === 1) {
       // Step 1: Blind or Visual
+      // Whole words only: "no" must not match "know", nor "ना" match "नाम".
       const isYes =
-        lower.includes('yes') ||
-        lower.includes('yeah') ||
-        lower.includes('yep') ||
-        lower.includes('blind') ||
-        lower.includes('voice') ||
-        lower.includes('enable') ||
-        lower.includes('sure') ||
-        lower.includes('okay') ||
-        lower.includes('haan') ||
-        lower.includes('naam') ||
-        lower.includes('हाँ') ||
-        lower.includes('نعم') ||
-        lower.includes('مكفوف');
+        saidWord('yes', 'yeah', 'yep', 'yup', 'sure', 'okay', 'ok', 'haan', 'han', 'ha', 'ji', 'naam', 'aiwa',
+          'हाँ', 'हां', 'जी', 'نعم', 'ايوه', 'أيوه', 'اي', 'إي', 'أكيد') ||
+        lower.includes('blind') || lower.includes('voice') || lower.includes('enable') || lower.includes('مكفوف');
 
       const isNo =
-        lower.includes('no') ||
-        lower.includes('nope') ||
-        lower.includes('visual') ||
-        lower.includes('standard') ||
-        lower.includes('regular') ||
-        lower.includes('nahi') ||
-        lower.includes('ना') ||
-        lower.includes('नहीं') ||
-        lower.includes('لا') ||
-        lower.includes('مرئي');
+        saidWord('no', 'nope', 'nah', 'nahi', 'nahin', 'na', 'नहीं', 'ना', 'لا', 'لأ') ||
+        lower.includes('visual') || lower.includes('standard') || lower.includes('regular') || lower.includes('مرئي');
 
       if (isYes) {
         handleSelectMode('blind');
@@ -164,8 +172,14 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
         handleSelectMode('visual');
       } else {
         // Unknown: prompt again gently
-        speakText('Please say Yes for Blind Mode, or No for Visual Mode.', currentLang);
-        setTimeout(() => startVoiceRecognition(1), 2000);
+        speakThenListen(
+          currentLang === 'hi'
+            ? 'कृपया दृष्टिबाधित मोड के लिए हाँ, या विजुअल मोड के लिए ना बोलें।'
+            : currentLang === 'ar'
+            ? 'قل نعم لوضع المكفوفين، أو لا للوضع المرئي.'
+            : 'Please say Yes for Blind Mode, or No for Visual Mode.',
+          1
+        );
       }
     } else if (activeStep === 2) {
       // Step 2: Name Input
@@ -187,14 +201,13 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
             : currentLang === 'ar'
             ? `تم حفظ الاسم: ${cleanName}. قل التالي للمتابعة أو اضغط على الشاشة.`
             : `Got it. Your name is ${cleanName}. Say Next to continue, or tap Continue.`;
-        speakText(ack, currentLang);
-        setTimeout(() => startVoiceRecognition(2), 2500);
+        speakThenListen(ack, 2);
       }
     } else if (activeStep === 3) {
       // Step 3: Passkey or Skip
-      if (lower.includes('register') || lower.includes('passkey') || lower.includes('biometric') || lower.includes('fingerprint')) {
+      if (['register', 'passkey', 'biometric', 'fingerprint', 'रजिस्टर', 'फिंगरप्रिंट', 'تسجيل', 'سجل', 'بصمة'].some((w) => lower.includes(w))) {
         handleRegisterPasskey();
-      } else if (lower.includes('skip') || lower.includes('next') || lower.includes('continue') || lower.includes('आगे')) {
+      } else if (['skip', 'next', 'continue', 'आगे', 'स्किप', 'अगला', 'تخطي', 'التالي', 'كمل'].some((w) => lower.includes(w))) {
         audioCues.playSuccess();
         goToStep(4);
       }
@@ -217,8 +230,9 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
           ? 'दृष्टिबाधित मोड सक्रिय। सार्वजनिक स्थानों पर गोपनीयता के लिए ईयरफ़ोन की सिफारिश की जाती है, हालांकि आप बिना ईयरफ़ोन भी जारी रख सकते हैं। अब, अपना नाम बताएं।'
           : currentLang === 'ar'
           ? 'تم تفعيل وضع المساعدة الصوتية للمكفوفين. لحمايتك ننصح بسماعات الأذن ولكن يمكنك المتابعة بدونها. الآن، يرجى قول اسمك.'
-          : 'Blind Accessibility Mode enabled. For privacy in public spaces, earphones are recommended, but you can proceed with or without them. Now, what is your name? Please speak your name.';
-      speakText(prompt, currentLang);
+          : 'Voice mode is on. Earphones are best for privacy. What is your name?';
+      stepRef.current = 2;
+      speakThenListen(prompt, 2);
     } else {
       const prompt =
         currentLang === 'hi'
@@ -226,7 +240,8 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
           : currentLang === 'ar'
           ? 'تم تفعيل الوضع المرئي القياسي. يرجى إدخال اسمك أو قوله بصوتك.'
           : 'Visual Standard Mode enabled. What is your name? You can speak your name or type it below.';
-      speakText(prompt, currentLang);
+      stepRef.current = 2;
+      speakThenListen(prompt, 2);
     }
 
     goToStep(2);
@@ -238,8 +253,10 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
     setVoiceTranscript('');
     audioCues.playInterfaceTransition();
 
+    stopVoiceRecognition();
+    stepRef.current = nextStep;
     if (nextStep === 2) {
-      setTimeout(() => startVoiceRecognition(2), 2200);
+      // Arriving from step 1, handleSelectMode asks for the name and then listens.
     } else if (nextStep === 3) {
       const prompt =
         currentLang === 'hi'
@@ -247,8 +264,7 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
           : currentLang === 'ar'
           ? 'الخطوة الثالثة: الأمان البيومتري. قم بتسجيل مفتاح المرور أو تعيين رمز سري من 6 أرقام. قل تسجيل أو تخطي.'
           : 'Step three: Passkey Biometrics. Protect your wallet with your fingerprint, Face ID, or a 6-digit PIN. Say Register Passkey or say Skip.';
-      speakText(prompt, currentLang);
-      setTimeout(() => startVoiceRecognition(3), 3000);
+      speakThenListen(prompt, 3);
     } else if (nextStep === 4) {
       const prompt =
         currentLang === 'hi'
@@ -256,8 +272,7 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
           : currentLang === 'ar'
           ? 'الخطوة الأخيرة: أوصياء الاسترداد. يمكنك إضافة جهة اتصال موثوقة، أو قل إنشاء لإنهاء الإعداد.'
           : 'Final step: Seedless Social Recovery. Add a trusted contact to help recover your wallet, or say Create Wallet to finish.';
-      speakText(prompt, currentLang);
-      setTimeout(() => startVoiceRecognition(4), 3000);
+      speakThenListen(prompt, 4);
     }
   };
 
@@ -277,17 +292,13 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
         ? 'से-पे स्मार्ट वॉलेट निर्माण में आपका स्वागत है। क्या आप दृष्टिबाधित मोड सक्षम करना चाहते हैं? कृपया हाँ या ना कहें, या स्क्रीन पर टैप करें।'
         : currentLang === 'ar'
         ? 'مرحباً بكم في محفظة سي-باي الذكية. هل ترغب في تفعيل وضع المكفوفين المساعد صوتياً؟ يرجى قول نعم أو لا، أو النقر على الشاشة.'
-        : 'Welcome to SayPay smart wallet. Would you like to enable Blind Accessibility Mode? Please say Yes or No, or tap either button on screen.';
+        : 'Welcome to SayPay. Would you like voice mode, for blind and low-vision users? Say Yes or No.';
 
-    speakText(welcomePrompt, currentLang);
-
-    // Give the speech prompt 2 seconds to speak before opening microphone to avoid echo
-    const timer = setTimeout(() => {
-      startVoiceRecognition(1);
-    }, 2400);
+    stepRef.current = 1;
+    // The mic opens when the question has been read out (not on a timer, mid-sentence).
+    speakThenListen(welcomePrompt, 1);
 
     return () => {
-      clearTimeout(timer);
       stopVoiceRecognition();
     };
   }, [isOpen, currentLang]);
@@ -334,14 +345,12 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
       setPasskeyRegistered(true);
       setPasskeyCredId(credId || 'passkey_secp256r1_active');
       audioCues.playSuccess();
-      speakText('Device passkey biometric registered successfully. Say Next to proceed.', currentLang);
-      setTimeout(() => startVoiceRecognition(3), 2000);
+      speakThenListen('Device passkey biometric registered successfully. Say Next to proceed.', 3);
     } catch {
       setIsPasskeyRegistering(false);
       setPasskeyRegistered(true);
       audioCues.playSuccess();
-      speakText('Hardware authentication configured. Say Next to proceed.', currentLang);
-      setTimeout(() => startVoiceRecognition(3), 2000);
+      speakThenListen('Hardware authentication configured. Say Next to proceed.', 3);
     }
   };
 
@@ -358,7 +367,7 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
     setGuardiansList([...guardiansList, newG]);
     setGuardianName('');
     audioCues.playSuccess();
-    speakText(`Added ${newG.name} as trusted guardian.`, currentLang);
+    speakThenListen(`Added ${newG.name} as trusted guardian. Add another, or say Create Wallet to finish.`, 4);
   };
 
   // Complete Creation
@@ -436,6 +445,46 @@ export const CreateWalletModal: React.FC<CreateWalletModalProps> = ({
             ))}
           </div>
         </div>
+
+        {/* Voice status: always shows whether SayPay is talking or listening, and is the mic button. */}
+        <button
+          type="button"
+          onClick={() => (isVoiceListening ? stopVoiceRecognition() : startVoiceRecognition(step))}
+          aria-label={isVoiceListening ? 'Stop listening' : 'Speak your answer'}
+          className={`w-full mb-5 flex items-center gap-3 rounded-2xl px-4 py-3 text-left transition cursor-pointer border ${
+            isVoiceListening
+              ? 'bg-[#FF5500] border-[#FF5500] text-white'
+              : isAppSpeaking
+              ? 'bg-zinc-900 border-zinc-900 text-white'
+              : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100'
+          }`}
+        >
+          <span
+            className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+              isVoiceListening ? 'bg-white text-[#FF5500] animate-pulse' : isAppSpeaking ? 'bg-zinc-700 text-white' : 'bg-white text-[#FF5500] border border-zinc-200'
+            }`}
+          >
+            <Mic className="w-4 h-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold">
+              {isVoiceListening
+                ? voiceTranscript || (currentLang === 'hi' ? 'सुन रहा हूँ… बोलिए' : currentLang === 'ar' ? 'أسمعك… تكلم' : 'Listening… speak now')
+                : isAppSpeaking
+                ? currentLang === 'hi' ? 'SayPay बोल रहा है…' : currentLang === 'ar' ? 'SayPay يتكلم…' : 'SayPay is speaking…'
+                : currentLang === 'hi' ? 'बोलने के लिए टैप करें या Space दबाएँ' : currentLang === 'ar' ? 'اضغط هنا أو على المسافة للتكلم' : 'Tap here or press Space to answer'}
+            </span>
+            <span className={`block text-xs ${isVoiceListening || isAppSpeaking ? 'text-white/80' : 'text-zinc-500'}`}>
+              {step === 1
+                ? currentLang === 'hi' ? '"हाँ" या "ना"' : currentLang === 'ar' ? '"نعم" أو "لا"' : '"Yes" or "No"'
+                : step === 2
+                ? currentLang === 'hi' ? 'अपना नाम, फिर "अगला"' : currentLang === 'ar' ? 'اسمك، ثم "التالي"' : 'Your name, then "Next"'
+                : step === 3
+                ? currentLang === 'hi' ? '"रजिस्टर" या "आगे"' : currentLang === 'ar' ? '"تسجيل" أو "تخطي"' : '"Register passkey" or "Skip"'
+                : currentLang === 'hi' ? '"बनाओ"' : currentLang === 'ar' ? '"إنشاء"' : '"Create wallet"'}
+            </span>
+          </span>
+        </button>
 
         {/* STEP 1: Polite Accessibility Question (Blind Mode or Visual Mode) */}
         {step === 1 && (

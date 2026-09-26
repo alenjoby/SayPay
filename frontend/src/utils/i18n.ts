@@ -223,6 +223,10 @@ export function detectLanguage(text: string): SupportedLanguage {
  */
 let activeSpeechCount = 0;
 let currentUtterance: SpeechSynthesisUtterance | null = null;
+// Every utterance being spoken, referenced so Chrome doesn't garbage-collect them mid-speech.
+let utterancesInFlight: SpeechSynthesisUtterance[] = [];
+// Bumped by every new message and stopSpeaking(): callbacks from older speech are ignored.
+let speechGeneration = 0;
 const speechListeners: Array<(isSpeaking: boolean) => void> = [];
 
 export function isCurrentlySpeaking(): boolean {
@@ -252,6 +256,8 @@ export function stopSpeaking() {
     } catch (e) {}
   }
   currentUtterance = null;
+  utterancesInFlight = [];
+  speechGeneration++;
   activeSpeechCount = 0;
   notifySpeechState(false);
 }
@@ -270,46 +276,142 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
 // Best first: Edge's online "Natural" voices (near-human, include Arabic and Hindi),
 // then Chrome's Google voices, then any other neural voice, then any voice.
 const VOICE_TIERS: RegExp[] = [/Natural/i, /Google/i, /Neural|Premium|Enhanced/i];
+// Within a tier: the Gulf / Indian / US accent first, then these calm, clear voices.
+const PREFERRED_REGIONS: Record<SupportedLanguage, string[]> = {
+  en: ['en-us', 'en-gb', 'en-in'],
+  hi: ['hi-in'],
+  ar: ['ar-ae', 'ar-sa', 'ar-qa', 'ar-kw', 'ar-bh', 'ar-om', 'ar-eg'],
+};
+const PREFERRED_NAMES = /Jenny|Aria|Ava|Emma|Swara|Madhur|Fatima|Hamdan|Zariyah|Hamed|Salma|Samantha/i;
+const voiceCache: Partial<Record<SupportedLanguage, { of: number; voice: SpeechSynthesisVoice }>> = {};
 
 function findBestVoice(lang: SupportedLanguage): SpeechSynthesisVoice | null {
   if (typeof window === 'undefined' || !window.speechSynthesis) return null;
   const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
   if (!voices || voices.length === 0) return null;
+  const cached = voiceCache[lang];
+  if (cached && cached.of === voices.length) return cached.voice;
 
   const prefix = lang === 'hi' ? 'hi' : lang === 'ar' ? 'ar' : 'en';
-  const matching = voices.filter((v) => v.lang.toLowerCase().replace('_', '-').startsWith(prefix));
+  const norm = (v: SpeechSynthesisVoice) => v.lang.toLowerCase().replace('_', '-');
+  const matching = voices.filter((v) => norm(v).startsWith(prefix));
   if (matching.length === 0) return null;
 
-  for (const tier of VOICE_TIERS) {
-    const hit = matching.find((v) => tier.test(v.name));
-    if (hit) return hit;
+  const regions = PREFERRED_REGIONS[lang];
+  const score = (v: SpeechSynthesisVoice) => {
+    const tier = VOICE_TIERS.findIndex((t) => t.test(v.name));
+    const region = regions.indexOf(norm(v));
+    return (
+      (tier === -1 ? VOICE_TIERS.length : tier) * 100 +
+      (region === -1 ? regions.length : region) * 10 +
+      (PREFERRED_NAMES.test(v.name) ? 0 : 5) +
+      (/Multilingual/i.test(v.name) ? 3 : 0) // their accent drifts between languages
+    );
+  };
+  const best = [...matching].sort((a, b) => score(a) - score(b))[0];
+  voiceCache[lang] = { of: voices.length, voice: best };
+  return best;
+}
+
+/** The language the text is mostly written in (an Arabic reply shouldn't get an English voice). */
+function scriptLanguage(text: string, fallback: SupportedLanguage): SupportedLanguage {
+  const arabic = (text.match(/[؀-ۿ]/g) || []).length;
+  const devanagari = (text.match(/[ऀ-ॿ]/g) || []).length;
+  const latin = (text.match(/[A-Za-z]/g) || []).length;
+  if (arabic > latin && arabic > devanagari) return 'ar';
+  if (devanagari > latin && devanagari > arabic) return 'hi';
+  if (latin > arabic + devanagari && fallback !== 'en') {
+    // English words in a Hindi/Arabic reply are fine to read in that voice; only switch
+    // when there is no Arabic/Devanagari at all.
+    return arabic + devanagari === 0 ? 'en' : fallback;
   }
-  return matching.find((v) => v.localService) || matching[0];
+  return fallback;
+}
+
+// ---- Echo filter ---------------------------------------------------------------
+// With speakers (no earphones) the mic can hear the app's own reply. Remember what was
+// said recently so the recogniser's copy of it can be dropped.
+const spokenLog: { words: string[]; at: number }[] = [];
+const ECHO_WINDOW_MS = 20_000;
+
+function words(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function remember(text: string) {
+  const now = Date.now();
+  while (spokenLog.length && now - spokenLog[0].at > ECHO_WINDOW_MS) spokenLog.shift();
+  spokenLog.push({ words: words(text), at: now });
+}
+
+/**
+ * Removes the app's own recent speech from what the mic heard. Returns the user's part,
+ * or '' when everything heard was the app talking.
+ * An echo is a run of 4+ words in the same order as a recent reply (or 3+ covering nearly
+ * all of what was heard), so a user repeating a word or two ("to Priya") isn't removed.
+ */
+export function stripEcho(heard: string): string {
+  const now = Date.now();
+  // Compare normalised words, but keep the original ones ("0.05", not "0 05").
+  let orig = heard.trim().split(/\s+/).filter((t) => words(t).length);
+  let h = orig.map((t) => words(t).join(''));
+  if (!h.length) return heard;
+  for (const { words: said, at } of spokenLog) {
+    if (now - at > ECHO_WINDOW_MS || said.length < 3) continue;
+    // Longest run of consecutive words shared with this reply.
+    let best = 0;
+    let bestEnd = 0;
+    for (let i = 0; i < h.length; i++) {
+      for (let j = 0; j < said.length; j++) {
+        let k = 0;
+        while (i + k < h.length && j + k < said.length && h[i + k] === said[j + k]) k++;
+        if (k > best) {
+          best = k;
+          bestEnd = i + k;
+        }
+      }
+    }
+    if (best >= 4 || (best >= 3 && best / h.length >= 0.9)) {
+      h = [...h.slice(0, bestEnd - best), ...h.slice(bestEnd)];
+      orig = [...orig.slice(0, bestEnd - best), ...orig.slice(bestEnd)];
+    }
+  }
+  if (orig.length === heard.trim().split(/\s+/).filter((t) => words(t).length).length) return heard; // nothing removed
+  return orig.length >= 2 || (orig.length === 1 && /\d/.test(orig[0])) ? orig.join(' ') : '';
 }
 
 /**
  * Text-To-Speech Synthesis helper using native device Web Speech API
  * Instant 0ms response, zero network hops, and single-pass speech.
+ *
+ * onEnd(finished): finished is false when the speech was cut off (stopSpeaking, a new
+ * message), so callers don't open the mic for an answer to something that wasn't heard.
  */
 export function speakText(
   text: string,
   lang: SupportedLanguage = 'en',
-  onEnd?: () => void
+  onEnd?: (finished: boolean) => void
 ) {
   if (!text || !text.trim()) {
-    if (onEnd) onEnd();
+    if (onEnd) onEnd(true);
     return;
   }
 
   stopSpeaking();
 
   if (typeof window === 'undefined' || !window.speechSynthesis) {
-    if (onEnd) onEnd();
+    if (onEnd) onEnd(true);
     return;
   }
 
   activeSpeechCount++;
   notifySpeechState(true);
+  remember(text);
+  const generation = ++speechGeneration;
 
   // Resume paused synthesis if Chrome suspended the audio context
   try {
@@ -318,36 +420,63 @@ export function speakText(
     }
   } catch (e) {}
 
-  const utterance = new SpeechSynthesisUtterance(text.trim());
-  currentUtterance = utterance;
-
   const langMap: Record<SupportedLanguage, string> = {
     en: 'en-US',
     hi: 'hi-IN',
     ar: 'ar-SA',
   };
+  const voiceLang = scriptLanguage(text, lang);
+  const voice = findBestVoice(voiceLang);
 
-  utterance.lang = langMap[lang] || 'en-US';
-  utterance.rate = 1.0;
-  utterance.pitch = 1.0;
-
-  const voice = findBestVoice(lang);
-  if (voice) {
-    utterance.voice = voice;
-  }
+  // One utterance per sentence: Chrome's Google voices stop after ~15 s of a single
+  // utterance, and short ones start sooner.
+  const sentences = text
+    .trim()
+    .split(/(?<=[.!?؟।])\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
 
   let completed = false;
-  const finish = () => {
+  let watchdog: ReturnType<typeof setTimeout> | null = null;
+  const finish = (finished: boolean) => {
     if (completed) return;
     completed = true;
-    currentUtterance = null;
-    activeSpeechCount = Math.max(0, activeSpeechCount - 1);
-    notifySpeechState(false);
-    if (onEnd) onEnd();
+    if (watchdog) clearTimeout(watchdog);
+    if (generation === speechGeneration) {
+      currentUtterance = null;
+      activeSpeechCount = Math.max(0, activeSpeechCount - 1);
+      notifySpeechState(false);
+    }
+    if (onEnd) onEnd(finished && generation === speechGeneration);
+  };
+  // Chrome sometimes never fires onend (then nothing that waits for it would run).
+  // Generous, so the mic never opens while the app is still talking.
+  const armWatchdog = () => {
+    if (watchdog) clearTimeout(watchdog);
+    watchdog = setTimeout(() => {
+      if (window.speechSynthesis.speaking && generation === speechGeneration) armWatchdog();
+      else finish(generation === speechGeneration);
+    }, 4000 + text.length * 110);
   };
 
-  utterance.onend = finish;
-  utterance.onerror = finish;
-
-  window.speechSynthesis.speak(utterance);
+  sentences.forEach((sentence, i) => {
+    const utterance = new SpeechSynthesisUtterance(sentence);
+    utterance.lang = langMap[voiceLang] || 'en-US';
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    if (voice) utterance.voice = voice;
+    const last = i === sentences.length - 1;
+    utterance.onstart = armWatchdog;
+    utterance.onend = () => {
+      if (last) finish(true);
+    };
+    utterance.onerror = (e: SpeechSynthesisErrorEvent) => {
+      const cut = e.error === 'interrupted' || e.error === 'canceled';
+      if (last || cut) finish(!cut);
+    };
+    if (i === 0) currentUtterance = utterance; // keep a reference: Chrome can drop onend otherwise
+    utterancesInFlight.push(utterance);
+    window.speechSynthesis.speak(utterance);
+  });
+  armWatchdog();
 }
