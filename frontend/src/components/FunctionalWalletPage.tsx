@@ -85,8 +85,40 @@ import { VoiceResultCard, VoiceCard } from './VoiceResultCard';
 import { headphoneSafety, HeadphoneStatus } from '../utils/headphoneDetector';
 import { PasskeySignatureResult, signTransactionWithPasskey } from '../utils/passkeyAuth';
 
+// ---- Voice language switch ------------------------------------------------
+// The recogniser writes a language name in the language it is listening in,
+// so each language is listed in English, Arabic and Hindi spellings.
+const LANGUAGE_NAMES: Record<SupportedLanguage, string[]> = {
+  ar: ['arabic', 'arabi', 'arbi', 'عربي', 'العربي', 'العربية', 'عربية', 'अरबी', 'अरेबिक', 'अरबिक'],
+  hi: ['hindi', 'हिंदी', 'हिन्दी', 'هندي', 'الهندي', 'الهندية', 'هندية', 'हिंदी में'],
+  en: ['english', 'inglish', 'angrezi', 'انجليزي', 'إنجليزي', 'الانجليزي', 'الإنجليزي', 'الانجليزية', 'الإنجليزية',
+       'انجلش', 'إنجلش', 'انقلش', 'इंग्लिश', 'अंग्रेजी', 'अंग्रेज़ी'],
+};
+const SWITCH_WORDS = ['change', 'switch', 'language', 'speak', 'talk', 'set to', 'use', 'turn', 'mein', 'me baat',
+  'badlo', 'bhasha', 'لغة', 'اللغة', 'غير', 'بدل', 'تكلم', 'كلمني', 'भाषा', 'बदलो', 'बदल', 'चेंज', 'स्विच', 'में बात'];
+const LANGUAGE_CHANGED: Record<SupportedLanguage, string> = {
+  en: 'Language changed to English.',
+  ar: 'تم تغيير اللغة إلى العربية.',
+  hi: 'भाषा बदलकर हिंदी कर दी गई है।',
+};
+
+/** "change to Arabic" -> 'ar'. Null unless it is clearly a language switch (never a payment). */
+function languageSwitchTarget(text: string): SupportedLanguage | null {
+  const t = ` ${text.toLowerCase().replace(/[.,!?؟।]/g, ' ').replace(/\s+/g, ' ').trim()} `;
+  if (/[0-9٠-٩०-९]/.test(t)) return null; // has an amount: not a language command
+  const hits = (Object.keys(LANGUAGE_NAMES) as SupportedLanguage[]).filter((l) =>
+    LANGUAGE_NAMES[l].some((w) => t.includes(` ${w} `) || t.includes(` ${w}`) || t.includes(`${w} `))
+  );
+  if (hits.length !== 1) return null;
+  const words = t.trim().split(' ').length;
+  const cue = SWITCH_WORDS.some((w) => t.includes(w));
+  return cue || words <= 2 ? hits[0] : null;
+}
+
 interface FunctionalWalletPageProps {
   onBackToLanding: () => void;
+  /** Tell the rest of the site (landing page) about a language change. */
+  onLangChange?: (lang: SupportedLanguage) => void;
   initialLang?: SupportedLanguage;
   openCreateWalletDirectly?: boolean;
 }
@@ -95,6 +127,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   onBackToLanding,
   initialLang = 'en',
   openCreateWalletDirectly = false,
+  onLangChange,
 }) => {
   // 1. User & Wallet Identity (Clean Web3 Multi-Account Selector)
   const [activeUserId, setActiveUserId] = useState<string>(() => {
@@ -124,6 +157,17 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const [isSwapOpen, setIsSwapOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'crypto' | 'nfts' | 'approvals' | 'trending' | 'activity'>('crypto');
   const [lang, setLang] = useState<SupportedLanguage>(initialLang);
+  // Once the user picks a language (dropdown or "change to Arabic"), stop
+  // auto-switching to whatever language each command seems to be in.
+  const langChosenRef = useRef(false);
+  const chooseLang = (l: SupportedLanguage) => {
+    langChosenRef.current = true;
+    setLang(l);
+  };
+  useEffect(() => {
+    onLangChange?.(lang);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
   const [showBlindRules, setShowBlindRules] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
@@ -897,6 +941,15 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const handleProcessCommand = async (spokenText: string) => {
     const lower = spokenText.toLowerCase();
 
+    // "Change to Arabic" / "Hindi mein baat karo" / "غير اللغة للإنجليزي": switch the whole app.
+    const newLang = languageSwitchTarget(spokenText);
+    if (newLang) {
+      chooseLang(newLang);
+      if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+      speakAndFollowUp(LANGUAGE_CHANGED[newLang], newLang);
+      return;
+    }
+
     // Wallet-safety commands for the contract (each asks for the fingerprint).
     if (chain.vault) {
       const has = (words: string[]) => words.some((w) => lower.includes(w));
@@ -1008,10 +1061,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     // SayPay intent model for money commands (local keyword parser as fallback).
     const result = await understandCommand(
       spokenText,
-      userState.contacts.map((c) => c.name)
+      userState.contacts.map((c) => c.name),
+      langChosenRef.current ? lang : undefined
     );
-    const detected = result.detectedLang;
-    if (detected !== lang) {
+    // After the user chose a language, answer in it whatever language they spoke.
+    const detected = langChosenRef.current ? lang : result.detectedLang;
+    if (detected !== lang && !langChosenRef.current) {
       setLang(detected);
     }
 
@@ -2233,7 +2288,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   value={lang}
                   onChange={(e) => {
                     const newL = e.target.value as SupportedLanguage;
-                    setLang(newL);
+                    chooseLang(newL);
                     audioCues.playIntentRecognized();
                   }}
                   className="bg-white border border-zinc-200 text-xs font-bold text-zinc-800 rounded-2xl px-2.5 py-1.5 focus:outline-none cursor-pointer"
@@ -2309,7 +2364,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                         value={lang}
                         onChange={(e) => {
                           const newL = e.target.value as SupportedLanguage;
-                          setLang(newL);
+                          chooseLang(newL);
                           audioCues.playIntentRecognized();
                         }}
                         className="bg-zinc-100 border border-zinc-200 text-xs font-bold text-zinc-800 rounded-xl px-2 py-1 focus:outline-none cursor-pointer"

@@ -67,7 +67,7 @@ export interface UnderstoodCommand extends ParsedIntentResult {
   model?: ModelResponse;
 }
 
-async function askModel(text: string, contacts: string[]): Promise<ModelResponse> {
+async function askModel(text: string, contacts: string[], replyLang?: SupportedLanguage): Promise<ModelResponse> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
@@ -76,7 +76,8 @@ async function askModel(text: string, contacts: string[]): Promise<ModelResponse
       headers: { 'Content-Type': 'application/json' },
       // The wallet holds test ETH, so an amount with no currency means ETH;
       // the model says "ETH" in its read-back so the user hears it.
-      body: JSON.stringify({ text, contacts, default_unit: 'ETH' }),
+      // reply_lang: answer in the language the user chose, whatever language they spoke.
+      body: JSON.stringify({ text, contacts, default_unit: 'ETH', reply_lang: replyLang ?? null }),
       signal: ctrl.signal,
     });
     if (!res.ok) throw new Error(`intent API ${res.status}`);
@@ -86,13 +87,17 @@ async function askModel(text: string, contacts: string[]): Promise<ModelResponse
   }
 }
 
-export async function understandCommand(text: string, contacts: string[]): Promise<UnderstoodCommand> {
+export async function understandCommand(
+  text: string,
+  contacts: string[],
+  replyLang?: SupportedLanguage
+): Promise<UnderstoodCommand> {
   const local = parseVoiceIntent(text);
   if (APP_INTENTS.includes(local.intent)) {
     return { ...local, source: 'rules' };
   }
   try {
-    const m = await askModel(text, contacts);
+    const m = await askModel(text, contacts, replyLang);
     const lang: SupportedLanguage = ['en', 'hi', 'ar'].includes(m.readback?.lang)
       ? m.readback.lang
       : local.detectedLang;
