@@ -10,80 +10,72 @@ export const AudioWaveCanvas: React.FC<AudioWaveCanvasProps> = ({
   isActive = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const mouseRef = useRef<{ x: number; y: number; isHovering: boolean }>({
-    x: 0,
-    y: 0,
-    isHovering: false,
-  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    let animationFrameId: number;
+    let animationFrameId: number | null = null;
     let step = 0;
+    let isVisible = true;
+
+    // Pause canvas animation when off-screen to prevent scroll stutter and CPU usage
+    const observer = new IntersectionObserver(
+      (entries) => {
+        isVisible = entries[0].isIntersecting;
+        if (isVisible && !animationFrameId) {
+          render();
+        }
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(canvas);
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
     };
 
     resize();
-    window.addEventListener('resize', resize);
+    window.addEventListener('resize', resize, { passive: true });
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      mouseRef.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        isHovering: true,
-      };
-    };
-
-    const handleMouseLeave = () => {
-      mouseRef.current.isHovering = false;
-    };
-
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseleave', handleMouseLeave);
-
+    // Smooth waves with low computational footprint
     const waves = [
       {
-        color: 'rgba(255, 85, 0, 0.35)',
-        amplitude: 28,
-        wavelength: 0.008,
-        speed: 0.024,
+        color: 'rgba(255, 85, 0, 0.28)',
+        amplitude: 22,
+        wavelength: 0.007,
+        speed: 0.02,
         phase: 0,
       },
       {
-        color: 'rgba(59, 130, 246, 0.25)',
-        amplitude: 20,
-        wavelength: 0.012,
-        speed: -0.018,
-        phase: Math.PI / 3,
-      },
-      {
-        color: 'rgba(16, 185, 129, 0.22)',
+        color: 'rgba(59, 130, 246, 0.18)',
         amplitude: 16,
-        wavelength: 0.015,
-        speed: 0.015,
-        phase: Math.PI / 1.5,
+        wavelength: 0.01,
+        speed: -0.015,
+        phase: Math.PI / 2,
       },
       {
-        color: 'rgba(255, 120, 50, 0.18)',
-        amplitude: 34,
-        wavelength: 0.006,
-        speed: -0.012,
+        color: 'rgba(16, 185, 129, 0.16)',
+        amplitude: 14,
+        wavelength: 0.012,
+        speed: 0.012,
         phase: Math.PI,
       },
     ];
 
     const render = () => {
+      if (!isVisible) {
+        animationFrameId = null;
+        return;
+      }
+
       step++;
       const rect = canvas.getBoundingClientRect();
       const width = rect.width;
@@ -93,27 +85,19 @@ export const AudioWaveCanvas: React.FC<AudioWaveCanvasProps> = ({
 
       waves.forEach((wave) => {
         ctx.beginPath();
-        const baseAmp = isActive ? wave.amplitude * 1.8 : wave.amplitude;
-        const baselineY = height * 0.55;
+        const baseAmp = isActive ? wave.amplitude * 1.5 : wave.amplitude;
+        const baselineY = height * 0.6;
 
         ctx.moveTo(0, baselineY);
 
-        for (let x = 0; x <= width; x += 4) {
-          // Calculate distance to mouse cursor for interactive ripple effect
-          let mouseInfluence = 0;
-          if (mouseRef.current.isHovering) {
-            const dx = x - mouseRef.current.x;
-            const dist = Math.abs(dx);
-            if (dist < 180) {
-              mouseInfluence = Math.cos((dist / 180) * (Math.PI / 2)) * 24;
-            }
-          }
-
+        // Optimized sampling step (step of 14px instead of 4px) for 60fps performance
+        const stepSize = 14;
+        for (let x = 0; x <= width + stepSize; x += stepSize) {
           const y =
             baselineY +
             Math.sin(x * wave.wavelength + step * wave.speed + wave.phase) *
-              (baseAmp + mouseInfluence) *
-              Math.sin(step * 0.01);
+              baseAmp *
+              Math.sin(step * 0.008);
 
           ctx.lineTo(x, y);
         }
@@ -122,7 +106,7 @@ export const AudioWaveCanvas: React.FC<AudioWaveCanvasProps> = ({
         ctx.lineTo(0, height);
         ctx.closePath();
 
-        const gradient = ctx.createLinearGradient(0, baselineY - 40, 0, height);
+        const gradient = ctx.createLinearGradient(0, baselineY - 30, 0, height);
         gradient.addColorStop(0, wave.color);
         gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = gradient;
@@ -135,18 +119,17 @@ export const AudioWaveCanvas: React.FC<AudioWaveCanvasProps> = ({
     render();
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      observer.disconnect();
       window.removeEventListener('resize', resize);
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, [isActive]);
 
   return (
     <canvas
       ref={canvasRef}
-      className={`w-full h-full pointer-events-auto ${className}`}
-      style={{ display: 'block' }}
+      className={`w-full h-full pointer-events-none ${className}`}
+      style={{ display: 'block', willChange: 'transform' }}
     />
   );
 };

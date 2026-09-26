@@ -1544,15 +1544,14 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
             <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
               <button
                 onClick={onBackToLanding}
-                className="flex items-center gap-2.5 group focus:outline-none cursor-pointer"
+                className="flex items-center group focus:outline-none cursor-pointer"
                 title="SayPay Smart Vault"
               >
-                <div className="w-8 h-8 rounded-xl bg-[#FF5500] flex items-center justify-center font-black text-white text-sm shadow-sm group-hover:scale-105 transition">
-                  S
-                </div>
-                <span className="font-extrabold text-lg text-zinc-900 tracking-tight font-display hidden sm:inline">
-                  SayPay
-                </span>
+                <img
+                  src="/logo.png"
+                  alt="SayPay"
+                  className="h-8 w-auto object-contain group-hover:scale-105 transition-transform duration-200"
+                />
               </button>
             </div>
 

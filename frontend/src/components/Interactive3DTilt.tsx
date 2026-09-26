@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 
 interface Interactive3DTiltProps {
   children: React.ReactNode;
@@ -9,11 +9,11 @@ interface Interactive3DTiltProps {
 export const Interactive3DTilt: React.FC<Interactive3DTiltProps> = ({
   children,
   className = '',
-  maxTilt = 8,
+  maxTilt = 6,
 }) => {
-  const [transformStyle, setTransformStyle] = useState('');
-  const [glareStyle, setGlareStyle] = useState({ opacity: 0, x: 50, y: 50 });
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const glareRef = useRef<HTMLDivElement | null>(null);
+  const rafId = useRef<number | null>(null);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
@@ -21,24 +21,35 @@ export const Interactive3DTilt: React.FC<Interactive3DTiltProps> = ({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
+    if (rafId.current) cancelAnimationFrame(rafId.current);
 
-    const tiltX = ((y - centerY) / centerY) * -maxTilt;
-    const tiltY = ((x - centerX) / centerX) * maxTilt;
+    rafId.current = requestAnimationFrame(() => {
+      if (!cardRef.current) return;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
 
-    setTransformStyle(
-      `perspective(1000px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale3d(1.015, 1.015, 1.015)`
-    );
+      const tiltX = ((y - centerY) / centerY) * -maxTilt;
+      const tiltY = ((x - centerX) / centerX) * maxTilt;
 
-    const glareX = (x / rect.width) * 100;
-    const glareY = (y / rect.height) * 100;
-    setGlareStyle({ opacity: 0.12, x: glareX, y: glareY });
+      cardRef.current.style.transform = `perspective(1000px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale3d(1.01, 1.01, 1.01)`;
+
+      if (glareRef.current) {
+        const glareX = ((x / rect.width) * 100).toFixed(1);
+        const glareY = ((y / rect.height) * 100).toFixed(1);
+        glareRef.current.style.opacity = '0.12';
+        glareRef.current.style.background = `radial-gradient(circle 320px at ${glareX}% ${glareY}%, rgba(255,255,255,0.8), transparent 75%)`;
+      }
+    });
   };
 
   const handleMouseLeave = () => {
-    setTransformStyle('perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)');
-    setGlareStyle((prev) => ({ ...prev, opacity: 0 }));
+    if (rafId.current) cancelAnimationFrame(rafId.current);
+    if (cardRef.current) {
+      cardRef.current.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+    }
+    if (glareRef.current) {
+      glareRef.current.style.opacity = '0';
+    }
   };
 
   return (
@@ -46,21 +57,17 @@ export const Interactive3DTilt: React.FC<Interactive3DTiltProps> = ({
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className={`relative transition-transform duration-200 ease-out will-change-transform ${className}`}
+      className={`relative transition-transform duration-300 ease-out will-change-transform ${className}`}
       style={{
-        transform: transformStyle,
         transformStyle: 'preserve-3d',
       }}
     >
       {children}
 
-      {/* Dynamic Specular Glare Overlay */}
+      {/* Dynamic Specular Glare Overlay without re-renders */}
       <div
-        className="pointer-events-none absolute inset-0 rounded-[2.75rem] transition-opacity duration-300"
-        style={{
-          opacity: glareStyle.opacity,
-          background: `radial-gradient(circle 350px at ${glareStyle.x}% ${glareStyle.y}%, rgba(255,255,255,0.7), transparent 80%)`,
-        }}
+        ref={glareRef}
+        className="pointer-events-none absolute inset-0 rounded-[2.75rem] transition-opacity duration-300 opacity-0"
       />
     </div>
   );

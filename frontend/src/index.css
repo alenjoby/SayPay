@@ -32,6 +32,13 @@
   }
 }
 
+/* GPU Hardware Acceleration for buttery-smooth AOS scrolling */
+[data-aos] {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
 /* Luxury Web3 Card Style */
 .tw-card {
   background-color: #FFFFFF;
