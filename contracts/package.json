@@ -8,7 +8,8 @@
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
     "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
-    "abi": "node scripts/export-abi.js"
+    "abi": "node scripts/export-abi.js",
+    "tester": "node scripts/serve-tester.js"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.2",
