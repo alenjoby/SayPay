@@ -1,6 +1,6 @@
 # SayPay voice model ↔ frontend: what's done and what's left
 
-Branch: `claude/trusting-allen-e40phb` (has `main`'s frontend merged in, plus the
+Branch: `saypay-dev` (has `main`'s frontend merged in, plus the
 model in `ml/` and the contract in `contracts/`).
 
 ## Run it

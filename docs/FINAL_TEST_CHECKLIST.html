@@ -71,7 +71,7 @@ and what happened next to anything that fails.</p>
 <hr />
 <h2>0. Setup (all on the demo PC)</h2>
 <ul>
-<li class="task"><label><input type="checkbox" id="c1"> <span><code>git pull</code> on branch <code>claude/trusting-allen-e40phb</code>; <code>npm install</code> in <code>frontend/</code> and <code>contracts/</code>; <code>pip install -r requirements.txt</code> in <code>ml/</code></span></label></li>
+<li class="task"><label><input type="checkbox" id="c1"> <span><code>git pull</code> on branch <code>saypay-dev</code>; <code>npm install</code> in <code>frontend/</code> and <code>contracts/</code>; <code>pip install -r requirements.txt</code> in <code>ml/</code></span></label></li>
 <li class="task"><label><input type="checkbox" id="c2"> <span><strong>Model</strong>: <code>cd ml</code> → <code>python -m uvicorn app.main:app --port 8000</code> → http://localhost:8000/health shows <code>&quot;status&quot;:&quot;ok&quot;</code> (and <code>v3+mmbert</code> if the mmBERT files are in <code>ml/models/mmbert_fp32/</code>)</span></label></li>
 <li class="task"><label><input type="checkbox" id="c3"> <span><strong>Contract</strong>: Sepolia: <code>cd contracts</code> → <code>npm run wallets</code> (once) → <code>npm run deploy:sepolia</code> → Etherscan link opens and shows the contract
 <em>(or local: <code>npx hardhat node</code> + <code>npm run deploy:local</code>)</em></span></label></li>

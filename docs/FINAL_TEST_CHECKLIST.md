@@ -20,7 +20,7 @@ and what happened next to anything that fails.
 
 ## 0. Setup (all on the demo PC)
 
-- [ ] `git pull` on branch `claude/trusting-allen-e40phb`; `npm install` in `frontend/` and `contracts/`; `pip install -r requirements.txt` in `ml/`
+- [ ] `git pull` on branch `saypay-dev`; `npm install` in `frontend/` and `contracts/`; `pip install -r requirements.txt` in `ml/`
 - [ ] **Model**: `cd ml` → `python -m uvicorn app.main:app --port 8000` → http://localhost:8000/health shows `"status":"ok"` (and `v3+mmbert` if the mmBERT files are in `ml/models/mmbert_fp32/`)
 - [ ] **Contract**: Sepolia: `cd contracts` → `npm run wallets` (once) → `npm run deploy:sepolia` → Etherscan link opens and shows the contract
       *(or local: `npx hardhat node` + `npm run deploy:local`)*
