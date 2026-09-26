@@ -496,7 +496,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRec) {
         const recognition = new SpeechRec();
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = lang === 'hi' ? 'hi-IN' : lang === 'ar' ? 'ar-SA' : 'en-US';
 
@@ -827,7 +827,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       setLang(detected);
     }
 
-    const blockedSend = result.intent === 'send' ? sendBlocker(result) : null;
+    const blockedSend = result.intent === 'send' ? sendBlocker(result, userState.balanceETH) : null;
     let fallbackReply = '';
     if (result.intent === 'check_balance') {
       fallbackReply =
@@ -884,22 +884,78 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           speakAndFollowUp(blockedSend, detected);
           break;
         }
+
+        // Strict balance checks
+        if (userState.balanceETH <= 0) {
+          if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
+          const zeroMsg =
+            detected === 'hi'
+              ? 'आपके वॉलेट में 0 ईथर शेष है। भेजने से पहले फंड जोड़ें।'
+              : detected === 'ar'
+              ? 'رصيدك الحالي 0 إيثيريوم. يرجى شحن المحفظة أولاً.'
+              : 'Cannot send. Your balance is 0 Sepolia ETH. Please fund your wallet first.';
+          speakAndFollowUp(zeroMsg, detected);
+          setVoiceCard((prev) => (prev ? { ...prev, reply: zeroMsg, status: 'blocked' } : null));
+          break;
+        }
+
+        if (result.amount !== undefined && result.amount !== null && result.amount > userState.balanceETH) {
+          if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
+          const insMsg =
+            detected === 'hi'
+              ? `अपर्याप्त बैलेंस। आप ${result.amount} ईथर नहीं भेज सकते क्योंकि आपका बैलेंस सिर्फ़ ${userState.balanceETH.toFixed(4)} ईथर है।`
+              : detected === 'ar'
+              ? `الرصيد غير كافٍ. لا يمكنك إرسال ${result.amount} إيثيريوم، رصيدك هو ${userState.balanceETH.toFixed(4)} إيثيريوم.`
+              : `Insufficient balance. Cannot send ${result.amount} ETH because your balance is only ${userState.balanceETH.toFixed(4)} ETH.`;
+          speakAndFollowUp(insMsg, detected);
+          setVoiceCard((prev) => (prev ? { ...prev, reply: insMsg, status: 'blocked' } : null));
+          break;
+        }
+
+        // Contact matching: must exist in userState.contacts
+        const targetContactName = result.contact;
+        if (!targetContactName) {
+          if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
+          const askRecipientMsg =
+            detected === 'hi'
+              ? 'आप किसे पैसे भेजना चाहते हैं? कृपया संपर्क का नाम बताएं।'
+              : detected === 'ar'
+              ? 'إلى من تريد إرسال المبلغ؟ يرجى تحديد جهة الاتصال من دفتر العनाوين.'
+              : 'Who would you like to send this to? Please specify a contact name from your address book.';
+          speakAndFollowUp(askRecipientMsg, detected);
+          setVoiceCard((prev) => (prev ? { ...prev, reply: askRecipientMsg, status: 'ask' } : null));
+          break;
+        }
+
+        const matchedContact = userState.contacts.find((c) => c.name.toLowerCase() === targetContactName.toLowerCase());
+        if (!matchedContact) {
+          if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
+          const notFoundMsg =
+            detected === 'hi'
+              ? `${targetContactName} आपकी संपर्क सूची में नहीं है। पहले संपर्क जोड़ें या सहेजा गया संपर्क चुनें।`
+              : detected === 'ar'
+              ? `${targetContactName} ليس في قائمة جهات الاتصال الخاصة بك. يرجى إضافته أولاً.`
+              : `${targetContactName} is not in your address book. Please add them to your contacts first, or specify a saved contact.`;
+          speakAndFollowUp(notFoundMsg, detected);
+          setVoiceCard((prev) => (prev ? { ...prev, reply: notFoundMsg, status: 'blocked' } : null));
+          break;
+        }
+
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
-        setSendPreFill({ contact: result.contact, amount: result.amount });
+        setSendPreFill({ contact: matchedContact.name, amount: result.amount });
+        setIsSendOpen(true);
+
         if (result.source === 'model' && result.readback) {
-          // Model read-back: amount in words and the matched contact, e.g.
-          // "Send zero point one test ETH to Priya. Confirm with your fingerprint."
-          setIsSendOpen(true);
           speakAndFollowUp(result.readback, detected);
           break;
         }
-        setIsSendOpen(true);
+
         const sendSpeech =
           detected === 'hi'
-            ? `${result.contact || 'प्रिया'} को ${result.amount || 0.1} ईथर भेजने की तैयारी है। गैस फीस प्रायोजित है। हस्ताक्षर करने के लिए "फिंगरप्रिंट" बोलें, या रद्द करने के लिए "रद्द" कहें।`
+            ? `${matchedContact.name} को ${result.amount || 0.1} ईथर भेजने की तैयारी है। गैस फीस प्रायोजित है। हस्ताक्षर करने के लिए "फिंगरप्रिंट" बोलें, या रद्द करने के लिए "रद्द" कहें।`
             : detected === 'ar'
-            ? `جاهز لإرسال ${result.amount || 0.1} إيثيريوم إلى ${result.contact || 'صديقي'}. قل "بصمة" للتوقيع بمفتاح المرور، أو قل "إلغاء".`
-            : `Prepared transfer: Sending ${result.amount || 0.1} Sepolia ETH to ${result.contact || 'Priya'}. Gas is sponsored. Say "Fingerprint" or "Confirm" to sign with your passkey, or say "Cancel".`;
+            ? `جاهز لإرسال ${result.amount || 0.1} إيثيريوم إلى ${matchedContact.name}. قل "بصمة" للتوقيع بمفتاح المرور، أو قل "إلغاء".`
+            : `Prepared transfer: Sending ${result.amount || 0.1} Sepolia ETH to ${matchedContact.name}. Gas is sponsored. Say "Fingerprint" or "Confirm" to sign with your passkey, or say "Cancel".`;
 
         speakAndFollowUp(sendSpeech, detected);
         break;
@@ -1055,55 +1111,92 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     }
   };
 
-  // Keyboard shortcut (Spacebar to hold-and-speak for blind users ONLY, WCAG 2.1.1 compliant)
+  // Spacebar Push-To-Talk: Hold Spacebar to record, release to stop and submit
+  const isSpaceHeldRef = useRef(false);
+
+  const startVoiceListening = () => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setTranscript('');
+    latestTranscriptRef.current = '';
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        try {
+          recognitionRef.current.stop();
+          setTimeout(() => {
+            try {
+              recognitionRef.current?.start();
+            } catch (err) {}
+          }, 60);
+        } catch (err) {}
+      }
+    } else {
+      setVoiceFeedback('Listening... (Speech Recognition active)');
+    }
+  };
+
+  const stopVoiceListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+    }
+    setIsListening(false);
+  };
+
+  const toggleMic = () => {
+    if (isListening) {
+      stopVoiceListening();
+    } else {
+      startVoiceListening();
+    }
+  };
+
   useEffect(() => {
-    if (accessibilityMode !== 'blind') return;
     if (!accessibilitySettings.spacebarHotkey) return;
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const isInteractive =
-        target &&
-        (['INPUT', 'TEXTAREA', 'BUTTON', 'SELECT', 'A'].includes(target.tagName) ||
-          target.getAttribute('role') === 'button' ||
-          target.isContentEditable);
+    const isInteractiveElement = (target: HTMLElement | null): boolean => {
+      if (!target) return false;
+      const tag = target.tagName;
+      return (
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        target.isContentEditable
+      );
+    };
 
-      if (e.code === 'Space' && !isInteractive) {
-        if (!isListening) {
-          e.preventDefault();
-          toggleMic();
-        }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      if (e.repeat) return; // Ignore auto-repeat events while key is held down
+      if (isInteractiveElement(e.target as HTMLElement | null)) return;
+
+      e.preventDefault();
+      isSpaceHeldRef.current = true;
+      startVoiceListening();
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      if (isInteractiveElement(e.target as HTMLElement | null)) return;
+
+      if (isSpaceHeldRef.current) {
+        e.preventDefault();
+        isSpaceHeldRef.current = false;
+        stopVoiceListening();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isListening, accessibilitySettings.spacebarHotkey, accessibilityMode]);
-
-  const toggleMic = () => {
-    if (accessibilityMode !== 'blind') return;
-    if (isListening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-      setIsListening(false);
-    } else {
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-      setTranscript('');
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.start();
-        } catch (e) {
-          recognitionRef.current.stop();
-          setTimeout(() => recognitionRef.current?.start(), 100);
-        }
-      } else {
-        simulateSpokenInput('Send 0.1 ETH to Priya');
-      }
-    }
-  };
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [accessibilitySettings.spacebarHotkey]);
 
   processCommandRef.current = handleProcessCommand;
 
@@ -1142,6 +1235,17 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     sigResult?: PasskeySignatureResult;
   }) => {
     const { recipient, address, amount, sigResult } = pending;
+
+    // Strict balance guard
+    if (amount <= 0 || amount > userState.balanceETH || userState.balanceETH <= 0) {
+      if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
+      const cancelSpeech = 'Transfer cancelled: Insufficient balance in wallet.';
+      setVoiceFeedback(cancelSpeech);
+      setAriaAnnouncement(cancelSpeech);
+      speakAndFollowUp(cancelSpeech, lang);
+      return;
+    }
+
     if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
     confetti({
       particleCount: 70,
@@ -1151,7 +1255,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     });
 
     setUserState((prev) => {
-      const newBalance = Math.max(0, prev.balanceETH - amount);
+      const newBalance = Math.max(0, Number((prev.balanceETH - amount).toFixed(6)));
       const updatedUser: WalletUser = {
         ...prev,
         balanceETH: newBalance,
@@ -1249,6 +1353,15 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
     amount: number,
     sigResult?: PasskeySignatureResult
   ) => {
+    if (amount <= 0 || amount > userState.balanceETH || userState.balanceETH <= 0) {
+      if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
+      const err = `Cannot send. Insufficient balance: you have ${userState.balanceETH.toFixed(4)} ETH.`;
+      setVoiceFeedback(err);
+      setAriaAnnouncement(err);
+      speakAndFollowUp(err, lang);
+      return;
+    }
+
     setIsSendOpen(false);
     if (accessibilitySettings.earconsEnabled) audioCues.playSuccess();
 
@@ -2713,8 +2826,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         </div>
       </div>
 
-        {/* Floating Voice Control Capsule at Bottom (ONLY in Blind / Voice-Assisted Mode) */}
-        {accessibilityMode === 'blind' && (
+        {/* Floating Voice Control Capsule at Bottom (Active in Blind Mode, or while speaking / receiving voice cards) */}
+        {(accessibilityMode === 'blind' || isListening || voiceCard !== null) && (
           <div className="fixed bottom-6 inset-x-0 z-40 flex flex-col items-center px-4 pointer-events-none">
             <VoiceResultCard card={voiceCard} listening={isListening} transcript={transcript} />
             <div className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-full p-2.5 shadow-2xl border border-zinc-800 backdrop-blur-xl flex items-center justify-between gap-3">

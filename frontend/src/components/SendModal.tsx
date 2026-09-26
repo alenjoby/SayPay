@@ -57,15 +57,15 @@ export const SendModal: React.FC<SendModalProps> = ({
   useEffect(() => {
     if (isOpen && initialAmount) {
       setAmountStr(initialAmount.toString());
-      // When opened with both voice contact and voice amount, switch directly to passkey verification prompt
-      if (initialContact) {
+      // When opened with both voice contact and voice amount, switch to passkey prompt only if balance is sufficient
+      if (initialContact && initialAmount <= availableBalanceETH && availableBalanceETH > 0) {
         setAuthStage('passkey_prompt');
       }
     }
-  }, [initialAmount, initialContact, isOpen]);
+  }, [initialAmount, initialContact, isOpen, availableBalanceETH]);
 
   const handleDirectFingerprintSend = () => {
-    if (!isValidAddress || numericAmount <= 0 || numericAmount > availableBalanceETH) return;
+    if (!isValidAddress || numericAmount <= 0 || numericAmount > availableBalanceETH || availableBalanceETH <= 0) return;
     audioCues.playIntentRecognized();
     setAuthStage('passkey_prompt');
     setAuthError(null);
@@ -93,10 +93,14 @@ export const SendModal: React.FC<SendModalProps> = ({
   const numericAmount = parseFloat(amountStr) || 0;
   const usdValue = (numericAmount * ethRateUSD).toFixed(2);
 
-  // Address validation: Either chosen contact's address or valid hex string
-  const resolvedAddress = selectedContact ? selectedContact.address : customAddress;
-  const resolvedName = selectedContact ? selectedContact.name : 'Recipient';
-  const isValidAddress = resolvedAddress.length >= 10;
+  // Address validation: Either chosen contact or valid 42-character 0x hex address
+  const resolvedAddress = selectedContact ? selectedContact.address : customAddress.trim();
+  const resolvedName = selectedContact ? selectedContact.name : (isValidAddressFormat(customAddress.trim()) ? `${customAddress.slice(0, 6)}...${customAddress.slice(-4)}` : 'Unknown');
+  const isValidAddress = selectedContact ? true : /^0x[a-fA-F0-9]{40}$/.test(customAddress.trim());
+
+  function isValidAddressFormat(addr: string): boolean {
+    return /^0x[a-fA-F0-9]{40}$/.test(addr);
+  }
 
   const handleSelectContact = (c: Contact) => {
     setSelectedContact(c);
@@ -118,7 +122,7 @@ export const SendModal: React.FC<SendModalProps> = ({
   };
 
   const handleProceedToPasskey = () => {
-    if (!isValidAddress || numericAmount <= 0) return;
+    if (!isValidAddress || numericAmount <= 0 || numericAmount > availableBalanceETH || availableBalanceETH <= 0) return;
     audioCues.playIntentRecognized();
     setAuthStage('passkey_prompt');
     setAuthError(null);
@@ -134,6 +138,10 @@ export const SendModal: React.FC<SendModalProps> = ({
   };
 
   const handleExecutePasskey = async () => {
+    if (!isValidAddress || numericAmount <= 0 || numericAmount > availableBalanceETH || availableBalanceETH <= 0) {
+      setAuthError('Cannot proceed: Insufficient balance.');
+      return;
+    }
     setIsAuthorizing(true);
     setAuthStage('broadcasting');
     setAuthError(null);
@@ -239,6 +247,14 @@ export const SendModal: React.FC<SendModalProps> = ({
                   </button>
                 ))}
               </div>
+
+              {/* Recipient Validation Warning */}
+              {recipientInput.trim() && !isValidAddress && (
+                <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                  <span>Unknown recipient. Please select from contacts or enter a valid 0x hex address.</span>
+                </div>
+              )}
             </div>
 
             {/* Amount Input */}
@@ -246,7 +262,7 @@ export const SendModal: React.FC<SendModalProps> = ({
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="font-bold text-zinc-600 uppercase tracking-wider">Amount (ETH):</span>
                 <span className="text-zinc-500 font-medium">
-                  Available: <strong className="text-zinc-900">{availableBalanceETH.toFixed(4)} ETH</strong>
+                  Available: <strong className={availableBalanceETH <= 0 ? "text-red-600" : "text-zinc-900"}>{availableBalanceETH.toFixed(4)} ETH</strong>
                 </span>
               </div>
               <div className="relative">
@@ -262,6 +278,14 @@ export const SendModal: React.FC<SendModalProps> = ({
                   ETH &asymp; ${usdValue} USD
                 </div>
               </div>
+
+              {/* Insufficient Balance Notice */}
+              {numericAmount > availableBalanceETH && (
+                <div className="mt-2 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-[11px] text-rose-800 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>Insufficient funds. You only have {availableBalanceETH.toFixed(4)} ETH in this vault.</span>
+                </div>
+              )}
             </div>
 
             {/* Paymaster Gas Notice */}

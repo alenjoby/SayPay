@@ -710,6 +710,27 @@ export type SyncEvent =
       type: 'RECOVERY_VETOED';
       byUser: string;
       timestamp: number;
+    }
+  | {
+      type: 'INHERITANCE_STARTED';
+      beneficiary: string;
+      graceSeconds: number;
+      timestamp: number;
+    }
+  | {
+      type: 'HEARTBEAT_PING';
+      byUser: string;
+      timestamp: number;
+    }
+  | {
+      type: 'INHERITANCE_VETOED';
+      byGuardian: string;
+      timestamp: number;
+    }
+  | {
+      type: 'INHERITANCE_CLAIMED';
+      beneficiary: string;
+      timestamp: number;
     };
 
 export const walletSync = new WalletSyncService();

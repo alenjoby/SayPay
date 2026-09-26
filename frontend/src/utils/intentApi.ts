@@ -114,23 +114,44 @@ export async function understandCommand(text: string, contacts: string[]): Promi
 }
 
 /** What to say when a send can't go ahead as understood. */
-export function sendBlocker(cmd: UnderstoodCommand): string | null {
-  if (cmd.source !== 'model') return null;
+export function sendBlocker(cmd: UnderstoodCommand, availableBalanceETH?: number): string | null {
   const l = cmd.detectedLang;
-  if (cmd.recipientType === 'self') return cmd.readback || 'That is your own wallet. Nothing was sent.';
-  if (cmd.unit && cmd.unit !== 'ETH') {
-    return l === 'hi'
-      ? 'अभी मैं सिर्फ़ टेस्ट ईथर भेज सकता हूँ। रकम ईथर में बोलिए।'
-      : l === 'ar'
-      ? 'حالياً أقدر أرسل إيثيريوم تجريبي بس. قل المبلغ بالإيثيريوم.'
-      : 'I can only send test ETH right now. Please say the amount in ETH.';
+
+  // Strict Balance Check (applies to both model and rule sources)
+  if (availableBalanceETH !== undefined && cmd.amount !== undefined && cmd.amount !== null) {
+    if (availableBalanceETH <= 0) {
+      return l === 'hi'
+        ? 'आपके वॉलेट में 0 ईथर शेष है। भेजने से पहले फंड जोड़ें।'
+        : l === 'ar'
+        ? 'رصيدك الحالي 0 إيثيريوم. يرجى شحن المحفظة أولاً.'
+        : 'Cannot send. Your balance is 0 Sepolia ETH. Please fund your wallet first.';
+    }
+    if (cmd.amount > availableBalanceETH) {
+      return l === 'hi'
+        ? `अपर्याप्त बैलेंस। आप ${cmd.amount} ईथर नहीं भेज सकते क्योंकि आपका बैलेंस सिर्फ़ ${availableBalanceETH.toFixed(4)} ईथर है।`
+        : l === 'ar'
+        ? `الرصيد غير كافٍ. لا يمكنك إرسال ${cmd.amount} إيثيريوم، رصيدك هو ${availableBalanceETH.toFixed(4)} إيثيريوم.`
+        : `Insufficient balance. Cannot send ${cmd.amount} ETH because your balance is only ${availableBalanceETH.toFixed(4)} ETH.`;
+    }
   }
-  if (cmd.recipientType && cmd.recipientType !== 'contact') {
-    return l === 'hi'
-      ? 'अभी मैं सिर्फ़ सेव किए गए कॉन्टैक्ट को भेज सकता हूँ। कॉन्टैक्ट का नाम बोलिए।'
-      : l === 'ar'
-      ? 'حالياً أقدر أرسل لجهات الاتصال المحفوظة بس. قل اسم الشخص.'
-      : 'I can only send to a saved contact right now. Please say the contact’s name.';
+
+  if (cmd.source === 'model') {
+    if (cmd.recipientType === 'self') return cmd.readback || 'That is your own wallet. Nothing was sent.';
+    if (cmd.unit && cmd.unit !== 'ETH') {
+      return l === 'hi'
+        ? 'अभी मैं सिर्फ़ टेस्ट ईथर भेज सकता हूँ। रकम ईथर में बोलिए।'
+        : l === 'ar'
+        ? 'حالياً أقدر أرسل إيثيريوم تجريبي بس. قل المبلغ بالإيثيريوم.'
+        : 'I can only send test ETH right now. Please say the amount in ETH.';
+    }
+    if (cmd.recipientType && cmd.recipientType !== 'contact') {
+      return l === 'hi'
+        ? 'अभी मैं सिर्फ़ सेव किए गए कॉन्टैक्ट को भेज सकता हूँ। कॉन्टैक्ट का नाम बोलिए।'
+        : l === 'ar'
+        ? 'حالياً أقدر أرسل لجهات الاتصال المحفوظة بس. قل اسم الشخص.'
+        : 'I can only send to a saved contact right now. Please say the contact’s name.';
+    }
   }
+
   return null;
 }
