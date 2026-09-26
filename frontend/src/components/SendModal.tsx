@@ -37,7 +37,7 @@ export const SendModal: React.FC<SendModalProps> = ({
     initialAmount ? initialAmount.toString() : '0.1'
   );
   const [isAuthorizing, setIsAuthorizing] = useState(false);
-  const [authStage, setAuthStage] = useState<'details' | 'passkey_prompt' | 'broadcasting'>('details');
+  const [authStage, setAuthStage] = useState<'details' | 'passkey_prompt' | 'broadcasting' | 'verified'>('details');
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,22 +54,32 @@ export const SendModal: React.FC<SendModalProps> = ({
   }, [initialContact, contacts]);
 
   // The modal stays mounted while closed, so a spoken amount must be copied in
-  // here; useState's initial value alone would keep the first amount (0.1).
   useEffect(() => {
     if (isOpen && initialAmount) {
       setAmountStr(initialAmount.toString());
+      // When opened with both voice contact and voice amount, switch directly to passkey verification prompt
+      if (initialContact) {
+        setAuthStage('passkey_prompt');
+      }
     }
-  }, [initialAmount, isOpen]);
+  }, [initialAmount, initialContact, isOpen]);
+
+  const handleDirectFingerprintSend = () => {
+    if (!isValidAddress || numericAmount <= 0 || numericAmount > availableBalanceETH) return;
+    audioCues.playIntentRecognized();
+    setAuthStage('passkey_prompt');
+    setAuthError(null);
+    setTimeout(() => {
+      handleExecutePasskey();
+    }, 250);
+  };
 
   // Handle external voice triggers (e.g. user says "fingerprint" or "confirm" or "cancel")
   useEffect(() => {
     if (!isOpen) return;
     if (externalVoiceTrigger === 'confirm' || externalVoiceTrigger === 'fingerprint') {
       if (authStage === 'details') {
-        handleProceedToPasskey();
-        setTimeout(() => {
-          handleExecutePasskey();
-        }, 600);
+        handleDirectFingerprintSend();
       } else if (authStage === 'passkey_prompt') {
         handleExecutePasskey();
       }
@@ -136,11 +146,12 @@ export const SendModal: React.FC<SendModalProps> = ({
 
       if (sigResult.success) {
         audioCues.playPasskeySuccess();
+        setAuthStage('verified');
         setTimeout(() => {
           audioCues.playSuccess();
           setIsAuthorizing(false);
           onConfirmSend(resolvedName, resolvedAddress, numericAmount, sigResult);
-        }, 600);
+        }, 800);
       } else {
         setIsAuthorizing(false);
         setAuthStage('passkey_prompt');
@@ -262,39 +273,61 @@ export const SendModal: React.FC<SendModalProps> = ({
               <span className="font-extrabold text-[#FF5500]">Free / $0.00</span>
             </div>
 
-            {/* Action buttons */}
-            <div className="pt-2 flex gap-3">
+            {/* Biometric Quick Sign or Review */}
+            <div className="pt-2 space-y-2">
               <button
-                onClick={onClose}
-                className="flex-1 py-3 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleProceedToPasskey}
+                onClick={handleDirectFingerprintSend}
                 disabled={!isValidAddress || numericAmount <= 0 || numericAmount > availableBalanceETH}
-                className="flex-1 py-3 rounded-xl btn-orange text-white text-xs font-black transition flex items-center justify-center gap-2 shadow-md disabled:opacity-40"
+                className="w-full py-3.5 rounded-2xl btn-orange text-white text-sm font-black transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-40 cursor-pointer"
               >
-                <span>Review & Sign</span>
-                <ArrowRight className="w-4 h-4" />
+                <Fingerprint className="w-5 h-5" />
+                <span>Confirm & Sign with Fingerprint</span>
               </button>
+
+              <div className="flex gap-2.5">
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleProceedToPasskey}
+                  disabled={!isValidAddress || numericAmount <= 0 || numericAmount > availableBalanceETH}
+                  className="flex-1 py-2.5 rounded-xl border border-zinc-200 hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
+                >
+                  <span>Review Details</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {authStage === 'passkey_prompt' && (
           <div className="space-y-4 text-center py-2 animate-fade-in">
-            <div className="w-16 h-16 rounded-full bg-[#FF5500]/10 text-[#FF5500] mx-auto flex items-center justify-center shadow-inner">
-              <Fingerprint className="w-9 h-9" />
+            {/* Interactive Biometric Sensor Pad */}
+            <div className="relative py-2 flex items-center justify-center">
+              <div className="absolute w-28 h-28 rounded-full bg-orange-500/10 animate-ping pointer-events-none" />
+              <div className="absolute w-24 h-24 rounded-full bg-orange-500/15 pointer-events-none" />
+              <button
+                onClick={handleExecutePasskey}
+                disabled={isAuthorizing}
+                className="relative z-10 w-20 h-20 rounded-full btn-orange text-white flex items-center justify-center shadow-xl shadow-orange-500/25 hover:scale-105 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                title="Tap to verify fingerprint"
+                aria-label="Tap to verify fingerprint"
+              >
+                <Fingerprint className="w-10 h-10" />
+              </button>
             </div>
 
             <div>
               <h3 className="text-lg font-black text-zinc-900 font-display">
-                Biometric Authorization
+                Biometric Fingerprint Required
               </h3>
               <p className="text-xs text-zinc-600 mt-1 max-w-sm mx-auto">
-                Spoken Read-Back: Sending <strong>{numericAmount} ETH</strong> (${usdValue} USD) to{' '}
-                <strong>{resolvedName}</strong>.
+                Tap the sensor above or say <strong>"Fingerprint"</strong> to sign transfer of{' '}
+                <strong>{numericAmount} ETH</strong> (${usdValue} USD) to <strong>{resolvedName}</strong>.
               </p>
             </div>
 
@@ -324,15 +357,15 @@ export const SendModal: React.FC<SendModalProps> = ({
               <button
                 onClick={handleExecutePasskey}
                 disabled={isAuthorizing}
-                className="w-full py-3.5 rounded-2xl btn-orange text-white text-sm font-black transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
+                className="w-full py-3.5 rounded-2xl btn-orange text-white text-sm font-black transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 cursor-pointer"
               >
                 <Fingerprint className="w-5 h-5" />
-                <span>{isAuthorizing ? 'Scanning Biometrics...' : 'Sign with Fingerprint / Passkey'}</span>
+                <span>{isAuthorizing ? 'Scanning Biometrics...' : 'Verify Fingerprint / Passkey'}</span>
               </button>
 
               <button
                 onClick={() => setAuthStage('details')}
-                className="w-full py-2.5 rounded-xl bg-transparent hover:bg-zinc-100 text-zinc-600 text-xs font-bold transition"
+                className="w-full py-2.5 rounded-xl bg-transparent hover:bg-zinc-100 text-zinc-600 text-xs font-bold transition cursor-pointer"
               >
                 Go Back
               </button>
@@ -346,10 +379,24 @@ export const SendModal: React.FC<SendModalProps> = ({
               <div className="w-6 h-6 border-2 border-[#FF5500] border-t-transparent rounded-full animate-spin" />
             </div>
             <h3 className="text-base font-extrabold text-zinc-900 font-display">
-              Broadcasting to Sepolia Node...
+              Verifying Biometrics & Broadcasting...
             </h3>
             <p className="text-xs text-zinc-500 font-mono">
               Verifying passkey signature on ERC-4337 smart contract...
+            </p>
+          </div>
+        )}
+
+        {authStage === 'verified' && (
+          <div className="py-8 text-center space-y-3 animate-fade-in">
+            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-md">
+              <Check className="w-8 h-8 stroke-[3]" />
+            </div>
+            <h3 className="text-lg font-black text-zinc-900 font-display">
+              Fingerprint Verified!
+            </h3>
+            <p className="text-xs text-zinc-600 font-mono">
+              Cryptographic passkey signature verified. Transfer confirmed.
             </p>
           </div>
         )}

@@ -43,6 +43,9 @@ import {
   Unlock,
   Key,
   RotateCcw,
+  Menu,
+  X,
+  MoreHorizontal,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audioCues } from '../utils/audioCues';
@@ -159,6 +162,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   // Compulsory Earphone Safety State
   const [headphoneStatus, setHeadphoneStatus] = useState<HeadphoneStatus>(() => headphoneSafety.getStatus());
   const [showHeadphoneModal, setShowHeadphoneModal] = useState<boolean>(false);
+  const [showEarphoneBanner, setShowEarphoneBanner] = useState<boolean>(() => !headphoneSafety.getStatus().isConnected);
+  const [showMobileNavMenu, setShowMobileNavMenu] = useState<boolean>(false);
   const [modalVoiceTrigger, setModalVoiceTrigger] = useState<'confirm' | 'cancel' | 'fingerprint' | null>(null);
 
   // Stealth Screen Curtain Privacy Shield State (Shoulder-Surfing Immunity)
@@ -307,6 +312,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       setHeadphoneStatus(status);
       if (status.isConnected) {
         setShowHeadphoneModal(false);
+        setShowEarphoneBanner(false);
       }
     });
 
@@ -1585,17 +1591,32 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
       {/* 1. Global Floating Pill Navigation Bar */}
       <div className="sticky top-3 z-40 px-3 sm:px-6">
-        <header className="max-w-6xl mx-auto bg-white/95 backdrop-blur-xl border border-zinc-200/80 rounded-3xl px-4 sm:px-6 py-3 shadow-sm transition-all">
-          <div className="relative flex items-center justify-between gap-3">
-            {/* Left Controls: Return to Landing Page & Earphones Indicator */}
-            <div className="flex items-center gap-2 sm:gap-3">
+        <header className="max-w-6xl mx-auto bg-white/95 backdrop-blur-xl border border-zinc-200/80 rounded-3xl px-3 sm:px-6 py-2.5 sm:py-3 shadow-sm transition-all">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            {/* Left Group: Brand Logo & Landing Link & Earphone Status */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <button
                 onClick={onBackToLanding}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-zinc-100 hover:bg-zinc-200/70 border border-zinc-200 text-xs font-bold text-zinc-700 transition cursor-pointer"
+                className="flex items-center gap-2 group focus:outline-none cursor-pointer"
+                title="SayPay Smart Vault"
+              >
+                <div className="w-8 h-8 rounded-xl bg-[#FF5500] flex items-center justify-center font-black text-white text-sm shadow-xs group-hover:scale-105 transition">
+                  S
+                </div>
+                <span className="font-extrabold text-base sm:text-lg text-zinc-900 tracking-tight font-display">
+                  SayPay
+                </span>
+              </button>
+
+              <div className="h-4 w-px bg-zinc-200 hidden md:block" />
+
+              <button
+                onClick={onBackToLanding}
+                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200/70 border border-zinc-200 text-xs font-bold text-zinc-700 transition cursor-pointer"
                 title="Return to Landing Page"
               >
                 <ArrowLeft className="w-3.5 h-3.5 text-zinc-500" />
-                <span className="hidden sm:inline">Landing</span>
+                <span>Landing</span>
               </button>
 
               {/* Compulsory Earphones Privacy Indicator (ONLY in Blind Mode) */}
@@ -1605,7 +1626,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                     audioCues.playIntentRecognized();
                     setShowHeadphoneModal(true);
                   }}
-                  className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold transition cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold transition cursor-pointer ${
                     headphoneStatus.isConnected
                       ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                       : 'bg-orange-50 border-[#FF5500]/40 text-[#FF5500] animate-pulse'
@@ -1613,41 +1634,23 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                   title="Earphones Audio Privacy Gate"
                 >
                   <Headphones className="w-3.5 h-3.5" />
-                  <span>
-                    {headphoneStatus.isConnected
-                      ? 'Earphones Active'
-                      : 'Earphones Required'}
+                  <span className="hidden sm:inline">
+                    {headphoneStatus.isConnected ? 'Earphones Active' : 'Earphones Required'}
                   </span>
                 </button>
               )}
             </div>
 
-            {/* Brand Logo (Centered) */}
-            <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
-              <button
-                onClick={onBackToLanding}
-                className="flex items-center gap-2.5 group focus:outline-none cursor-pointer"
-                title="SayPay Smart Vault"
-              >
-                <div className="w-8 h-8 rounded-xl bg-[#FF5500] flex items-center justify-center font-black text-white text-sm shadow-sm group-hover:scale-105 transition">
-                  S
-                </div>
-                <span className="font-extrabold text-lg text-zinc-900 tracking-tight font-display hidden sm:inline">
-                  SayPay
-                </span>
-              </button>
-            </div>
-
-            {/* Right Controls: Web3 Account Dropdown, Settings, Mode Toggle */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            {/* Right Controls: Account Dropdown, Mode Toggle, Desktop Quick Actions, Mobile Menu */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
               {/* Account Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setShowAccountDropdown(!showAccountDropdown)}
-                  className="px-3.5 py-1.5 rounded-2xl bg-zinc-100 hover:bg-zinc-200/70 border border-zinc-200 text-xs font-bold text-zinc-900 transition flex items-center gap-2 shadow-xs cursor-pointer"
+                  className="px-2.5 sm:px-3.5 py-1.5 rounded-2xl bg-zinc-100 hover:bg-zinc-200/70 border border-zinc-200 text-xs font-bold text-zinc-900 transition flex items-center gap-1.5 sm:gap-2 shadow-xs cursor-pointer"
                 >
                   <div className="w-2 h-2 rounded-full bg-[#FF5500]" />
-                  <span className="font-display">{userState.name}</span>
+                  <span className="font-display hidden sm:inline">{userState.name}</span>
                   <span className="font-mono text-[10px] text-zinc-500">({userState.address.slice(0, 4)}...{userState.address.slice(-3)})</span>
                   <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${showAccountDropdown ? 'rotate-180' : ''}`} />
                 </button>
@@ -1753,35 +1756,6 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 )}
               </div>
 
-              {/* Vault Quick Lock Button */}
-              <button
-                onClick={() => {
-                  audioCues.playWarning();
-                  setIsLocked(true);
-                  speakText('SayPay Vault locked.', lang);
-                }}
-                className="p-2 rounded-2xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                title="Lock SayPay Vault"
-                aria-label="Lock SayPay Vault"
-              >
-                <Lock className="w-4 h-4 text-zinc-600" />
-                <span className="hidden sm:inline text-xs font-bold">Lock</span>
-              </button>
-
-              {/* Accessibility Settings Trigger */}
-              <button
-                onClick={() => {
-                  audioCues.playIntentRecognized();
-                  setIsSettingsOpen(true);
-                }}
-                className="p-2 rounded-2xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                title="Accessibility Settings"
-                aria-label="Open Accessibility Settings"
-              >
-                <Settings className="w-4 h-4 text-zinc-600" />
-                <span className="hidden lg:inline text-xs font-bold">Settings</span>
-              </button>
-
               {/* Accessibility Mode Switcher */}
               <button
                 onClick={() => {
@@ -1799,52 +1773,174 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
                 {accessibilityMode === 'blind' ? (
                   <>
                     <Mic className="w-4 h-4 text-[#FF5500]" />
-                    <span className="hidden sm:inline font-bold">Voice-Assisted</span>
+                    <span className="hidden md:inline font-bold">Voice-Assisted</span>
                   </>
                 ) : (
                   <>
                     <Eye className="w-4 h-4 text-zinc-600" />
-                    <span className="hidden sm:inline">Visual Mode</span>
+                    <span className="hidden md:inline">Visual Mode</span>
                   </>
                 )}
               </button>
 
-              {/* Privacy Mode (Screen Curtain) Toggle */}
-              <button
-                onClick={() => {
-                  if (isPrivacyModeActive) {
-                    disablePrivacyMode();
-                  } else {
-                    enablePrivacyMode();
-                  }
-                }}
-                className={`p-2 rounded-2xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                  isPrivacyModeActive
-                    ? 'border-[#FF5500] bg-[#FF5500]/10 text-[#FF5500] shadow-xs animate-pulse'
-                    : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100'
-                }`}
-                title="Privacy Mode (Screen Curtain)"
-                aria-label="Toggle Privacy Screen Curtain"
-              >
-                <EyeOff className="w-4 h-4 text-zinc-600" />
-                <span className="hidden xl:inline text-xs font-bold">Privacy</span>
-              </button>
+              {/* Desktop Quick Actions (lg+) */}
+              <div className="hidden lg:flex items-center gap-2">
+                {/* Vault Quick Lock Button */}
+                <button
+                  onClick={() => {
+                    audioCues.playWarning();
+                    setIsLocked(true);
+                    speakText('SayPay Vault locked.', lang);
+                  }}
+                  className="p-2 rounded-2xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  title="Lock SayPay Vault"
+                  aria-label="Lock SayPay Vault"
+                >
+                  <Lock className="w-4 h-4 text-zinc-600" />
+                  <span className="text-xs font-bold">Lock</span>
+                </button>
 
-              {/* Language Switch */}
-              <select
-                value={lang}
-                onChange={(e) => {
-                  const newL = e.target.value as SupportedLanguage;
-                  setLang(newL);
-                  audioCues.playIntentRecognized();
-                }}
-                className="bg-white border border-zinc-200 text-xs font-bold text-zinc-800 rounded-2xl px-2.5 py-1.5 focus:outline-none cursor-pointer"
-                aria-label="Select language"
-              >
-                <option value="en">EN</option>
-                <option value="hi">हिंदी</option>
-                <option value="ar">العربية</option>
-              </select>
+                {/* Accessibility Settings Trigger */}
+                <button
+                  onClick={() => {
+                    audioCues.playIntentRecognized();
+                    setIsSettingsOpen(true);
+                  }}
+                  className="p-2 rounded-2xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  title="Accessibility Settings"
+                  aria-label="Open Accessibility Settings"
+                >
+                  <Settings className="w-4 h-4 text-zinc-600" />
+                  <span className="text-xs font-bold">Settings</span>
+                </button>
+
+                {/* Privacy Mode (Screen Curtain) Toggle */}
+                <button
+                  onClick={() => {
+                    if (isPrivacyModeActive) {
+                      disablePrivacyMode();
+                    } else {
+                      enablePrivacyMode();
+                    }
+                  }}
+                  className={`p-2 rounded-2xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    isPrivacyModeActive
+                      ? 'border-[#FF5500] bg-[#FF5500]/10 text-[#FF5500] shadow-xs animate-pulse'
+                      : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100'
+                  }`}
+                  title="Privacy Mode (Screen Curtain)"
+                  aria-label="Toggle Privacy Screen Curtain"
+                >
+                  <EyeOff className="w-4 h-4 text-zinc-600" />
+                  <span className="text-xs font-bold">Privacy</span>
+                </button>
+
+                {/* Language Switch */}
+                <select
+                  value={lang}
+                  onChange={(e) => {
+                    const newL = e.target.value as SupportedLanguage;
+                    setLang(newL);
+                    audioCues.playIntentRecognized();
+                  }}
+                  className="bg-white border border-zinc-200 text-xs font-bold text-zinc-800 rounded-2xl px-2.5 py-1.5 focus:outline-none cursor-pointer"
+                  aria-label="Select language"
+                >
+                  <option value="en">EN</option>
+                  <option value="hi">हिंदी</option>
+                  <option value="ar">العربية</option>
+                </select>
+              </div>
+
+              {/* Mobile / Tablet Quick Menu Trigger (<lg) */}
+              <div className="relative lg:hidden">
+                <button
+                  onClick={() => setShowMobileNavMenu(!showMobileNavMenu)}
+                  className="p-2 rounded-2xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 transition shadow-xs cursor-pointer"
+                  title="More actions"
+                  aria-label="Open mobile menu"
+                >
+                  {showMobileNavMenu ? (
+                    <X className="w-4 h-4 text-zinc-800" />
+                  ) : (
+                    <MoreHorizontal className="w-4 h-4 text-zinc-800" />
+                  )}
+                </button>
+
+                {/* Mobile Menu Dropdown */}
+                {showMobileNavMenu && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-zinc-200 p-2 z-50 animate-fade-in space-y-1">
+                    <button
+                      onClick={() => {
+                        setShowMobileNavMenu(false);
+                        audioCues.playWarning();
+                        setIsLocked(true);
+                        speakText('SayPay Vault locked.', lang);
+                      }}
+                      className="w-full text-left p-2.5 rounded-xl hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <Lock className="w-4 h-4 text-zinc-600" />
+                      <span>Lock Vault</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowMobileNavMenu(false);
+                        audioCues.playIntentRecognized();
+                        setIsSettingsOpen(true);
+                      }}
+                      className="w-full text-left p-2.5 rounded-xl hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <Settings className="w-4 h-4 text-zinc-600" />
+                      <span>Accessibility Settings</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowMobileNavMenu(false);
+                        if (isPrivacyModeActive) {
+                          disablePrivacyMode();
+                        } else {
+                          enablePrivacyMode();
+                        }
+                      }}
+                      className="w-full text-left p-2.5 rounded-xl hover:bg-zinc-50 text-zinc-800 text-xs font-bold transition flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <EyeOff className="w-4 h-4 text-zinc-600" />
+                      <span>{isPrivacyModeActive ? 'Disable Screen Curtain' : 'Enable Screen Curtain'}</span>
+                    </button>
+
+                    <div className="pt-2 border-t border-zinc-100 flex items-center justify-between px-2 py-1 text-xs">
+                      <span className="font-bold text-zinc-500">Language:</span>
+                      <select
+                        value={lang}
+                        onChange={(e) => {
+                          const newL = e.target.value as SupportedLanguage;
+                          setLang(newL);
+                          audioCues.playIntentRecognized();
+                        }}
+                        className="bg-zinc-100 border border-zinc-200 text-xs font-bold text-zinc-800 rounded-xl px-2 py-1 focus:outline-none cursor-pointer"
+                        aria-label="Select language"
+                      >
+                        <option value="en">EN</option>
+                        <option value="hi">हिंदी</option>
+                        <option value="ar">العربية</option>
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setShowMobileNavMenu(false);
+                        onBackToLanding();
+                      }}
+                      className="w-full text-left p-2.5 rounded-xl hover:bg-zinc-50 text-zinc-600 text-xs font-semibold transition flex items-center gap-2.5 cursor-pointer border-t border-zinc-100"
+                    >
+                      <ArrowLeft className="w-4 h-4 text-zinc-500" />
+                      <span>Back to Landing</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>
@@ -1852,6 +1948,47 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
       {/* Main Workspace */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Earphones Privacy Advisory Banner */}
+        {showEarphoneBanner && !headphoneStatus.isConnected && (
+          <div
+            role="alert"
+            className="p-4 sm:p-5 rounded-3xl bg-amber-50/90 border border-amber-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in"
+          >
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 shadow-xs">
+                <Headphones className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-amber-950 font-display">
+                  Audio Privacy Notice: Connect Earphones
+                </h4>
+                <p className="text-xs text-amber-800 mt-0.5 leading-relaxed max-w-xl">
+                  Connect wired or Bluetooth earphones for audio privacy. Your balance and transactions are read out loud by voice.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <button
+                onClick={() => {
+                  audioCues.playSuccess();
+                  headphoneSafety.confirmEarphonesConnected(true);
+                  setShowEarphoneBanner(false);
+                }}
+                className="px-3.5 py-2 rounded-xl btn-orange text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>I Have Earphones Connected</span>
+              </button>
+              <button
+                onClick={() => setShowEarphoneBanner(false)}
+                className="px-3 py-2 rounded-xl bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-semibold transition cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         {/* Incoming Payment Banner (Live Real-Time Notification) */}
         {incomingAlert && (
           <div className="p-4 rounded-3xl bg-[#FF5500] text-white font-bold shadow-lg border border-orange-400 flex items-center justify-between animate-bounce-short">
@@ -1925,146 +2062,152 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         <div className="max-w-6xl mx-auto pb-24">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Left Column (Desktop 5 cols, Mobile Full Width): Portfolio Card & Actions */}
-            <div className="lg:col-span-5 space-y-6">
+            <div className="lg:col-span-5 space-y-6 min-w-0 max-w-full overflow-hidden">
               {/* 1. Hero Balance Card */}
               <section
                 aria-labelledby="portfolio-heading"
-                className="tw-card p-6 sm:p-8 relative overflow-hidden group shadow-sm bg-white"
+                className="tw-card p-5 sm:p-7 relative overflow-hidden group shadow-sm bg-white w-full max-w-full min-w-0"
               >
                 <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#FF5500] via-orange-400 to-amber-500" />
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 min-w-0 max-w-full">
+                  <div className="min-w-0 flex-1 overflow-hidden w-full">
+                    <div className="flex items-center gap-2 mb-1.5">
                       <span id="portfolio-heading" className="text-xs font-extrabold text-zinc-500 uppercase tracking-wider font-display">
                         Total Balance
                       </span>
                     </div>
 
-                    {/* Primary Monospace Balance */}
-                    <div className="flex items-baseline gap-2.5">
-                      <span className="text-4xl sm:text-5xl font-black text-zinc-900 tracking-tight font-mono">
+                    {/* Primary Monospace Balance with responsive scaling and containment */}
+                    <div className="flex items-baseline gap-2 min-w-0 max-w-full overflow-hidden">
+                      <span
+                        className="text-2xl sm:text-3xl lg:text-4xl font-black text-zinc-900 tracking-tight font-mono truncate block max-w-full"
+                        title={`$${totalBalanceUSD.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })} USD`}
+                      >
                         ${totalBalanceUSD.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </span>
-                      <span className="text-xs sm:text-sm font-bold text-zinc-500 font-mono">USD</span>
+                      <span className="text-xs sm:text-sm font-bold text-zinc-500 font-mono shrink-0">USD</span>
                     </div>
 
                     {/* Equivalent in ETH */}
                     <div className="flex flex-wrap items-center gap-2 mt-2">
-                      <span className="text-sm font-mono font-bold text-[#FF5500]">
+                      <span className="text-xs sm:text-sm font-mono font-bold text-[#FF5500]">
                         {userState.balanceETH.toFixed(4)} ETH
                       </span>
                       <span className="text-zinc-300">&bull;</span>
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full shadow-xs">
+                      <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full shadow-xs">
                         <TrendingUp className="w-3 h-3 text-emerald-700" />
                         <span>+1.00% Today</span>
                       </span>
                     </div>
                   </div>
 
-                {/* Address Pill + Read Aloud Controls */}
-                <div className="flex flex-col sm:items-end gap-2.5">
-                  <button
-                    onClick={() => {
-                      audioCues.playSuccess();
-                      navigator.clipboard.writeText(userState.address);
-                      setCopiedAddress(true);
-                      setTimeout(() => setCopiedAddress(false), 2000);
-                      const copiedMsg = 'Account address copied.';
-                      setVoiceFeedback(copiedMsg);
-                      speakText(copiedMsg, lang);
-                    }}
-                    className="px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-800 font-mono text-xs font-semibold flex items-center gap-2 transition shadow-xs cursor-pointer"
-                    title="Copy Address"
-                  >
-                    <span>{userState.address.slice(0, 8)}...{userState.address.slice(-6)}</span>
-                    {copiedAddress ? (
-                      <span className="flex items-center gap-1 text-[#FF5500] font-bold text-[10px]">
-                        <Check className="w-3.5 h-3.5 text-[#FF5500]" />
-                        <span>Copied!</span>
-                      </span>
-                    ) : (
-                      <Copy className="w-3.5 h-3.5 text-zinc-500" />
-                    )}
-                  </button>
+                  {/* Address Pill + Read Aloud Controls */}
+                  <div className="flex flex-col sm:flex-row md:flex-col sm:items-start md:items-end gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        audioCues.playSuccess();
+                        navigator.clipboard.writeText(userState.address);
+                        setCopiedAddress(true);
+                        setTimeout(() => setCopiedAddress(false), 2000);
+                        const copiedMsg = 'Account address copied.';
+                        setVoiceFeedback(copiedMsg);
+                        speakText(copiedMsg, lang);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-800 font-mono text-xs font-semibold flex items-center gap-2 transition shadow-xs cursor-pointer"
+                      title="Copy Address"
+                    >
+                      <span>{userState.address.slice(0, 6)}...{userState.address.slice(-4)}</span>
+                      {copiedAddress ? (
+                        <span className="flex items-center gap-1 text-[#FF5500] font-bold text-[10px]">
+                          <Check className="w-3.5 h-3.5 text-[#FF5500]" />
+                          <span>Copied!</span>
+                        </span>
+                      ) : (
+                        <Copy className="w-3.5 h-3.5 text-zinc-500" />
+                      )}
+                    </button>
 
+                    <button
+                      onClick={() => {
+                        audioCues.playIntentRecognized();
+                        const readout = `Your portfolio balance is $${totalBalanceUSD.toFixed(2)} USD, with ${userState.balanceETH.toFixed(4)} Sepolia ETH.`;
+                        setVoiceFeedback(readout);
+                        speakText(readout, lang);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-[#FF5500]/10 hover:bg-[#FF5500]/20 border border-[#FF5500]/25 text-[#FF5500] text-xs font-bold flex items-center gap-1.5 transition self-start sm:self-auto cursor-pointer"
+                    >
+                      <Volume2 className="w-3.5 h-3.5 text-[#FF5500]" />
+                      <span>Read Balance</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4 Primary Action Buttons (Send, Receive, Swap, Fund) */}
+                <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4 mt-6 pt-5 border-t border-zinc-100 w-full min-w-0 max-w-full">
+                  {/* Action 1: Send */}
                   <button
                     onClick={() => {
                       audioCues.playIntentRecognized();
-                      const readout = `Your portfolio balance is $${totalBalanceUSD.toFixed(2)} USD, with ${userState.balanceETH.toFixed(4)} Sepolia ETH.`;
-                      setVoiceFeedback(readout);
-                      speakText(readout, lang);
+                      setSendPreFill({});
+                      setIsSendOpen(true);
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-[#FF5500]/10 hover:bg-[#FF5500]/20 border border-[#FF5500]/25 text-[#FF5500] text-xs font-bold flex items-center gap-1.5 transition self-start sm:self-end cursor-pointer"
+                    className="min-w-0 flex-1 flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
                   >
-                    <Volume2 className="w-3.5 h-3.5 text-[#FF5500]" />
-                    <span>Read Balance</span>
+                    <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl btn-orange text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
+                      <Send className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </div>
+                    <span className="text-[11px] sm:text-xs md:text-sm font-extrabold text-zinc-900 font-display truncate max-w-full text-center">Send</span>
+                  </button>
+
+                  {/* Action 2: Receive */}
+                  <button
+                    onClick={() => {
+                      audioCues.playIntentRecognized();
+                      setIsReceiveOpen(true);
+                    }}
+                    className="min-w-0 flex-1 flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
+                  >
+                    <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-zinc-50 border border-zinc-200 text-zinc-800 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
+                      <ArrowDownLeft className="w-5 h-5 sm:w-6 sm:h-6 text-[#FF5500]" />
+                    </div>
+                    <span className="text-[11px] sm:text-xs md:text-sm font-extrabold text-zinc-900 font-display truncate max-w-full text-center">Receive</span>
+                  </button>
+
+                  {/* Action 3: Swap */}
+                  <button
+                    onClick={() => {
+                      audioCues.playIntentRecognized();
+                      setIsSwapOpen(true);
+                    }}
+                    className="min-w-0 flex-1 flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
+                  >
+                    <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
+                      <ArrowDownUp className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </div>
+                    <span className="text-[11px] sm:text-xs md:text-sm font-extrabold text-zinc-900 font-display truncate max-w-full text-center">Swap</span>
+                  </button>
+
+                  {/* Action 4: Fund (+ Add Cash) */}
+                  <button
+                    onClick={() => {
+                      audioCues.playIntentRecognized();
+                      setIsFundOpen(true);
+                    }}
+                    className="min-w-0 flex-1 flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
+                  >
+                    <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
+                      <Coins className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </div>
+                    <span className="text-[11px] sm:text-xs md:text-sm font-extrabold text-zinc-900 font-display truncate max-w-full text-center">Fund</span>
                   </button>
                 </div>
-              </div>
-
-              {/* 4 Primary Action Buttons (Send, Receive, Swap, Fund) */}
-              <div className="grid grid-cols-4 gap-2 sm:gap-4 mt-8 pt-6 border-t border-zinc-100">
-                {/* Action 1: Send */}
-                <button
-                  onClick={() => {
-                    audioCues.playIntentRecognized();
-                    setSendPreFill({});
-                    setIsSendOpen(true);
-                  }}
-                  className="flex flex-col items-center gap-2 p-2.5 sm:p-3 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
-                >
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl btn-orange text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
-                    <Send className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-zinc-900 font-display">Send</span>
-                </button>
-
-                {/* Action 2: Receive */}
-                <button
-                  onClick={() => {
-                    audioCues.playIntentRecognized();
-                    setIsReceiveOpen(true);
-                  }}
-                  className="flex flex-col items-center gap-2 p-2.5 sm:p-3 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
-                >
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-zinc-50 border border-zinc-200 text-zinc-800 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
-                    <ArrowDownLeft className="w-5 h-5 sm:w-6 sm:h-6 text-[#FF5500]" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-zinc-900 font-display">Receive</span>
-                </button>
-
-                {/* Action 3: Swap */}
-                <button
-                  onClick={() => {
-                    audioCues.playIntentRecognized();
-                    setIsSwapOpen(true);
-                  }}
-                  className="flex flex-col items-center gap-2 p-2.5 sm:p-3 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
-                >
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
-                    <ArrowDownUp className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-zinc-900 font-display">Swap</span>
-                </button>
-
-                {/* Action 4: Fund (+ Add Cash) */}
-                <button
-                  onClick={() => {
-                    audioCues.playIntentRecognized();
-                    setIsFundOpen(true);
-                  }}
-                  className="flex flex-col items-center gap-2 p-2.5 sm:p-3 rounded-2xl hover:bg-zinc-50 transition group cursor-pointer"
-                >
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shadow-xs group-hover:scale-105 transition">
-                    <Coins className="w-5 h-5 sm:w-6 sm:h-6" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-extrabold text-zinc-900 font-display">Fund</span>
-                </button>
-              </div>
 
               {/* Quick Pills for Contacts and Guardians */}
               <div className="flex flex-wrap items-center justify-center gap-3 mt-4 pt-3 border-t border-zinc-100/60 text-xs">

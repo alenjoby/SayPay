@@ -109,25 +109,30 @@ class HeadphoneSafetyService {
         'earphone',
         'in-ear',
         'earpods',
+        'jack',
+        'analog',
+        'earpiece',
+        'stereo headset',
+        'external',
+        'line out',
       ];
 
       const speakerBlacklist = [
-        'speaker',
         'loudspeaker',
-        'built-in',
-        'internal',
-        'realtek audio',
-        'realtek high definition audio',
-        'realtek(r) audio',
+        'built-in speaker',
+        'internal speaker',
         'display audio',
         'hdmi',
         'tv audio',
         'monitor',
       ];
 
+      // Check if user previously confirmed earphones in local storage
+      const userAcknowledgedWired = typeof localStorage !== 'undefined' && localStorage.getItem('saypay_earphones_connected') === 'true';
+
       let detectedWireless = false;
-      let detectedWired = false;
-      let matchedLabel = '';
+      let detectedWired = userAcknowledgedWired;
+      let matchedLabel = userAcknowledgedWired ? 'Wired Earphones (User Confirmed)' : '';
 
       for (const dev of audioDevices) {
         const lbl = dev.label.toLowerCase().trim();
@@ -164,7 +169,7 @@ class HeadphoneSafetyService {
         this.isConnected = true;
         this.isVerified = true;
         this.connectionType = 'wired';
-        this.deviceName = matchedLabel;
+        this.deviceName = matchedLabel || 'Wired Earphones / Headphones';
       } else {
         this.isConnected = false;
         this.isVerified = false;
@@ -220,11 +225,17 @@ class HeadphoneSafetyService {
       this.isWired = true;
       this.connectionType = 'wired';
       this.deviceName = 'Earphones (Verified Audio)';
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('saypay_earphones_connected', 'true');
+      }
     } else {
       this.isWired = false;
       this.isWireless = false;
       this.connectionType = 'none';
       this.deviceName = 'Loudspeaker (Earphones Not Detected)';
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('saypay_earphones_connected');
+      }
     }
     this.notifyListeners();
   }

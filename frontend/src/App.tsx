@@ -17,6 +17,10 @@ import {
   UserCheck,
   Send,
   Download,
+  Headphones,
+  Compass,
+  RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
 import { LiveAnnouncer } from './components/LiveAnnouncer';
 import { InteractiveWalletDemo } from './components/InteractiveWalletDemo';
@@ -442,62 +446,163 @@ export const App: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. Section: Research Numbers Strip (Minimal, Clean) */}
+      {/* 4. Section: The Usability Gap (Trust Wallet Reference Design) */}
       <section id="accessibility" className="py-20 px-4 sm:px-8 bg-slate-50">
-        <div className="max-w-5xl mx-auto">
-          <div data-aos="fade-up" className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs uppercase font-extrabold tracking-widest text-slate-500">
+        <div className="max-w-6xl mx-auto space-y-16">
+          {/* Section Header */}
+          <div data-aos="fade-up" className="text-center max-w-2xl mx-auto">
+            <span className="text-xs uppercase font-extrabold tracking-widest text-[#FF5500]">
               The Usability Gap
             </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-2">
-              Backed by Usability Research (SOUPS 2023)
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-2 font-display">
+              Why choose SayPay?
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Tested on 23 blind users using standard wallets like MetaMask (Zhou et al.)
+            <p className="text-sm text-slate-600 mt-2">
+              Designed specifically for voice-first and blind accessibility with zero seed phrase friction.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* 3-Column Trust Wallet Grid: 2 Cards Left, Showcase Image Center, 2 Cards Right */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-stretch">
+            {/* Left Column (2 Cards) */}
+            <div className="lg:col-span-3 flex flex-col gap-6 justify-between">
+              {/* Card 1: Audio Guidance */}
+              <div
+                data-aos="fade-up"
+                data-aos-delay="100"
+                className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[160px] sm:min-h-[175px] hover:shadow-md transition"
+              >
+                <div>
+                  <Headphones className="w-6 h-6 text-slate-800" />
+                </div>
+                <div className="mt-6">
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
+                    Real-time audio guidance, 24/7
+                  </h3>
+                </div>
+              </div>
+
+              {/* Card 2: Blind-first Navigation */}
+              <div
+                data-aos="fade-up"
+                data-aos-delay="200"
+                className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[160px] sm:min-h-[175px] hover:shadow-md transition"
+              >
+                <div>
+                  <Compass className="w-6 h-6 text-slate-800" />
+                </div>
+                <div className="mt-6">
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
+                    Explore dApps and blind-first ecosystems
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Center Column: Showcase Image */}
             <div
               data-aos="fade-up"
-              data-aos-delay="100"
-              className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group"
+              data-aos-delay="150"
+              className="md:col-span-2 lg:col-span-6 flex items-center justify-center"
             >
-              <span className="text-5xl font-black text-slate-900 tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
-                <AnimatedCounter end={70} prefix="+" suffix="%" />
+              <div className="w-full h-full min-h-[280px] sm:min-h-[340px] rounded-3xl overflow-hidden shadow-sm border border-slate-200/80 bg-slate-200">
+                <img
+                  src="/assets/mascot.jpg"
+                  alt="SayPay Voice and Audio Interface"
+                  className="w-full h-full object-cover object-center max-h-[380px] sm:max-h-[420px]"
+                />
+              </div>
+            </div>
+
+            {/* Right Column (2 Cards) */}
+            <div className="lg:col-span-3 flex flex-col gap-6 justify-between">
+              {/* Card 3: Multi-chain Swaps */}
+              <div
+                data-aos="fade-up"
+                data-aos-delay="200"
+                className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[160px] sm:min-h-[175px] hover:shadow-md transition"
+              >
+                <div>
+                  <RefreshCw className="w-6 h-6 text-slate-800" />
+                </div>
+                <div className="mt-6">
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
+                    Swaps across 100+ blockchains
+                  </h3>
+                </div>
+              </div>
+
+              {/* Card 4: Built-in Security */}
+              <div
+                data-aos="fade-up"
+                data-aos-delay="300"
+                className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[160px] sm:min-h-[175px] hover:shadow-md transition"
+              >
+                <div>
+                  <ShieldCheck className="w-6 h-6 text-slate-800" />
+                </div>
+                <div className="mt-6">
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
+                    Built-in Security Scanner & Recovery
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Research Numbers Strip (SOUPS 2023 Usability Study) */}
+          <div className="pt-6 border-t border-slate-200/80">
+            <div className="text-center max-w-xl mx-auto mb-8">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Backed by Usability Research (SOUPS 2023)
               </span>
-              <h3 className="font-bold text-slate-800 text-sm mt-2">Longer Task Duration</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Blind users averaged 47.9 minutes vs 28.2 minutes for sighted users on basic tasks.
+              <p className="text-xs text-slate-500 mt-0.5">
+                Tested on 23 blind users using standard wallets like MetaMask (Zhou et al.)
               </p>
             </div>
 
-            <div
-              data-aos="fade-up"
-              data-aos-delay="200"
-              className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group"
-            >
-              <span className="text-5xl font-black text-[#FF5500] tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
-                <AnimatedCounter end={0} reverse={true} />
-              </span>
-              <h3 className="font-bold text-slate-800 text-sm mt-2">Silent Popups in SayPay</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Standard wallets failed to announce confirmation dialogs. SayPay reads all actions out loud.
-              </p>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div
+                data-aos="fade-up"
+                data-aos-delay="100"
+                className="bg-white p-7 rounded-3xl border border-slate-200 text-center shadow-xs hover:border-[#FF5500]/30 transition group"
+              >
+                <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
+                  <AnimatedCounter end={70} prefix="+" suffix="%" />
+                </span>
+                <h3 className="font-bold text-slate-800 text-sm mt-2">Longer Task Duration</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Blind users averaged 47.9 minutes vs 28.2 minutes for sighted users on basic tasks.
+                </p>
+              </div>
 
-            <div
-              data-aos="fade-up"
-              data-aos-delay="300"
-              className="bg-white p-8 rounded-3xl border border-slate-200 text-center shadow-sm hover:border-[#FF5500]/30 transition group"
-            >
-              <span className="text-5xl font-black text-slate-900 tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
-                <AnimatedCounter end={12} suffix=" Words" />
-              </span>
-              <h3 className="font-bold text-slate-800 text-sm mt-2">Seed Phrases Eliminated</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Screen-reader users often skipped 12-word seed backups due to fatigue. SayPay is seedless.
-              </p>
+              <div
+                data-aos="fade-up"
+                data-aos-delay="200"
+                className="bg-white p-7 rounded-3xl border border-slate-200 text-center shadow-xs hover:border-[#FF5500]/30 transition group"
+              >
+                <span className="text-4xl sm:text-5xl font-black text-[#FF5500] tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
+                  <AnimatedCounter end={0} reverse={true} />
+                </span>
+                <h3 className="font-bold text-slate-800 text-sm mt-2">Silent Popups in SayPay</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Standard wallets failed to announce confirmation dialogs. SayPay reads all actions out loud.
+                </p>
+              </div>
+
+              <div
+                data-aos="fade-up"
+                data-aos-delay="300"
+                className="bg-white p-7 rounded-3xl border border-slate-200 text-center shadow-xs hover:border-[#FF5500]/30 transition group"
+              >
+                <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight block tabular-nums group-hover:scale-105 transition-transform">
+                  <AnimatedCounter end={12} suffix=" Words" />
+                </span>
+                <h3 className="font-bold text-slate-800 text-sm mt-2">Seed Phrases Eliminated</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Screen-reader users often skipped 12-word seed backups due to fatigue. SayPay is seedless.
+                </p>
+              </div>
             </div>
           </div>
         </div>
