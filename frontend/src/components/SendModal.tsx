@@ -57,12 +57,15 @@ export const SendModal: React.FC<SendModalProps> = ({
   useEffect(() => {
     if (isOpen && initialAmount) {
       setAmountStr(initialAmount.toString());
-      // When opened with both voice contact and voice amount, switch to passkey prompt only if balance is sufficient
-      if (initialContact && initialAmount <= availableBalanceETH && availableBalanceETH > 0) {
+      // Only switch directly to passkey prompt if recipient is a verified contact and balance is sufficient
+      const match = contacts.find((c) => c.name.toLowerCase() === (initialContact || '').toLowerCase());
+      if (match && initialAmount <= availableBalanceETH && availableBalanceETH > 0) {
         setAuthStage('passkey_prompt');
+      } else {
+        setAuthStage('details');
       }
     }
-  }, [initialAmount, initialContact, isOpen, availableBalanceETH]);
+  }, [initialAmount, initialContact, isOpen, availableBalanceETH, contacts]);
 
   const handleDirectFingerprintSend = () => {
     if (!isValidAddress || numericAmount <= 0 || numericAmount > availableBalanceETH || availableBalanceETH <= 0) return;

@@ -12,6 +12,7 @@ export interface VoiceCard {
 interface VoiceResultCardProps {
   card: VoiceCard | null;
   listening: boolean;
+  processing?: boolean;
   transcript: string;
 }
 
@@ -34,6 +35,7 @@ const INTENT_LABELS: Record<string, string> = {
 export const VoiceResultCard: React.FC<VoiceResultCardProps> = ({
   card,
   listening,
+  processing,
   transcript,
 }) => {
   if (listening) {
@@ -50,6 +52,25 @@ export const VoiceResultCard: React.FC<VoiceResultCardProps> = ({
         </div>
         <p className="text-white text-sm font-medium italic">
           {transcript ? `"${transcript}"` : 'Say a command...'}
+        </p>
+      </div>
+    );
+  }
+
+  if (processing) {
+    return (
+      <div
+        aria-hidden="true"
+        className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-2xl p-4 shadow-2xl border border-orange-500/40 backdrop-blur-xl mb-3 text-left animate-in fade-in slide-in-from-bottom-2 duration-200"
+      >
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="w-2 h-2 rounded-full bg-[#FF5500] animate-pulse" />
+          <span className="text-[11px] font-semibold text-orange-400 tracking-wider uppercase">
+            Processing Speech...
+          </span>
+        </div>
+        <p className="text-white text-sm font-medium">
+          {transcript ? `"${transcript}"` : 'Analyzing command with SayPay AI...'}
         </p>
       </div>
     );

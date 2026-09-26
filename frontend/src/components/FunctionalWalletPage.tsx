@@ -127,13 +127,21 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
   // Vault Security / App Lock State
-  const [isLocked, setIsLocked] = useState<boolean>(() => {
-    if (openCreateWalletDirectly) return false;
-    return true;
-  });
+  const [isLocked, setIsLocked] = useState<boolean>(true);
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<string>('');
   const [pinAttempts, setPinAttempts] = useState<number>(0);
+
+  const handleCloseCreateWallet = () => {
+    setIsCreateWalletOpen(false);
+    if (openCreateWalletDirectly) {
+      if (onBackToLanding) {
+        onBackToLanding();
+        return;
+      }
+    }
+    setIsLocked(true);
+  };
   const [lockoutTimeRemaining, setLockoutTimeRemaining] = useState<number>(0);
   const [isAuthenticatingPasskey, setIsAuthenticatingPasskey] = useState<boolean>(false);
 
@@ -207,6 +215,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
   // 4. Voice State & Continuous Navigation
   const [isListening, setIsListening] = useState(false);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [voiceFeedback, setVoiceFeedback] = useState('Tap Mic or hold Spacebar to speak');
   const [ariaAnnouncement, setAriaAnnouncement] = useState('');
@@ -519,15 +528,19 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
         recognition.onerror = () => {
           setIsListening(false);
-          setVoiceFeedback('Could not hear clearly. Tap mic to retry.');
+          setIsProcessingVoice(false);
+          setVoiceFeedback('Could not hear clearly. Tap mic or hold Spacebar to retry.');
         };
 
         recognition.onend = () => {
           setIsListening(false);
+          setIsProcessingVoice(false);
           const heard = latestTranscriptRef.current;
           latestTranscriptRef.current = '';
           if (heard.trim()) {
             processCommandRef.current(heard);
+          } else {
+            setVoiceFeedback('Tap Mic or hold Spacebar to speak');
           }
         };
 
@@ -882,7 +895,19 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         if (blockedSend) {
           if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
           speakAndFollowUp(blockedSend, detected);
+          setSendPreFill({ contact: result.contact || '', amount: result.amount });
+          setIsSendOpen(true);
           break;
+        }
+
+        // Auto-convert USD / dollars to ETH if spoken in dollars
+        let calculatedAmount = result.amount;
+        let conversionInfo = '';
+        if (result.unit && (result.unit.toUpperCase() === 'USD' || result.unit.toLowerCase().includes('dollar'))) {
+          if (result.amount) {
+            calculatedAmount = Number((result.amount / userState.ethRateUSD).toFixed(4));
+            conversionInfo = ` (${result.amount} dollars converted to ${calculatedAmount} ETH)`;
+          }
         }
 
         // Strict balance checks
@@ -895,24 +920,42 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               ? 'رصيدك الحالي 0 إيثيريوم. يرجى شحن المحفظة أولاً.'
               : 'Cannot send. Your balance is 0 Sepolia ETH. Please fund your wallet first.';
           speakAndFollowUp(zeroMsg, detected);
-          setVoiceCard((prev) => (prev ? { ...prev, reply: zeroMsg, status: 'blocked' } : null));
+          setVoiceCard({
+            heard: spokenText,
+            intent: 'send',
+            confidence: result.confidence,
+            reply: zeroMsg,
+            status: 'blocked',
+            lang: detected,
+          });
+          setSendPreFill({ contact: result.contact || '', amount: calculatedAmount || 0.01 });
+          setIsSendOpen(true);
           break;
         }
 
-        if (result.amount !== undefined && result.amount !== null && result.amount > userState.balanceETH) {
+        if (calculatedAmount !== undefined && calculatedAmount !== null && calculatedAmount > userState.balanceETH) {
           if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
           const insMsg =
             detected === 'hi'
-              ? `अपर्याप्त बैलेंस। आप ${result.amount} ईथर नहीं भेज सकते क्योंकि आपका बैलेंस सिर्फ़ ${userState.balanceETH.toFixed(4)} ईथर है।`
+              ? `अपर्याप्त बैलेंस। आप ${calculatedAmount} ईथर नहीं भेज सकते क्योंकि आपका बैलेंस सिर्फ़ ${userState.balanceETH.toFixed(4)} ईथर है।`
               : detected === 'ar'
-              ? `الرصيد غير كافٍ. لا يمكنك إرسال ${result.amount} إيثيريوم، رصيدك هو ${userState.balanceETH.toFixed(4)} إيثيريوم.`
-              : `Insufficient balance. Cannot send ${result.amount} ETH because your balance is only ${userState.balanceETH.toFixed(4)} ETH.`;
+              ? `الرصيد غير كافٍ. لا يمكنك إرسال ${calculatedAmount} إيثيريوم، رصيدك هو ${userState.balanceETH.toFixed(4)} إيثيريوم.`
+              : `Insufficient balance. Cannot send ${calculatedAmount} ETH because your balance is only ${userState.balanceETH.toFixed(4)} ETH.`;
           speakAndFollowUp(insMsg, detected);
-          setVoiceCard((prev) => (prev ? { ...prev, reply: insMsg, status: 'blocked' } : null));
+          setVoiceCard({
+            heard: spokenText,
+            intent: 'send',
+            confidence: result.confidence,
+            reply: insMsg,
+            status: 'blocked',
+            lang: detected,
+          });
+          setSendPreFill({ contact: result.contact || '', amount: calculatedAmount });
+          setIsSendOpen(true);
           break;
         }
 
-        // Contact matching: must exist in userState.contacts
+        // Contact matching: check if target contact exists
         const targetContactName = result.contact;
         if (!targetContactName) {
           if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
@@ -923,39 +966,53 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
               ? 'إلى من تريد إرسال المبلغ؟ يرجى تحديد جهة الاتصال من دفتر العनाوين.'
               : 'Who would you like to send this to? Please specify a contact name from your address book.';
           speakAndFollowUp(askRecipientMsg, detected);
-          setVoiceCard((prev) => (prev ? { ...prev, reply: askRecipientMsg, status: 'ask' } : null));
+          setVoiceCard({
+            heard: spokenText,
+            intent: 'send',
+            confidence: result.confidence,
+            reply: askRecipientMsg,
+            status: 'ask',
+            lang: detected,
+          });
+          setSendPreFill({ amount: calculatedAmount });
+          setIsSendOpen(true);
           break;
         }
 
         const matchedContact = userState.contacts.find((c) => c.name.toLowerCase() === targetContactName.toLowerCase());
         if (!matchedContact) {
-          if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
+          // Open Send Modal prefilled with target name so user sees it right on screen
+          if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+          setSendPreFill({ contact: targetContactName, amount: calculatedAmount || 0.01 });
+          setIsSendOpen(true);
           const notFoundMsg =
             detected === 'hi'
-              ? `${targetContactName} आपकी संपर्क सूची में नहीं है। पहले संपर्क जोड़ें या सहेजा गया संपर्क चुनें।`
+              ? `${targetContactName} आपकी संपर्क सूची में नहीं है। कृपया उनका पता दर्ज करें।`
               : detected === 'ar'
-              ? `${targetContactName} ليس في قائمة جهات الاتصال الخاصة بك. يرجى إضافته أولاً.`
-              : `${targetContactName} is not in your address book. Please add them to your contacts first, or specify a saved contact.`;
+              ? `${targetContactName} ليس في قائمة جهات الاتصال الخاصة بك. يرجى إدخال عنوانه.`
+              : `Preparing transfer to ${targetContactName}${conversionInfo}. Note: ${targetContactName} is not saved in your contacts. Please paste their 0x address or select from contacts.`;
           speakAndFollowUp(notFoundMsg, detected);
-          setVoiceCard((prev) => (prev ? { ...prev, reply: notFoundMsg, status: 'blocked' } : null));
+          setVoiceCard({
+            heard: spokenText,
+            intent: 'send',
+            confidence: result.confidence,
+            reply: notFoundMsg,
+            status: 'ask',
+            lang: detected,
+          });
           break;
         }
 
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
-        setSendPreFill({ contact: matchedContact.name, amount: result.amount });
+        setSendPreFill({ contact: matchedContact.name, amount: calculatedAmount });
         setIsSendOpen(true);
-
-        if (result.source === 'model' && result.readback) {
-          speakAndFollowUp(result.readback, detected);
-          break;
-        }
 
         const sendSpeech =
           detected === 'hi'
-            ? `${matchedContact.name} को ${result.amount || 0.1} ईथर भेजने की तैयारी है। गैस फीस प्रायोजित है। हस्ताक्षर करने के लिए "फिंगरप्रिंट" बोलें, या रद्द करने के लिए "रद्द" कहें।`
+            ? `${matchedContact.name} को ${calculatedAmount || 0.1} ईथर भेजने की तैयारी है${conversionInfo}। गैस फीस प्रायोजित है। हस्ताक्षर करने के लिए "फिंगरप्रिंट" बोलें, या रद्द करने के लिए "रद्द" कहें।`
             : detected === 'ar'
-            ? `جاهز لإرسال ${result.amount || 0.1} إيثيريوم إلى ${matchedContact.name}. قل "بصمة" للتوقيع بمفتاح المرور، أو قل "إلغاء".`
-            : `Prepared transfer: Sending ${result.amount || 0.1} Sepolia ETH to ${matchedContact.name}. Gas is sponsored. Say "Fingerprint" or "Confirm" to sign with your passkey, or say "Cancel".`;
+            ? `جاهز لإرسال ${calculatedAmount || 0.1} إيثيريوم إلى ${matchedContact.name}${conversionInfo}. قل "بصمة" للتوقيع بمفتاح المرور، أو قل "إلغاء".`
+            : `Prepared transfer: Sending ${calculatedAmount || 0.1} Sepolia ETH to ${matchedContact.name}${conversionInfo}. Gas is sponsored. Say "Fingerprint" or "Confirm" to sign with your passkey, or say "Cancel".`;
 
         speakAndFollowUp(sendSpeech, detected);
         break;
@@ -1142,11 +1199,12 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         recognitionRef.current.stop();
       } catch (e) {}
     }
-    setIsListening(false);
   };
 
   const toggleMic = () => {
     if (isListening) {
+      setIsProcessingVoice(true);
+      setVoiceFeedback('Processing speech command...');
       stopVoiceListening();
     } else {
       startVoiceListening();
@@ -1174,6 +1232,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
       e.preventDefault();
       isSpaceHeldRef.current = true;
+      setIsProcessingVoice(false);
       startVoiceListening();
     };
 
@@ -1184,7 +1243,16 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       if (isSpaceHeldRef.current) {
         e.preventDefault();
         isSpaceHeldRef.current = false;
-        stopVoiceListening();
+        // Keep mic listening for 350ms buffer so user's final words are not clipped,
+        // and show the processing indicator immediately.
+        setIsProcessingVoice(true);
+        setVoiceFeedback('Processing speech command...');
+        if (accessibilitySettings.earconsEnabled) {
+          audioCues.playIntentRecognized();
+        }
+        setTimeout(() => {
+          stopVoiceListening();
+        }, 350);
       }
     };
 
@@ -1678,7 +1746,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           isOpen={isCreateWalletOpen}
           currentLang={lang}
           onWalletCreated={handleWalletCreated}
-          onClose={() => setIsCreateWalletOpen(false)}
+          onClose={handleCloseCreateWallet}
         />
       </div>
     );
@@ -2824,10 +2892,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         </div>
       </div>
 
-        {/* Floating Voice Control Capsule at Bottom (Active in Blind Mode, or while speaking / receiving voice cards) */}
-        {(accessibilityMode === 'blind' || isListening || voiceCard !== null) && (
+        {/* Floating Voice Control Capsule at Bottom (Active in Blind Mode, or while speaking / receiving voice cards / processing speech) */}
+        {(accessibilityMode === 'blind' || isListening || isProcessingVoice || voiceCard !== null) && (
           <div className="fixed bottom-6 inset-x-0 z-40 flex flex-col items-center px-4 pointer-events-none">
-            <VoiceResultCard card={voiceCard} listening={isListening} transcript={transcript} />
+            <VoiceResultCard card={voiceCard} listening={isListening} processing={isProcessingVoice} transcript={transcript} />
             <div className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-full p-2.5 shadow-2xl border border-zinc-800 backdrop-blur-xl flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 pl-2 overflow-hidden">
                 <button
@@ -2951,7 +3019,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         isOpen={isCreateWalletOpen}
         currentLang={lang}
         onWalletCreated={handleWalletCreated}
-        onClose={() => setIsCreateWalletOpen(false)}
+        onClose={handleCloseCreateWallet}
       />
 
       {/* Fund Wallet / Add Mock Cash Modal */}
