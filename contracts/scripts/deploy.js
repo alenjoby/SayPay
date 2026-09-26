@@ -57,11 +57,24 @@ async function main() {
   const beneficiary = pick("beneficiary")[0];
   const threshold = Number(env.VAULT_THRESHOLD || 2);
   const timer = Number(env.VAULT_TIMER_SECONDS || 120); // demo: 2 minutes for all three
-  const funding = ethers.parseEther(env.VAULT_FUNDING_ETH || (local ? "2.5" : "0.1"));
-  const gasTopUp = ethers.parseEther(env.GAS_TOPUP_ETH || (local ? "0" : "0.02"));
+  // Sepolia defaults fit one faucet drip (~0.05 ETH): 0.02 in the vault, 0.004 of gas
+  // (~15 transactions) for each person who signs. Override in .env if you have more.
+  const funding = ethers.parseEther(env.VAULT_FUNDING_ETH || (local ? "2.5" : "0.02"));
+  const gasTopUp = ethers.parseEther(env.GAS_TOPUP_ETH || (local ? "0" : "0.004"));
 
   const bal = await ethers.provider.getBalance(deployer.address);
   console.log(`Deployer ${deployer.address} on ${network.name}: ${ethers.formatEther(bal)} ETH`);
+
+  // Only people who sign in the demo need gas; contacts (Amma, Rahul) just receive.
+  const payers = people.filter((p) => p.role || p.name === "New phone");
+  const deployGas = local ? 0n : ethers.parseEther("0.006"); // generous estimate for the deploy itself
+  const need = funding + gasTopUp * BigInt(payers.length) + deployGas;
+  if (bal < need) {
+    throw new Error(
+      `Not enough test ETH: about ${ethers.formatEther(need)} needed, the deployer has ${ethers.formatEther(bal)}. ` +
+        "Get more from a Sepolia faucet, or lower VAULT_FUNDING_ETH / GAS_TOPUP_ETH in .env."
+    );
+  }
 
   const Vault = await ethers.getContractFactory("SayPayVault", deployer);
   const vault = await Vault.deploy(owner, guardians, threshold, beneficiary, timer, timer, timer,
@@ -74,7 +87,7 @@ async function main() {
 
   // Gas money for everyone who will sign transactions in the demo (skipped if they have enough).
   if (gasTopUp > 0n) {
-    for (const p of people) {
+    for (const p of payers) {
       const have = await ethers.provider.getBalance(p.address);
       if (have >= gasTopUp) continue;
       const tx = await deployer.sendTransaction({ to: p.address, value: gasTopUp - have });
