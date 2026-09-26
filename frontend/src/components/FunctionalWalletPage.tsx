@@ -48,6 +48,7 @@ import confetti from 'canvas-confetti';
 import { audioCues } from '../utils/audioCues';
 import { speakText, SupportedLanguage, detectLanguage, onSpeechStateChange, isCurrentlySpeaking } from '../utils/i18n';
 import { parseVoiceIntent, ParsedIntentResult } from '../utils/intentParser';
+import { understandCommand, sendBlocker } from '../utils/intentApi';
 import {
   WalletUser,
   TransactionRecord,
@@ -708,7 +709,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   };
 
   // Process natural voice commands
-  const handleProcessCommand = (spokenText: string) => {
+  const handleProcessCommand = async (spokenText: string) => {
     const lower = spokenText.toLowerCase();
 
     // Reversible Payment Cancel / Undo Voice Trigger (UX-04)
@@ -800,10 +801,22 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       return;
     }
 
-    const result = parseVoiceIntent(spokenText);
+    // SayPay intent model for money commands (local keyword parser as fallback).
+    const result = await understandCommand(
+      spokenText,
+      userState.contacts.map((c) => c.name)
+    );
     const detected = result.detectedLang;
     if (detected !== lang) {
       setLang(detected);
+    }
+
+    // The model wants to ask first (not sure, or the amount / person is missing):
+    // speak its question and do nothing else.
+    if (result.source === 'model' && result.needsClarification && result.readback) {
+      if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
+      speakAndFollowUp(result.readback, detected);
+      return;
     }
 
     switch (result.intent) {
@@ -821,8 +834,21 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
 
       case 'send': {
+        const blocked = sendBlocker(result);
+        if (blocked) {
+          if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
+          speakAndFollowUp(blocked, detected);
+          break;
+        }
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
         setSendPreFill({ contact: result.contact, amount: result.amount });
+        if (result.source === 'model' && result.readback) {
+          // Model read-back: amount in words and the matched contact, e.g.
+          // "Send zero point one test ETH to Priya. Confirm with your fingerprint."
+          setIsSendOpen(true);
+          speakAndFollowUp(result.readback, detected);
+          break;
+        }
         setIsSendOpen(true);
         const sendSpeech =
           detected === 'hi'
