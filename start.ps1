@@ -37,9 +37,13 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Die 'Node.js 20 or 
 $nodeMajor = [int]((node --version).TrimStart('v').Split('.')[0])
 if ($nodeMajor -lt 20) { Die "Node.js 20 or newer is needed (found $(node --version))." }
 
+# Checks IPv4 and IPv6: on Windows, Vite listens on "localhost", which Node may resolve to ::1 only.
 function Test-Port($port) {
-  $c = New-Object Net.Sockets.TcpClient
-  try { return $c.ConnectAsync('127.0.0.1', $port).Wait(300) } catch { return $false } finally { $c.Dispose() }
+  foreach ($addr in [Net.IPAddress]::Loopback, [Net.IPAddress]::IPv6Loopback) {
+    $c = New-Object Net.Sockets.TcpClient($addr.AddressFamily)
+    try { if ($c.ConnectAsync($addr, $port).Wait(300)) { return $true } } catch { } finally { $c.Dispose() }
+  }
+  return $false
 }
 foreach ($p in 8000, 8545, 5173, 5174) {
   if (Test-Port $p) { Die "Port $p is already in use. SayPay may still be running: double-click stop.bat, then try again." }

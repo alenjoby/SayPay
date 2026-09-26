@@ -29,7 +29,8 @@ command -v node >/dev/null || die "Node.js 20+ is needed: https://nodejs.org"
 node -e 'process.exit(+process.versions.node.split(".")[0] < 20 ? 1 : 0)' \
   || die "Node.js 20+ is needed (found $(node --version))."
 
-port_open() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+# IPv4 or IPv6: Vite listens on "localhost", which may resolve to ::1 only.
+port_open() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null || (exec 3<>"/dev/tcp/::1/$1") 2>/dev/null; }
 for p in 8000 8545 5173 5174; do
   port_open "$p" && die "Port $p is already in use. Is SayPay already running? Close it and try again."
 done
