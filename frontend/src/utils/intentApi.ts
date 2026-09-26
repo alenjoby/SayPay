@@ -122,6 +122,24 @@ export async function understandCommand(
   }
 }
 
+// Demo exchange rates: US dollars per unit, for the currencies the model recognises.
+const USD_PER_UNIT: Record<string, number> = {
+  USD: 1, AED: 0.2723, SAR: 0.2667, QAR: 0.2747, OMR: 2.6, BHD: 2.6596, KWD: 3.25, INR: 0.012, EUR: 1.08,
+};
+
+/**
+ * The amount in ETH. Money in another currency ("50 dirhams", "10 dollars") is converted
+ * at the demo rate; null means the unit isn't one we can convert.
+ */
+export function toEth(amount: number | undefined | null, unit: string | null | undefined, ethRateUSD: number) {
+  if (amount === undefined || amount === null) return { eth: amount ?? undefined, from: null as string | null };
+  const u = (unit || 'ETH').toUpperCase();
+  if (u === 'ETH') return { eth: amount, from: null };
+  const usd = USD_PER_UNIT[u] ?? (u.includes('DOLLAR') ? 1 : undefined);
+  if (usd === undefined) return null;
+  return { eth: Number(((amount * usd) / ethRateUSD).toFixed(4)), from: u };
+}
+
 /** What to say when a send can't go ahead as understood. */
 export function sendBlocker(
   cmd: UnderstoodCommand,
@@ -130,11 +148,16 @@ export function sendBlocker(
 ): string | null {
   const l = cmd.detectedLang;
 
-  // Convert USD / dollars to ETH for balance checking
-  let calculatedAmountETH = cmd.amount;
-  if (cmd.unit && (cmd.unit.toUpperCase() === 'USD' || cmd.unit.toLowerCase().includes('dollar'))) {
-    calculatedAmountETH = cmd.amount ? Number((cmd.amount / ethRateUSD).toFixed(4)) : undefined;
+  // Convert dollars, dirhams, riyals, rupees... to ETH for the balance check.
+  const converted = toEth(cmd.amount, cmd.unit, ethRateUSD);
+  if (!converted) {
+    return l === 'hi'
+      ? 'यह मुद्रा मैं नहीं बदल सकता। रकम ईथर में बोलिए।'
+      : l === 'ar'
+      ? 'ما أقدر أحول هذي العملة. قل المبلغ بالإيثيريوم.'
+      : "I can't convert that currency. Please say the amount in ETH.";
   }
+  const calculatedAmountETH = converted.eth;
 
   // Strict Balance Check (applies to both model and rule sources)
   if (availableBalanceETH !== undefined && calculatedAmountETH !== undefined && calculatedAmountETH !== null) {

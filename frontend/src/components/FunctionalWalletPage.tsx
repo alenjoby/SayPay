@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Mic,
   MicOff,
@@ -51,7 +52,7 @@ import confetti from 'canvas-confetti';
 import { audioCues } from '../utils/audioCues';
 import { speakText, SupportedLanguage, detectLanguage, onSpeechStateChange, isCurrentlySpeaking, stopSpeaking } from '../utils/i18n';
 import { parseVoiceIntent, ParsedIntentResult } from '../utils/intentParser';
-import { understandCommand, sendBlocker } from '../utils/intentApi';
+import { understandCommand, sendBlocker, toEth } from '../utils/intentApi';
 import { useSayPayVault } from '../chain';
 import {
   WalletUser,
@@ -251,6 +252,18 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const [sendPreFill, setSendPreFill] = useState<{ contact?: string; amount?: number }>({});
   const [contactPreFill, setContactPreFill] = useState<string | undefined>(undefined);
   const [voiceCard, setVoiceCard] = useState<VoiceCard | null>(null);
+  // The open modal <dialog> (topmost), if any: the voice bar is rendered inside it.
+  const [voiceBarHost, setVoiceBarHost] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const update = () => {
+      const open = document.querySelectorAll<HTMLDialogElement>('dialog[open]');
+      setVoiceBarHost(open.length ? open[open.length - 1] : null);
+    };
+    const obs = new MutationObserver(update);
+    obs.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['open'] });
+    update();
+    return () => obs.disconnect();
+  }, []);
 
   // Auto-hide voice result card after 9 seconds
   useEffect(() => {
@@ -263,7 +276,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const [isListening, setIsListening] = useState(false);
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [voiceFeedback, setVoiceFeedback] = useState('Tap Mic or hold Spacebar to speak');
+  const [voiceFeedback, setVoiceFeedback] = useState('Press Space or tap the mic to speak');
   const [ariaAnnouncement, setAriaAnnouncement] = useState('');
   // Security events and errors go to the alert region; everything else is polite (spec).
   const [alertAnnouncement, setAlertAnnouncement] = useState('');
@@ -291,17 +304,20 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const micSessionRef = useRef({ done: true, released: false, discard: false });
   const micRestartRef = useRef<'hold' | 'auto' | null>(null);
   const micFallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tap Space (or the mic) once: keep listening until it is pressed again.
+  const micLatchedRef = useRef(false);
 
   /** Run what was heard, once per listening session (the fastest of: final result after release, onend, fallback). */
   const finishListening = (session = micSessionRef.current) => {
     if (session.done) return;
     session.done = true;
+    micLatchedRef.current = false;
     if (micFallbackTimer.current) clearTimeout(micFallbackTimer.current);
     const heard = latestTranscriptRef.current.trim();
     latestTranscriptRef.current = '';
     if (session.discard || !heard) {
       setIsProcessingVoice(false);
-      if (!session.discard) setVoiceFeedback('Tap Mic or hold Spacebar to speak');
+      if (!session.discard) setVoiceFeedback('Press Space or tap the mic to speak');
       return;
     }
     setIsProcessingVoice(true);
@@ -855,7 +871,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
           if (err === 'not-allowed' || err === 'service-not-allowed') {
             setVoiceFeedback('Microphone blocked. Allow the microphone, or type the command instead.');
           } else {
-            setVoiceFeedback('Could not hear clearly. Tap mic or hold Spacebar to retry.');
+            setVoiceFeedback('Could not hear clearly. Press Space or tap the mic to retry.');
           }
         };
 
@@ -885,7 +901,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   useEffect(() => {
     const unsubscribe = onSpeechStateChange((isSpeaking) => {
       // Don't cut a user who is holding Space: their words win over the app's speech.
-      if (isSpeaking && micStateRef.current !== 'idle' && !isSpaceHeldRef.current) {
+      if (isSpeaking && micStateRef.current !== 'idle' && !isSpaceHeldRef.current && !micLatchedRef.current) {
         cancelListening();
       }
     });
@@ -1540,7 +1556,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       setLang(detected);
     }
 
-    const blockedSend = result.intent === 'send' ? sendBlocker(result, userState.balanceETH) : null;
+    const blockedSend = result.intent === 'send' ? sendBlocker(result, userState.balanceETH, userState.ethRateUSD) : null;
     let fallbackReply = '';
     if (result.intent === 'check_balance') {
       fallbackReply =
@@ -1595,20 +1611,19 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         if (blockedSend) {
           if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
           speakAndFollowUp(blockedSend, detected);
-          setSendPreFill({ contact: result.contact || '', amount: result.amount });
+          // Prefill in ETH (never "50 dirhams" as 50 ETH); an unknown currency leaves it empty.
+          setSendPreFill({ contact: result.contact || '', amount: toEth(result.amount, result.unit, userState.ethRateUSD)?.eth });
           setIsSendOpen(true);
           break;
         }
 
-        // Auto-convert USD / dollars to ETH if spoken in dollars
-        let calculatedAmount = result.amount;
-        let conversionInfo = '';
-        if (result.unit && (result.unit.toUpperCase() === 'USD' || result.unit.toLowerCase().includes('dollar'))) {
-          if (result.amount) {
-            calculatedAmount = Number((result.amount / userState.ethRateUSD).toFixed(4));
-            conversionInfo = ` (${result.amount} dollars converted to ${calculatedAmount} ETH)`;
-          }
-        }
+        // Money said in another currency (dollars, dirhams, riyals, rupees...) becomes ETH at the demo rate.
+        // (sendBlocker above already stopped units that can't be converted.)
+        const converted = toEth(result.amount, result.unit, userState.ethRateUSD);
+        const calculatedAmount = converted?.eth ?? result.amount;
+        const conversionInfo = converted?.from && result.amount
+          ? ` (${result.amount} ${converted.from} converted to ${calculatedAmount} ETH)`
+          : '';
 
         // Strict balance checks
         if (userState.balanceETH <= 0) {
@@ -1896,11 +1911,19 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
   // Spacebar Push-To-Talk: Hold Spacebar to record, release to stop and submit
   const isSpaceHeldRef = useRef(false);
+  const spaceDownAtRef = useRef(0);
+  const TAP_MS = 350; // shorter than this = a tap (toggle); longer = hold to talk
 
   const toggleMic = () => {
-    // Tap to talk: Chrome stops by itself after a short pause; tap again to finish early.
-    if (micStateRef.current === 'idle') beginListening('auto');
-    else releaseListening();
+    // Tap to start, tap again to send: listens as long as needed in between.
+    if (micLatchedRef.current || micStateRef.current !== 'idle') {
+      micLatchedRef.current = false;
+      releaseListening();
+      return;
+    }
+    beginListening('hold');
+    micLatchedRef.current = true;
+    setVoiceFeedback('Listening. Tap the mic again when you are done.');
   };
 
   useEffect(() => {
@@ -1923,6 +1946,15 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       e.preventDefault(); // never "click" a focused button with Space
       if (e.repeat || isSpaceHeldRef.current) return; // held down: keep listening
       isSpaceHeldRef.current = true;
+      if (micLatchedRef.current) {
+        // Second tap: stop and run the command (the keyup that follows does nothing).
+        micLatchedRef.current = false;
+        spaceDownAtRef.current = -1;
+        if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+        setTimeout(releaseListening, 200);
+        return;
+      }
+      spaceDownAtRef.current = Date.now();
       setIsProcessingVoice(false);
       beginListening('hold');
     };
@@ -1932,6 +1964,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       // Release is handled wherever focus is now, so the mic can't get stuck on.
       e.preventDefault();
       isSpaceHeldRef.current = false;
+      if (spaceDownAtRef.current === -1) return; // this was the second tap: already stopping
+      if (Date.now() - spaceDownAtRef.current < TAP_MS) {
+        // Quick tap: keep listening until Space is pressed again.
+        micLatchedRef.current = true;
+        setVoiceFeedback('Listening. Press Space again when you are done.');
+        return;
+      }
       if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
       // A short grace period so the last word isn't clipped, then stop.
       setTimeout(releaseListening, 200);
@@ -2491,6 +2530,87 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       </div>
     );
   }
+
+  // The voice bar must stay on top of every popup. Popups are modal <dialog>s, which the
+  // browser draws above everything else (z-index can't beat them) and which make the page
+  // behind them inert, so while one is open the bar is moved inside it.
+  const voiceBar = (
+        <div className="fixed bottom-6 inset-x-0 z-[70] flex flex-col items-center px-4 pointer-events-none">
+          <VoiceResultCard card={voiceCard} listening={isListening} processing={isProcessingVoice} transcript={transcript} />
+          <div className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-3xl p-2.5 shadow-2xl border border-zinc-800 backdrop-blur-xl flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 pl-1 overflow-hidden">
+              <button
+                onClick={toggleMic}
+                aria-label={isListening ? 'Stop listening' : 'Start voice command'}
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition cursor-pointer flex-shrink-0 ${
+                  isListening
+                    ? 'bg-[#FF5500] text-white animate-pulse'
+                    : 'bg-zinc-800 hover:bg-zinc-700 text-[#FF5500]'
+                }`}
+                title={isListening ? 'Stop listening' : 'Start voice command'}
+              >
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
+              <div className="text-xs truncate font-medium">
+                <div className="text-white truncate font-display font-bold">
+                  {transcript || voiceFeedback}
+                </div>
+                <div className="text-[10px] text-zinc-400 font-mono">
+                  Space: tap to talk, tap again to send
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 pr-2 flex-shrink-0">
+              <button
+                onClick={() => simulateSpokenInput('Check my balance')}
+                className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition cursor-pointer"
+              >
+                Balance
+              </button>
+              <button
+                onClick={() => simulateSpokenInput('Send 0.1 ETH to Priya')}
+                className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition cursor-pointer"
+              >
+                Send ETH
+              </button>
+            </div>
+          </div>
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const text = typedCommand.trim();
+              if (!text) return;
+              setTypedCommand('');
+              setTranscript(text);
+              handleProcessCommand(text);
+            }}
+          >
+            <label htmlFor="typed-command" className="sr-only">
+              Type a command instead of speaking
+            </label>
+            <input
+              id="typed-command"
+              type="text"
+              dir="auto"
+              autoComplete="off"
+              value={typedCommand}
+              onChange={(e) => setTypedCommand(e.target.value)}
+              placeholder="Or type: Send 0.1 ETH to Priya"
+              className="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded-full px-4 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-full bg-[#FF5500] hover:bg-[#e64d00] text-white text-sm font-bold transition cursor-pointer flex-shrink-0"
+            >
+              Run command
+            </button>
+          </form>
+          </div>
+        </div>
+  );
 
   return (
     <div
@@ -3596,82 +3716,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
         </div>
       </div>
 
-        {/* Floating Voice Control Capsule at Bottom (Always available on top of all screens and modals) */}
-        <div className="fixed bottom-6 inset-x-0 z-[70] flex flex-col items-center px-4 pointer-events-none">
-          <VoiceResultCard card={voiceCard} listening={isListening} processing={isProcessingVoice} transcript={transcript} />
-          <div className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-3xl p-2.5 shadow-2xl border border-zinc-800 backdrop-blur-xl flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 pl-1 overflow-hidden">
-              <button
-                onClick={toggleMic}
-                aria-label={isListening ? 'Stop listening' : 'Start voice command'}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition cursor-pointer flex-shrink-0 ${
-                  isListening
-                    ? 'bg-[#FF5500] text-white animate-pulse'
-                    : 'bg-zinc-800 hover:bg-zinc-700 text-[#FF5500]'
-                }`}
-                title={isListening ? 'Stop listening' : 'Start voice command'}
-              >
-                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-              </button>
-              <div className="text-xs truncate font-medium">
-                <div className="text-white truncate font-display font-bold">
-                  {transcript || voiceFeedback}
-                </div>
-                <div className="text-[10px] text-zinc-400 font-mono">
-                  Tap mic or hold Spacebar to speak
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1 pr-2 flex-shrink-0">
-              <button
-                onClick={() => simulateSpokenInput('Check my balance')}
-                className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition cursor-pointer"
-              >
-                Balance
-              </button>
-              <button
-                onClick={() => simulateSpokenInput('Send 0.1 ETH to Priya')}
-                className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition cursor-pointer"
-              >
-                Send ETH
-              </button>
-            </div>
-          </div>
-          <form
-            className="flex items-center gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const text = typedCommand.trim();
-              if (!text) return;
-              setTypedCommand('');
-              setTranscript(text);
-              handleProcessCommand(text);
-            }}
-          >
-            <label htmlFor="typed-command" className="sr-only">
-              Type a command instead of speaking
-            </label>
-            <input
-              id="typed-command"
-              type="text"
-              dir="auto"
-              autoComplete="off"
-              value={typedCommand}
-              onChange={(e) => setTypedCommand(e.target.value)}
-              placeholder="Or type: Send 0.1 ETH to Priya"
-              className="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded-full px-4 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#FF5500]"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-full bg-[#FF5500] hover:bg-[#e64d00] text-white text-sm font-bold transition cursor-pointer flex-shrink-0"
-            >
-              Run command
-            </button>
-          </form>
-          </div>
-        </div>
+        {voiceBarHost ? createPortal(voiceBar, voiceBarHost) : voiceBar}
       </main>
 
       {/* Modals */}
