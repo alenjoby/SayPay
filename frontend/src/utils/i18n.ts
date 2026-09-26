@@ -256,28 +256,35 @@ export function stopSpeaking() {
   notifySpeechState(false);
 }
 
+// Voices load asynchronously; keep the latest list so the first sentence already
+// gets the best voice instead of the browser default.
+let cachedVoices: SpeechSynthesisVoice[] = [];
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  const loadVoices = () => {
+    cachedVoices = window.speechSynthesis.getVoices();
+  };
+  loadVoices();
+  window.speechSynthesis.addEventListener?.('voiceschanged', loadVoices);
+}
+
+// Best first: Edge's online "Natural" voices (near-human, include Arabic and Hindi),
+// then Chrome's Google voices, then any other neural voice, then any voice.
+const VOICE_TIERS: RegExp[] = [/Natural/i, /Google/i, /Neural|Premium|Enhanced/i];
+
 function findBestVoice(lang: SupportedLanguage): SpeechSynthesisVoice | null {
   if (typeof window === 'undefined' || !window.speechSynthesis) return null;
-  const voices = window.speechSynthesis.getVoices();
+  const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
   if (!voices || voices.length === 0) return null;
 
   const prefix = lang === 'hi' ? 'hi' : lang === 'ar' ? 'ar' : 'en';
-  const matchingVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(prefix));
-  if (matchingVoices.length === 0) return null;
+  const matching = voices.filter((v) => v.lang.toLowerCase().replace('_', '-').startsWith(prefix));
+  if (matching.length === 0) return null;
 
-  // Prefer high clarity, natural, neural or standard system voices
-  const preferred = matchingVoices.find(
-    (v) =>
-      v.name.includes('Natural') ||
-      v.name.includes('Google') ||
-      v.name.includes('Neural') ||
-      v.name.includes('David') ||
-      v.name.includes('Zira') ||
-      v.name.includes('Swara') ||
-      v.name.includes('Samantha')
-  );
-
-  return preferred || matchingVoices[0];
+  for (const tier of VOICE_TIERS) {
+    const hit = matching.find((v) => tier.test(v.name));
+    if (hit) return hit;
+  }
+  return matching.find((v) => v.localService) || matching[0];
 }
 
 /**
