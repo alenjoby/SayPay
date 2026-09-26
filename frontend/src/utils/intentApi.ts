@@ -45,6 +45,7 @@ export interface ModelResponse {
   unit: string | null;
   recipient: { type: string; value: string | null; contact: string | null; score: number } | null;
   contact: string | null;
+  name: string | null;
   lang_mix: string[];
   readback: { text: string; lang: SupportedLanguage };
   engine: string;

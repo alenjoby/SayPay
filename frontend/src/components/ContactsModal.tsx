@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Plus,
@@ -21,6 +21,8 @@ interface ContactsModalProps {
   isOpen: boolean;
   contacts: Contact[];
   currentLang: SupportedLanguage;
+  /** Voice "save this as Ravi": open the add form with this name filled in. */
+  initialNewName?: string;
   onClose: () => void;
   onSelectForSend: (contact: Contact) => void;
   onAddContact?: (newContact: Contact) => void;
@@ -31,6 +33,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
   isOpen,
   contacts,
   currentLang,
+  initialNewName,
   onClose,
   onSelectForSend,
   onAddContact,
@@ -41,6 +44,13 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
   const [newName, setNewName] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [newRelationship, setNewRelationship] = useState('Friend');
+
+  useEffect(() => {
+    if (isOpen && initialNewName) {
+      setShowAddForm(true);
+      setNewName(initialNewName);
+    }
+  }, [isOpen, initialNewName]);
 
   if (!isOpen) return null;
 

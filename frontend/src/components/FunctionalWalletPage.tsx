@@ -77,6 +77,7 @@ import { ContactsModal } from './ContactsModal';
 import { GuardiansModal } from './GuardiansModal';
 import { AccessibilitySettingsModal, AccessibilitySettings } from './AccessibilitySettingsModal';
 import { HeadphoneSafetyModal } from './HeadphoneSafetyModal';
+import { VoiceResultCard, VoiceCard } from './VoiceResultCard';
 import { headphoneSafety, HeadphoneStatus } from '../utils/headphoneDetector';
 import { PasskeySignatureResult, signTransactionWithPasskey } from '../utils/passkeyAuth';
 
@@ -189,6 +190,15 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
   const [isContactsOpen, setIsContactsOpen] = useState(false);
   const [isGuardiansOpen, setIsGuardiansOpen] = useState(false);
   const [sendPreFill, setSendPreFill] = useState<{ contact?: string; amount?: number }>({});
+  const [contactPreFill, setContactPreFill] = useState<string | undefined>(undefined);
+  const [voiceCard, setVoiceCard] = useState<VoiceCard | null>(null);
+
+  // Auto-hide voice result card after 9 seconds
+  useEffect(() => {
+    if (!voiceCard) return;
+    const t = setTimeout(() => setVoiceCard(null), 9000);
+    return () => clearTimeout(t);
+  }, [voiceCard]);
 
   // 4. Voice State & Continuous Navigation
   const [isListening, setIsListening] = useState(false);
@@ -811,6 +821,35 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       setLang(detected);
     }
 
+    const blockedSend = result.intent === 'send' ? sendBlocker(result) : null;
+    let fallbackReply = '';
+    if (result.intent === 'check_balance') {
+      fallbackReply =
+        detected === 'hi'
+          ? `आपका कुल पोर्टफोलियो मूल्य $${totalBalanceUSD.toFixed(2)} डॉलर है, जिसमें ${userState.balanceETH.toFixed(4)} टेस्ट ईथर शामिल हैं।`
+          : detected === 'ar'
+          ? `إجمالي قيمة محفظتك هو ${totalBalanceUSD.toFixed(2)} دولار، بما في ذلك ${userState.balanceETH.toFixed(4)} إيثيريوم تجريبي.`
+          : `Your total portfolio value is $${totalBalanceUSD.toFixed(2)} USD, with ${userState.balanceETH.toFixed(4)} Sepolia ETH.`;
+    } else if (result.intent === 'history') {
+      const lastTx = transactions[0];
+      fallbackReply = lastTx
+        ? `Your latest transaction was ${lastTx.type === 'send' ? 'sending' : 'receiving'} ${lastTx.amount} ETH with ${lastTx.counterparty}.`
+        : 'You have no recent transactions.';
+    }
+
+    setVoiceCard({
+      heard: spokenText,
+      intent: result.model?.intent ?? result.intent,
+      confidence: result.confidence,
+      reply: blockedSend ?? result.readback ?? fallbackReply,
+      status:
+        result.source !== 'model' ? 'fallback'
+        : result.needsClarification ? 'ask'
+        : blockedSend ? 'blocked'
+        : 'ok',
+      lang: detected,
+    });
+
     // The model wants to ask first (not sure, or the amount / person is missing):
     // speak its question and do nothing else.
     if (result.source === 'model' && result.needsClarification && result.readback) {
@@ -834,10 +873,9 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
       }
 
       case 'send': {
-        const blocked = sendBlocker(result);
-        if (blocked) {
+        if (blockedSend) {
           if (accessibilitySettings.earconsEnabled) audioCues.playWarning();
-          speakAndFollowUp(blocked, detected);
+          speakAndFollowUp(blockedSend, detected);
           break;
         }
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
@@ -933,6 +971,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
       case 'contacts': {
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+        if (result.source === 'model' && result.model?.intent === 'add_contact') {
+          setContactPreFill(result.model.name ?? undefined);
+          setIsContactsOpen(true);
+          speakAndFollowUp(result.readback || 'Who should I save? Say their name.', detected);
+          break;
+        }
+        setContactPreFill(undefined);
         setIsContactsOpen(true);
         const names = userState.contacts.map((c) => c.name).join(', ');
         const cSpeech =
@@ -954,6 +999,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
       case 'history': {
         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
+        setActiveTab('activity'); // show the list that is being read out
         const lastTx = transactions[0];
         const hSpeech = lastTx
           ? `Your latest transaction was ${lastTx.type === 'send' ? 'sending' : 'receiving'} ${
@@ -2526,7 +2572,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
         {/* Floating Voice Control Capsule at Bottom (ONLY in Blind / Voice-Assisted Mode) */}
         {accessibilityMode === 'blind' && (
-          <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
+          <div className="fixed bottom-6 inset-x-0 z-40 flex flex-col items-center px-4 pointer-events-none">
+            <VoiceResultCard card={voiceCard} listening={isListening} transcript={transcript} />
             <div className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-full p-2.5 shadow-2xl border border-zinc-800 backdrop-blur-xl flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 pl-2 overflow-hidden">
                 <button
@@ -2621,9 +2668,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
 
       <ContactsModal
         isOpen={isContactsOpen}
+        initialNewName={contactPreFill}
         contacts={userState.contacts}
         currentLang={lang}
-        onClose={() => setIsContactsOpen(false)}
+        onClose={() => { setIsContactsOpen(false); setContactPreFill(undefined); }}
         onSelectForSend={(contact) => {
           setIsContactsOpen(false);
           setSendPreFill({ contact: contact.name });
