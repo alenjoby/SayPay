@@ -1,0 +1,265 @@
+diff --git a/frontend/src/components/ContactsModal.tsx b/frontend/src/components/ContactsModal.tsx
+index 3b6b2f7..bf39a51 100644
+--- a/frontend/src/components/ContactsModal.tsx
++++ b/frontend/src/components/ContactsModal.tsx
+@@ -1,4 +1,4 @@
+-import React, { useState } from 'react';
++import React, { useState, useEffect } from 'react';
+ import {
+   Users,
+   Plus,
+@@ -25,6 +25,8 @@ interface ContactsModalProps {
+   onSelectForSend: (contact: Contact) => void;
+   onAddContact?: (newContact: Contact) => void;
+   onDeleteContact?: (id: string) => void;
++  /** Voice "save this as Ravi": open the add form with this name filled in. */
++  initialNewName?: string;
+ }
+ 
+ export const ContactsModal: React.FC<ContactsModalProps> = ({
+@@ -35,6 +37,7 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
+   onSelectForSend,
+   onAddContact,
+   onDeleteContact,
++  initialNewName,
+ }) => {
+   const [searchQuery, setSearchQuery] = useState('');
+   const [showAddForm, setShowAddForm] = useState(false);
+@@ -42,6 +45,13 @@ export const ContactsModal: React.FC<ContactsModalProps> = ({
+   const [newAddress, setNewAddress] = useState('');
+   const [newRelationship, setNewRelationship] = useState('Friend');
+ 
++  useEffect(() => {
++    if (isOpen && initialNewName) {
++      setShowAddForm(true);
++      setNewName(initialNewName);
++    }
++  }, [isOpen, initialNewName]);
++
+   if (!isOpen) return null;
+ 
+   const filteredContacts = contacts.filter((c) =>
+diff --git a/frontend/src/components/FunctionalWalletPage.tsx b/frontend/src/components/FunctionalWalletPage.tsx
+index 4b20796..2e50165 100644
+--- a/frontend/src/components/FunctionalWalletPage.tsx
++++ b/frontend/src/components/FunctionalWalletPage.tsx
+@@ -49,6 +49,7 @@ import { audioCues } from '../utils/audioCues';
+ import { speakText, SupportedLanguage, detectLanguage, onSpeechStateChange, isCurrentlySpeaking } from '../utils/i18n';
+ import { parseVoiceIntent, ParsedIntentResult } from '../utils/intentParser';
+ import { understandCommand, sendBlocker } from '../utils/intentApi';
++import { VoiceResultCard, VoiceCard } from './VoiceResultCard';
+ import {
+   WalletUser,
+   TransactionRecord,
+@@ -194,6 +195,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
+   const [isListening, setIsListening] = useState(false);
+   const [transcript, setTranscript] = useState('');
+   const [voiceFeedback, setVoiceFeedback] = useState('Tap Mic or hold Spacebar to speak');
++  // Card above the voice bar: what was heard, what the model understood, what SayPay says.
++  const [voiceCard, setVoiceCard] = useState<VoiceCard | null>(null);
++  // Name to pre-fill in the Contacts "add" form ("save this number as Ravi").
++  const [contactPreFill, setContactPreFill] = useState<string | undefined>(undefined);
+   const [ariaAnnouncement, setAriaAnnouncement] = useState('');
+   const recognitionRef = useRef<any>(null);
+   // Latest transcript and command handler, read when recognition ends. The
+@@ -708,6 +713,13 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
+     }
+   };
+ 
++  // Hide the result card a few seconds after the answer.
++  useEffect(() => {
++    if (!voiceCard) return;
++    const t = setTimeout(() => setVoiceCard(null), 9000);
++    return () => clearTimeout(t);
++  }, [voiceCard]);
++
+   // Process natural voice commands
+   const handleProcessCommand = async (spokenText: string) => {
+     const lower = spokenText.toLowerCase();
+@@ -811,6 +823,20 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
+       setLang(detected);
+     }
+ 
++    const blockedSend = result.intent === 'send' ? sendBlocker(result) : null;
++    setVoiceCard({
++      heard: spokenText,
++      intent: result.model?.intent ?? result.intent,
++      confidence: result.confidence,
++      reply: blockedSend ?? result.readback ?? '',
++      status:
++        result.source !== 'model' ? 'fallback'
++        : result.needsClarification ? 'ask'
++        : blockedSend ? 'blocked'
++        : 'ok',
++      lang: detected,
++    });
++
+     // The model wants to ask first (not sure, or the amount / person is missing):
+     // speak its question and do nothing else.
+     if (result.source === 'model' && result.needsClarification && result.readback) {
+@@ -933,6 +959,14 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
+ 
+       case 'contacts': {
+         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
++        if (result.source === 'model' && result.model?.intent === 'add_contact') {
++          // "Save this number as Ravi": open the add form with the name filled in.
++          setContactPreFill(result.model.name ?? undefined);
++          setIsContactsOpen(true);
++          speakAndFollowUp(result.readback || 'Who should I save? Say their name.', detected);
++          break;
++        }
++        setContactPreFill(undefined);
+         setIsContactsOpen(true);
+         const names = userState.contacts.map((c) => c.name).join(', ');
+         const cSpeech =
+@@ -954,6 +988,7 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
+ 
+       case 'history': {
+         if (accessibilitySettings.earconsEnabled) audioCues.playIntentRecognized();
++        setActiveTab('activity'); // show the list that is being read out
+         const lastTx = transactions[0];
+         const hSpeech = lastTx
+           ? `Your latest transaction was ${lastTx.type === 'send' ? 'sending' : 'receiving'} ${
+@@ -2526,7 +2561,8 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
+ 
+         {/* Floating Voice Control Capsule at Bottom (ONLY in Blind / Voice-Assisted Mode) */}
+         {accessibilityMode === 'blind' && (
+-          <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
++          <div className="fixed bottom-6 inset-x-0 z-40 flex flex-col items-center px-4 pointer-events-none">
++            <VoiceResultCard card={voiceCard} listening={isListening} transcript={transcript} />
+             <div className="pointer-events-auto max-w-lg w-full bg-zinc-950/95 text-white rounded-full p-2.5 shadow-2xl border border-zinc-800 backdrop-blur-xl flex items-center justify-between gap-3">
+               <div className="flex items-center gap-3 pl-2 overflow-hidden">
+                 <button
+@@ -2621,9 +2657,10 @@ export const FunctionalWalletPage: React.FC<FunctionalWalletPageProps> = ({
+ 
+       <ContactsModal
+         isOpen={isContactsOpen}
++        initialNewName={contactPreFill}
+         contacts={userState.contacts}
+         currentLang={lang}
+-        onClose={() => setIsContactsOpen(false)}
++        onClose={() => { setIsContactsOpen(false); setContactPreFill(undefined); }}
+         onSelectForSend={(contact) => {
+           setIsContactsOpen(false);
+           setSendPreFill({ contact: contact.name });
+diff --git a/frontend/src/components/VoiceResultCard.tsx b/frontend/src/components/VoiceResultCard.tsx
+new file mode 100644
+index 0000000..7093e1a
+--- /dev/null
++++ b/frontend/src/components/VoiceResultCard.tsx
+@@ -0,0 +1,103 @@
++import React from 'react';
++import type { SupportedLanguage } from '../utils/i18n';
++
++/** What the voice bar shows after a command: heard text, model result, reply. */
++export interface VoiceCard {
++  heard: string;
++  intent: string;
++  confidence?: number;
++  reply: string;
++  status: 'ok' | 'ask' | 'blocked' | 'fallback';
++  lang: SupportedLanguage;
++}
++
++const INTENT_LABEL: Record<string, string> = {
++  check_balance: 'Check balance',
++  send: 'Send money',
++  receive: 'Receive',
++  history: 'History',
++  tx_status: 'Transfer status',
++  add_contact: 'Add contact',
++  recovery_help: 'Recover wallet',
++  cancel: 'Cancel',
++  unknown: 'Not understood',
++  contacts: 'Contacts',
++  guardians: 'Guardians',
++  passkey_sign: 'Fingerprint',
++  confirm: 'Confirm',
++  earphones_connected: 'Earphones',
++  copy_address: 'Copy address',
++  settings: 'Settings',
++  help: 'Help',
++  switch_mode: 'Switch mode',
++};
++
++const STATUS = {
++  ok: { label: 'Understood', dot: 'bg-emerald-400', ring: 'border-emerald-500/40' },
++  ask: { label: 'Needs a detail', dot: 'bg-amber-400', ring: 'border-amber-500/40' },
++  blocked: { label: 'Not allowed', dot: 'bg-red-400', ring: 'border-red-500/40' },
++  fallback: { label: 'Basic parser (model offline)', dot: 'bg-zinc-400', ring: 'border-zinc-600' },
++};
++
++interface Props {
++  card: VoiceCard | null;
++  listening: boolean;
++  transcript: string;
++}
++
++/**
++ * Sits above the floating voice bar. Hidden from screen readers (aria-hidden):
++ * the same reply is already spoken and announced, so it would be read twice.
++ */
++export const VoiceResultCard: React.FC<Props> = ({ card, listening, transcript }) => {
++  if (!listening && !card) return null;
++
++  if (listening) {
++    return (
++      <div
++        aria-hidden="true"
++        className="pointer-events-none max-w-lg w-full mb-3 rounded-2xl bg-zinc-950/95 text-white border border-[#FF5500]/50 shadow-2xl backdrop-blur-xl px-4 py-3"
++      >
++        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-[#FF5500] font-bold">
++          <span className="w-2 h-2 rounded-full bg-[#FF5500] animate-pulse" />
++          Listening…
++        </div>
++        <p dir="auto" className="mt-1 text-sm font-medium min-h-5">
++          {transcript || <span className="text-zinc-500">Say a command</span>}
++        </p>
++      </div>
++    );
++  }
++
++  const c = card!;
++  const s = STATUS[c.status];
++  const pct = c.confidence !== undefined ? Math.round(c.confidence * 100) : null;
++
++  return (
++    <div
++      aria-hidden="true"
++      className={`pointer-events-none max-w-lg w-full mb-3 rounded-2xl bg-zinc-950/95 text-white border ${s.ring} shadow-2xl backdrop-blur-xl px-4 py-3 space-y-2`}
++    >
++      <div>
++        <div className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">You said</div>
++        <p dir="auto" lang={c.lang} className="text-sm font-medium">“{c.heard}”</p>
++      </div>
++      <div className="flex items-center gap-2 flex-wrap">
++        <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-2.5 py-0.5 text-xs font-bold">
++          <span className={`w-2 h-2 rounded-full ${s.dot}`} />
++          {INTENT_LABEL[c.intent] ?? c.intent}
++        </span>
++        {pct !== null && c.status !== 'fallback' && (
++          <span className="text-[11px] text-zinc-400 font-mono">{pct}% sure</span>
++        )}
++        <span className="text-[11px] text-zinc-400">· {s.label}</span>
++      </div>
++      {c.reply && (
++        <div>
++          <div className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold">SayPay says</div>
++          <p dir="auto" lang={c.lang} className="text-sm text-zinc-100">{c.reply}</p>
++        </div>
++      )}
++    </div>
++  );
++};
+diff --git a/frontend/src/utils/intentApi.ts b/frontend/src/utils/intentApi.ts
+index 2dc1372..2363f29 100644
+--- a/frontend/src/utils/intentApi.ts
++++ b/frontend/src/utils/intentApi.ts
+@@ -45,6 +45,7 @@ export interface ModelResponse {
+   unit: string | null;
+   recipient: { type: string; value: string | null; contact: string | null; score: number } | null;
+   contact: string | null;
++  name: string | null; // add_contact: the name to save ("save this as Ravi" -> "Ravi")
+   lang_mix: string[];
+   readback: { text: string; lang: SupportedLanguage };
+   engine: string;
