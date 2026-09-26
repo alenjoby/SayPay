@@ -103,7 +103,7 @@ wait_port 5174 tester 30
 
 URL=http://localhost:5173
 printf '\n\033[1;32mSayPay is running.\033[0m\n'
-printf '  App:             %s   (Chrome or Edge; hold Space to talk)\n' "$URL"
+printf '  App:             %s   (Chrome or Edge; tap Space to talk)\n' "$URL"
 printf '  Contract tester: http://localhost:5174   (guardians / beneficiary)\n'
 printf '  Press Ctrl+C here to stop everything.\n\n'
 if [ -z "${SAYPAY_NO_BROWSER:-}" ]; then

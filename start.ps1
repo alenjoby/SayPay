@@ -128,7 +128,7 @@ try {
 
   Write-Host ''
   Write-Host 'SayPay is running.' -ForegroundColor Green
-  Write-Host '  App:             http://localhost:5173   (Chrome or Edge; hold Space to talk)'
+  Write-Host '  App:             http://localhost:5173   (Chrome or Edge; tap Space to talk)'
   Write-Host '  Contract tester: http://127.0.0.1:5174   (guardians / beneficiary)'
   Write-Host ''
   if (-not $env:SAYPAY_NO_BROWSER) { Start-Process 'http://localhost:5173' }
