@@ -78,6 +78,18 @@ _HINGLISH = {
     "sau", "hazaar", "hazar", "dedh", "dhai", "kho", "khoya", "chori", "naya", "jodo", "mat",
     "ruko", "pahuncha", "pahunchi", "bheja", "mila", "lenden", "len", "den", "baaki", "ek",
     "paanch", "panch", "teen", "char", "das", "bees", "pachas", "naam", "wala", "wali", "hua",
+    "pichhle", "pichhla", "pichhli", "batao", "bata", "dikha", "maango", "karna", "kardo", "dena",
+    "bhejna", "bhejdo", "kitni", "gaye", "gayi", "tha", "thi", "wapas", "bhool", "bhul",
+}
+# Arabic written in Latin letters. Words with digits (7awel, 3ndi) are already
+# tagged "arabizi" by the tokenizer; these are the common all-letter ones.
+_ARABIZI = {
+    "kam", "rasidi", "raseedi", "rasedi", "raseed", "rasid", "abi", "abgha", "abga", "abgh",
+    "wain", "wen", "wein", "shu", "shoo", "shlon", "flous", "flousi", "flus", "fulus", "fulusi",
+    "hawel", "hawil", "haweli", "arsel", "ersel", "arsil", "abaath", "aindi", "andi", "endi",
+    "ana", "ila", "ela", "lil", "min", "yalla", "khalas", "habibi", "akhoy", "akhooy", "ukhti",
+    "yumma", "ummi", "abooy", "abuy", "atlub", "a6lub", "alghi", "elghi", "wasalat", "wasal",
+    "nseet", "naseet", "nsit", "3amaliyat", "amaliyat", "hesabi", "7sabi", "dirhamain",
 }
 _ENGLISH = {
     "send", "to", "my", "balance", "what", "whats", "is", "how", "much", "transfer", "pay",
@@ -102,6 +114,18 @@ _REQUEST_CUES = [tuple(clean(w) for w in seq.split()) for seq in [
     "اطلب", "طلب", "يحول لي", "يرسل لي", "تحول لي", "ترسل لي", "يدفع لي", "حولي لي",
     "a6lub", "atlub",
 ]]
+# "I forgot my password / PIN / recovery phrase": always a recovery request.
+_FORGOT = {clean(w) for w in ["forgot", "forget", "forgotten", "نسيت", "ناسي", "nseet", "naseet",
+                              "nsit", "bhool", "bhul", "bhula", "भूल", "भूला", "भूली"]}
+_SECRET = {clean(w) for w in ["password", "pin", "passcode", "seed", "phrase", "passphrase",
+                              "key", "keys", "كلمه", "السر", "سر", "الرقم", "الباسورد", "باسورد",
+                              "رمز", "الرمز", "كود", "العبارة", "المفتاح", "مفتاح", "पासवर्ड",
+                              "पिन", "चाबी", "wallet", "محفظتي", "المحفظه", "वॉलेट"]}
+# Verbs that mean "pay out" (to a scanned code or a copied address).
+_PAY_VERBS = {clean(w) for w in ["pay", "send", "transfer", "ادفع", "وادفع", "حول", "وحول", "ارسل",
+                                 "bhejo", "bhej", "pay karo", "भेजो", "भेज"]}
+_MY = {clean(w) for w in ["my", "mine", "mera", "meri", "mere", "मेरा", "मेरी"]}
+
 _LAST_SENDER = [("who", "sent"), ("sent", "me"), ("sender",), ("last", "person"), ("اللي", "ارسل"),
                 ("اللي", "حول"), ("الي", "حول"), ("المرسل",), ("jisne", "bheja"),
                 ("jisne",), ("जिसने",)]
@@ -116,6 +140,7 @@ class ParseResult:
     alternatives: list[dict]
     amount: float | None
     unit: str | None
+    unit_assumed: bool
     recipient: dict | None
     contact: str | None
     phone: str | None
@@ -145,10 +170,15 @@ def detect_lang_mix(tokens: list[Token]) -> list[str]:
         elif t.script == "latin":
             if t.text in _HINGLISH:
                 lang = "hi"
+            elif t.text in _ARABIZI:
+                lang = "ar"
             elif t.text in _ENGLISH:
                 lang = "en"
         if lang:
-            counts[lang] = counts.get(lang, 0) + 1
+            # English loanwords are normal inside Hinglish and Arabizi ("cancel karo"),
+            # so one Hinglish/Arabizi word outweighs one English word.
+            w = 1.5 if t.script == "latin" and lang != "en" else 1.0
+            counts[lang] = counts.get(lang, 0) + w
     return [k for k, _ in sorted(counts.items(), key=lambda kv: -kv[1])]
 
 
@@ -188,10 +218,40 @@ def _has_seq(tokens: list[Token], seq: tuple[str, ...]) -> bool:
     return any(tuple(texts[i:i + n]) == seq for i in range(len(texts) - n + 1))
 
 
+def _move(probs: dict[str, float], to: str, frm: tuple[str, ...], keep: float = 0.0
+          ) -> dict[str, float]:
+    """Move the probability mass of ``frm`` onto ``to``."""
+    probs = dict(probs)
+    for k in frm:
+        if k in probs and k != to:
+            probs[to] += probs[k] * (1 - keep)
+            probs[k] *= keep
+    return probs
+
+
+def _guards(probs: dict[str, float], tokens: list[Token], recipient: Recipient | None
+            ) -> dict[str, float]:
+    """Deterministic corrections on top of the model, for cases where a rule is certain."""
+    texts = {t.text for t in tokens}
+    top = max(probs, key=probs.get)
+    # "I forgot my password / PIN / seed phrase" -> recovery, never "unknown".
+    if texts & _FORGOT and texts & _SECRET and top in ("unknown", "check_balance", "receive"):
+        probs = _move(probs, "recovery_help", ("unknown", "check_balance", "receive"))
+    # "Pay the QR code" / "send to the address I copied": paying out to a scanned
+    # code is a send (it still asks for the amount and the fingerprint).
+    # "Show MY QR so someone can pay me" stays receive (request cue / "my").
+    if (recipient and recipient.type in ("qr", "clipboard") and top == "receive"
+            and texts & _PAY_VERBS and not texts & _MY and not _has_request_cue(tokens)):
+        probs = _move(probs, "send", ("receive",))
+    return probs
+
+
 def parse(text: str, contacts: list[str] | None = None, model="auto",
-          reply_lang: str | None = None) -> ParseResult:
+          reply_lang: str | None = None, default_unit: str | None = None) -> ParseResult:
     """Parse one command. ``model``: "auto" (trained model if present), None (rules),
-    or an IntentModel instance (used by the evaluation)."""
+    or an IntentModel instance (used by the evaluation). ``default_unit``: the
+    wallet's currency, used (and read back) when a send names no currency;
+    without it the parser asks."""
     tokens = tokenize(text)
     index = ContactIndex(contacts or [])
 
@@ -255,6 +315,7 @@ def parse(text: str, contacts: list[str] | None = None, model="auto",
         if tx_hash and max(probs, key=probs.get) not in ("history", "tx_status"):
             # A pasted 66-char hash can only be a transaction lookup.
             probs = {k: (0.95 if k == "tx_status" else v * 0.05) for k, v in probs.items()}
+        probs = _guards(probs, tokens, recipient)
         ranked = sorted(probs.items(), key=lambda kv: -kv[1])
         top, conf = ranked[0]
     else:
@@ -264,12 +325,21 @@ def parse(text: str, contacts: list[str] | None = None, model="auto",
         if max(scores.values()) <= 0:
             top, conf = "unknown", 0.0
 
+    unit = amount_span.unit if amount_span else None
+    unit_assumed = False
+    if top == "send" and amount_span and unit is None and default_unit:
+        unit, unit_assumed = default_unit, True
     missing: list[str] = []
     if top == "send":
         if amount_span is None:
             missing.append("amount")
+        elif unit is None:
+            missing.append("unit")  # "send 10 to Amma": ten dirhams? ten ETH? ask.
         if recipient is None:
             missing.append("recipient")
+    if top == "receive" and recipient and recipient.type in ("qr", "clipboard", "self"):
+        # Receiving shows the user's own code; "from the scanned code" is meaningless.
+        recipient = None
 
     name = None
     source = None
@@ -310,7 +380,8 @@ def parse(text: str, contacts: list[str] | None = None, model="auto",
         clarification=clarification,
         alternatives=[{"intent": k, "score": round(v, 3)} for k, v in ranked[1:3] if k != top],
         amount=amount_span.value if amount_span else None,
-        unit=amount_span.unit if amount_span else None,
+        unit=unit,
+        unit_assumed=unit_assumed,
         recipient=recipient.as_dict() if recipient else None,
         contact=recipient.contact if recipient and recipient.type == "contact" else None,
         phone=phone_span.text if phone_span else None,

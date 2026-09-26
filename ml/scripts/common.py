@@ -64,7 +64,9 @@ def load_unseen(name: str = "unseen.tsv") -> list[dict]:
 
 def load_handwritten_tests() -> dict[str, list[dict]]:
     """Hand-written test sets: the frozen blind set and the older (no longer blind) one."""
-    return {"blind_v2": load_unseen("blind_v2.tsv"), "unseen": load_unseen()}
+    return {"blind_v2": load_unseen("blind_v2.tsv"), "blind_hi": load_unseen("blind_hi.tsv"),
+            "blind_en": load_unseen("blind_en.tsv"),
+            "unseen": load_unseen()}
 
 
 def lang_of(row: dict) -> str:

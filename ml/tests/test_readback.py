@@ -28,8 +28,8 @@ def test_send_readback_in_spoken_language():
 
 
 def test_reply_lang_override():
-    rb = parse("Rahul ko 500 bhejo", C, reply_lang="en").readback
-    assert rb == {"text": "Send five hundred to Rahul. Confirm with your fingerprint.", "lang": "en"}
+    rb = parse("Rahul ko 500 rupaye bhejo", C, reply_lang="en").readback
+    assert rb == {"text": "Send five hundred rupees to Rahul. Confirm with your fingerprint.", "lang": "en"}
 
 
 def test_phone_read_digit_by_digit():

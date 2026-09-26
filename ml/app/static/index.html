@@ -59,6 +59,16 @@
         <label for="contacts">Saved contacts (comma separated)</label>
         <input id="contacts" value="Amma, Ahmed, Rahul, Sara, Khalid, Priya, Dad, Brother">
       </div>
+      <div>
+        <label for="unit">Wallet currency (when none is said)</label>
+        <select id="unit">
+          <option value="">Ask the user</option>
+          <option value="AED">AED</option>
+          <option value="INR">INR</option>
+          <option value="USD">USD</option>
+          <option value="ETH">ETH</option>
+        </select>
+      </div>
     </div>
     <div style="margin-top:12px">
       <label for="text">Command</label>
@@ -126,7 +136,8 @@ async function understand() {
   $("say").textContent = "…";
   try {
     const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" },
-                                   body: JSON.stringify({ text, contacts }) });
+                                   body: JSON.stringify({ text, contacts,
+                                                         default_unit: $("unit").value || null }) });
     const r = await res.json();
     const [line, cls] = readback(r);
     $("say").textContent = line;

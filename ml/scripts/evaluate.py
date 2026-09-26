@@ -186,7 +186,7 @@ def main() -> None:
                 report["sets"][tname][sname] = None
                 continue
             report["sets"][tname][sname] = metrics(rows, preds)
-            if tname in ("blind_v2", "unseen"):
+            if tname in ("blind_v2", "blind_hi", "blind_en", "unseen"):
                 if tname == HEAD:
                     unseen_preds[sname] = preds
                 report["sets"][tname][sname]["slots"] = slot_metrics(rows, preds)

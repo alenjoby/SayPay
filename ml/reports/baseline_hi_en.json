@@ -1,0 +1,350 @@
+{
+ "generated": "2026-09-26 07:00",
+ "sets": {
+  "blind_v2": {
+   "english_only": {
+    "n": 120,
+    "accuracy": 0.6916666666666667,
+    "macro_f1": 0.6935085009510202,
+    "auto_rate": 0.6083333333333333,
+    "auto_acc": 0.8904109589041096,
+    "unsafe_send": 0.0,
+    "ece": 0.11975833333333336,
+    "slots": {
+     "amount_acc": 1.0,
+     "unit_acc": 1.0,
+     "contact_acc": 1.0,
+     "n_amount": 26,
+     "n_unit": 13,
+     "n_contact": 44
+    },
+    "by_script": {
+     "ar": [
+      0.5434782608695652,
+      46
+     ],
+     "ar+en": [
+      0.8,
+      5
+     ],
+     "arabizi": [
+      0.4,
+      10
+     ],
+     "en": [
+      0.9444444444444444,
+      36
+     ],
+     "hi_deva": [
+      0.5555555555555556,
+      9
+     ],
+     "hi_latin": [
+      0.7857142857142857,
+      14
+     ]
+    }
+   },
+   "rules_v1": {
+    "n": 120,
+    "accuracy": 0.65,
+    "macro_f1": 0.6742663871287059,
+    "auto_rate": 0.45,
+    "auto_acc": 0.8333333333333334,
+    "unsafe_send": 0.09,
+    "ece": 0.10055000000000004,
+    "slots": {
+     "amount_acc": 1.0,
+     "unit_acc": 1.0,
+     "contact_acc": 1.0,
+     "n_amount": 26,
+     "n_unit": 13,
+     "n_contact": 44
+    },
+    "by_script": {
+     "ar": [
+      0.717391304347826,
+      46
+     ],
+     "ar+en": [
+      0.6,
+      5
+     ],
+     "arabizi": [
+      0.3,
+      10
+     ],
+     "en": [
+      0.6666666666666666,
+      36
+     ],
+     "hi_deva": [
+      0.5555555555555556,
+      9
+     ],
+     "hi_latin": [
+      0.7142857142857143,
+      14
+     ]
+    }
+   },
+   "v3": {
+    "n": 120,
+    "accuracy": 0.9666666666666667,
+    "macro_f1": 0.965170847277355,
+    "auto_rate": 0.9083333333333333,
+    "auto_acc": 1.0,
+    "unsafe_send": 0.0,
+    "ece": 0.034158333333333235,
+    "slots": {
+     "amount_acc": 1.0,
+     "unit_acc": 1.0,
+     "contact_acc": 1.0,
+     "n_amount": 26,
+     "n_unit": 13,
+     "n_contact": 44
+    },
+    "by_script": {
+     "ar": [
+      0.9565217391304348,
+      46
+     ],
+     "ar+en": [
+      1.0,
+      5
+     ],
+     "arabizi": [
+      1.0,
+      10
+     ],
+     "en": [
+      0.9722222222222222,
+      36
+     ],
+     "hi_deva": [
+      1.0,
+      9
+     ],
+     "hi_latin": [
+      0.9285714285714286,
+      14
+     ]
+    }
+   }
+  },
+  "blind_hi": {
+   "english_only": {
+    "n": 79,
+    "accuracy": 0.7088607594936709,
+    "macro_f1": 0.6423520923520925,
+    "auto_rate": 0.7215189873417721,
+    "auto_acc": 0.8596491228070176,
+    "unsafe_send": 0.017543859649122806,
+    "ece": 0.13406329113924056,
+    "slots": {
+     "amount_acc": 1.0,
+     "unit_acc": 1.0,
+     "contact_acc": 1.0,
+     "n_amount": 24,
+     "n_unit": 23,
+     "n_contact": 28
+    },
+    "by_script": {
+     "en": [
+      1.0,
+      5
+     ],
+     "hi_deva": [
+      0.6491228070175439,
+      57
+     ],
+     "hi_latin": [
+      0.8235294117647058,
+      17
+     ]
+    }
+   },
+   "rules_v1": {
+    "n": 79,
+    "accuracy": 0.7721518987341772,
+    "macro_f1": 0.7209956347211249,
+    "auto_rate": 0.5443037974683544,
+    "auto_acc": 1.0,
+    "unsafe_send": 0.0,
+    "ece": 0.09735443037974682,
+    "slots": {
+     "amount_acc": 1.0,
+     "unit_acc": 1.0,
+     "contact_acc": 1.0,
+     "n_amount": 24,
+     "n_unit": 23,
+     "n_contact": 28
+    },
+    "by_script": {
+     "en": [
+      1.0,
+      5
+     ],
+     "hi_deva": [
+      0.7368421052631579,
+      57
+     ],
+     "hi_latin": [
+      0.8235294117647058,
+      17
+     ]
+    }
+   },
+   "v3": {
+    "n": 79,
+    "accuracy": 0.8734177215189873,
+    "macro_f1": 0.8479297045188519,
+    "auto_rate": 0.8481012658227848,
+    "auto_acc": 0.9552238805970149,
+    "unsafe_send": 0.0,
+    "ece": 0.052620253164557124,
+    "slots": {
+     "amount_acc": 1.0,
+     "unit_acc": 1.0,
+     "contact_acc": 1.0,
+     "n_amount": 24,
+     "n_unit": 23,
+     "n_contact": 28
+    },
+    "by_script": {
+     "en": [
+      1.0,
+      5
+     ],
+     "hi_deva": [
+      0.8596491228070176,
+      57
+     ],
+     "hi_latin": [
+      0.8823529411764706,
+      17
+     ]
+    }
+   }
+  },
+  "blind_en": {
+   "english_only": {
+    "n": 69,
+    "accuracy": 0.9420289855072463,
+    "macro_f1": 0.9320947570947572,
+    "auto_rate": 0.8985507246376812,
+    "auto_acc": 0.967741935483871,
+    "unsafe_send": 0.0,
+    "ece": 0.04440579710144932,
+    "slots": {
+     "amount_acc": 1.0,
+     "unit_acc": 1.0,
+     "contact_acc": 1.0,
+     "n_amount": 20,
+     "n_unit": 20,
+     "n_contact": 21
+    },
+    "by_script": {
+     "en": [
+      0.9420289855072463,
+      69
+     ]
+    }
+   },
+   "rules_v1": {
+    "n": 69,
+    "accuracy": 0.7246376811594203,
+    "macro_f1": 0.6978834346481405,
+    "auto_rate": 0.5217391304347826,
+    "auto_acc": 0.9166666666666666,
+    "unsafe_send": 0.057692307692307696,
+    "ece": 0.1184492753623188,
+    "slots": {
+     "amount_acc": 1.0,
+     "unit_acc": 1.0,
+     "contact_acc": 1.0,
+     "n_amount": 20,
+     "n_unit": 20,
+     "n_contact": 21
+    },
+    "by_script": {
+     "en": [
+      0.7246376811594203,
+      69
+     ]
+    }
+   },
+   "v3": {
+    "n": 69,
+    "accuracy": 0.9420289855072463,
+    "macro_f1": 0.9320947570947572,
+    "auto_rate": 0.9130434782608695,
+    "auto_acc": 0.9682539682539683,
+    "unsafe_send": 0.0,
+    "ece": 0.05543478260869576,
+    "slots": {
+     "amount_acc": 1.0,
+     "unit_acc": 1.0,
+     "contact_acc": 1.0,
+     "n_amount": 20,
+     "n_unit": 20,
+     "n_contact": 21
+    },
+    "by_script": {
+     "en": [
+      0.9420289855072463,
+      69
+     ]
+    }
+   }
+  }
+ },
+ "models": {},
+ "v3_unseen_confusions": [
+  [
+   "cancel",
+   "unknown",
+   2
+  ],
+  [
+   "check_balance",
+   "add_contact",
+   1
+  ],
+  [
+   "unknown",
+   "send",
+   1
+  ]
+ ],
+ "v3_unseen_errors": [
+  [
+   "قديش صار معي هلق",
+   "check_balance",
+   "add_contact",
+   0.32
+  ],
+  [
+   "بطل",
+   "cancel",
+   "unknown",
+   0.587
+  ],
+  [
+   "changed my mind",
+   "cancel",
+   "unknown",
+   0.732
+  ],
+  [
+   "Rahul ko video bhejo",
+   "unknown",
+   "send",
+   0.727
+  ]
+ ],
+ "latency_ms": {
+  "p50": 6.858589499984191,
+  "p95": 16.259390000016083
+ }
+}

@@ -151,7 +151,8 @@ def _units() -> dict[str, str]:
     groups = {
         "ETH": ["eth", "ether", "ethers", "ethereum", "ethereums", "etherium", "etherum",
                 "ethirium", "eath", "ايثيريوم", "ايثريوم", "ايثيروم", "اثيريوم", "اثريوم",
-                "ايثير", "ايثر", "ايث", "اثير", "ايثيرم", "इथेरियम", "ईथर", "इथर", "ईथरियम"],
+                "ايثير", "ايثر", "ايث", "اثير", "ايثيرم", "इथेरियम", "ईथर", "इथर", "ईथरियम", "ईथ", "इथ", "एथ",
+                "ईटीएच", "एथेरियम", "ईथीरियम"],
         "AED": ["aed", "dirham", "dirhams", "dh", "dhs", "درهم", "دراهم", "درهما", "दिरहम"],
         "SAR": ["sar", "riyal", "riyals", "rial", "rials", "ريال", "ريالات", "रियाल"],
         "QAR": ["qar"],
@@ -343,6 +344,13 @@ def extract_numbers(tokens: list[Token]) -> list[NumberSpan]:
         # A trailing connector is not part of the number.
         while end > start and _lookup(tokens[end - 1]) and _lookup(tokens[end - 1])[0] == AND:
             end -= 1
+        # Hindi fraction prefixes scale by the first magnitude word:
+        # "साढ़े तीन सौ" = 350, "सवा लाख" = 125000, "पौने दो सौ" = 175.
+        if start > 0 and tokens[start - 1].text in _HI_FRAC_PREFIX:
+            mag = next((v for k in range(start, end) for kind, v in [_lookup(tokens[k]) or (None, 0)]
+                        if kind == MULT), 1)
+            value += _HI_FRAC_PREFIX[tokens[start - 1].text] * mag
+            start -= 1
         text = " ".join(t.raw for t in tokens[start:end])
         spans.append(NumberSpan(value, start, end, "amount", text))
         i = end if end > i else i + 1
@@ -360,6 +368,11 @@ def extract_numbers(tokens: list[Token]) -> list[NumberSpan]:
     spans.sort(key=lambda s: s.start)
     return spans
 
+
+_HI_FRAC_PREFIX = {clean(w): v for ws, v in [
+    (["saadhe", "sadhe", "saade", "sade", "saadhe", "साढ़े", "साढे"], 0.5),
+    (["sawa", "sava", "savaa", "सवा"], 0.25),
+    (["paune", "pone", "paone", "पौने"], -0.25)] for w in ws}
 
 _UNIT_FILLERS = {"test", "an", "a", "of", "تست", "تجريبي", "من"}
 
