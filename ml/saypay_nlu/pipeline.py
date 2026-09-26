@@ -36,14 +36,17 @@ _MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
 def get_model():
     """The intent model to use. SAYPAY_ENGINE picks it:
     auto (default): v3 + mmBERT ensemble if the ONNX model exists, else v3, else rules
-    ensemble | v3 | rules: force one."""
+    ensemble | v3 | rules: force one.
+    SAYPAY_V3_MODEL: path of the TF-IDF model to use instead of models/intent_v3.joblib."""
     global _MODEL, _ENGINE, _MODEL_LOADED
     if not _MODEL_LOADED:
         _MODEL_LOADED = True
         want = os.getenv("SAYPAY_ENGINE", "auto").lower()
         if want != "rules":
             from .classifier import IntentModel
-            v3 = IntentModel.load()
+            # SAYPAY_V3_MODEL picks another TF-IDF model file, e.g. models/intent_v5.joblib
+            alt = os.getenv("SAYPAY_V3_MODEL")
+            v3 = IntentModel.load(Path(alt)) if alt else IntentModel.load()
             onnx = None
             if want in ("auto", "ensemble") and v3 is not None:
                 try:
