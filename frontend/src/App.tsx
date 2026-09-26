@@ -101,6 +101,7 @@ export const App: React.FC = () => {
     return (
       <FunctionalWalletPage
         initialLang={lang}
+        onLangChange={setLang}
         openCreateWalletDirectly={openCreateDirectly}
         onBackToLanding={() => {
           setActiveView('landing');
