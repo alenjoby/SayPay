@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SayPay Chain Test</title>
+  <style>
+    :root { --bg:#f6f6f7; --card:#fff; --ink:#18181b; --muted:#5f5f69; --line:#e4e4e7; --accent:#d94a00;
+            --ok:#15803d; --warn:#a16207; --bad:#b91c1c; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#111113; --card:#19191d; --ink:#ececf0; --muted:#a1a1aa; --line:#2c2c33; --accent:#ff6a1a;
+              --ok:#4ade80; --warn:#facc15; --bad:#f87171; color-scheme: dark; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; padding:20px 16px; }
+    main { max-width: 980px; margin: 0 auto; display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+    header, .wide { grid-column: 1 / -1; }
+    h1 { font-size: 20px; margin: 0; } p.sub { margin: 2px 0 0; color: var(--muted); }
+    section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 10px; }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 5px 12px; margin: 0; }
+    dt { color: var(--muted); } dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .row:last-child { margin-bottom: 0; }
+    button, select, input { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+                            border-radius: 7px; padding: 6px 11px; min-height: 36px; }
+    button { cursor: pointer; } button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    input[type=number] { width: 100px; }
+    #log { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; }
+    #log li { padding: 6px 0; border-bottom: 1px solid var(--line); }
+    #log .t { color: var(--muted); font-size: 12px; margin-right: 6px; }
+    #log .k { font-weight: 600; margin-right: 6px; }
+    .ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+    #banner { display: none; border-color: var(--bad); }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>SayPay chain test</h1>
+      <p class="sub">Dev page for <code>src/chain/</code>: the real contract, the device key and the spoken announcements, before they are wired into the wallet screens.</p>
+    </header>
+    <section id="banner" class="wide" role="alert"></section>
+
+    <section aria-labelledby="h-phone">
+      <h2 id="h-phone">This phone</h2>
+      <div class="row">
+        <label for="role">This phone is</label>
+        <select id="role"><option value="owner">Owner phone</option><option value="newphone">New phone</option></select>
+        <button id="pair">Set up this phone</button>
+      </div>
+      <div class="row">
+        <label for="lang">Language</label>
+        <select id="lang"><option value="en">English</option><option value="ar">العربية</option><option value="hi">हिंदी</option></select>
+        <label><input type="checkbox" id="speak"> Speak aloud</label>
+      </div>
+      <dl>
+        <dt>Device</dt><dd id="s-me">…</dd>
+        <dt>Network</dt><dd id="s-net">…</dd>
+        <dt>Wallet owner</dt><dd id="s-owner">…</dd>
+        <dt>Balance</dt><dd id="s-bal">…</dd>
+        <dt>Recovery</dt><dd id="s-rec">…</dd>
+        <dt>Inheritance</dt><dd id="s-inh">…</dd>
+      </dl>
+    </section>
+
+    <section aria-labelledby="h-act">
+      <h2 id="h-act">Actions (each asks for the fingerprint)</h2>
+      <div class="row">
+        <label for="to">Send to</label><select id="to"></select>
+        <label for="amt">ETH</label><input id="amt" type="number" min="0" step="0.01" value="0.01">
+        <button class="primary" data-act="send">Send</button>
+      </div>
+      <div class="row">
+        <button data-act="ping">I'm here (ping)</button>
+        <button data-act="cancelRecovery">Cancel recovery</button>
+        <button data-act="executeRecovery">Finish recovery</button>
+      </div>
+      <div class="row">
+        <button data-act="startInheritance">Start inheritance</button>
+        <button data-act="claimInheritance">Claim inheritance</button>
+        <button id="skip" hidden>Skip 2 minutes (local)</button>
+      </div>
+    </section>
+
+    <section class="wide" aria-labelledby="h-log">
+      <h2 id="h-log">What the app says</h2>
+      <ol id="log" aria-label="Announcements, newest first"></ol>
+    </section>
+  </main>
+  <div id="live-polite" class="sr" aria-live="polite"></div>
+  <div id="live-urgent" class="sr" aria-live="assertive"></div>
+  <script type="module" src="/src/chain/devpage.ts"></script>
+</body>
+</html>
