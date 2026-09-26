@@ -65,7 +65,7 @@ def train_one(rows: list[dict], name: str, cache: dict, grid=True,
     ytr, ydev = [r["intent"] for r in tr], [r["intent"] for r in dev]
     yhd = [r["intent"] for r in hand_dev]
     results = []
-    Cs = [4.0, 16.0] if grid else [4.0]
+    Cs = [4.0, 8.0, 16.0] if grid else [4.0]
     dws = [1.0, 2.0] if grid else [1.0]
     wus = [0.3, 1.0] if grid else [1.0]
     for C in Cs:
@@ -79,11 +79,22 @@ def train_one(rows: list[dict], name: str, cache: dict, grid=True,
                 if hand_dev:
                     hp = [m.labels[i] for i in m.logits(Vhd).argmax(1)]
                     res["hand_dev_acc"] = accuracy_score(yhd, hp)
-                # Select on held-out templates and the hand-written dev set equally.
-                res["score"] = (res["dev_macro_f1"] + res.get("hand_dev_acc", res["dev_macro_f1"])) / 2
+                ext = [k for k, r in enumerate(dev) if r.get("source") != "synthetic"]
+                if ext:
+                    res["ext_dev_acc"] = accuracy_score([ydev[k] for k in ext], [pred[k] for k in ext])
+                # Select on three held-out signals equally: synthetic templates, real
+                # speakers (external dev rows, e.g. dialect Arabic) and the hand-written dev set.
+                # Without the real-speaker term, synthetic data can quietly win over dialects.
+                parts = [f1_score([ydev[k] for k in range(len(dev)) if k not in set(ext)],
+                                  [pred[k] for k in range(len(dev)) if k not in set(ext)],
+                                  average="macro") if ext else res["dev_macro_f1"],
+                         res.get("ext_dev_acc", res["dev_macro_f1"]),
+                         res.get("hand_dev_acc", res["dev_macro_f1"])]
+                res["score"] = sum(parts) / len(parts)
                 results.append(res)
                 print(f"  [{name}] C={C:<5} dense={dw:<4} w_unk={wu:<4} "
-                      f"templF1={res['dev_macro_f1']:.3f} handAcc={res.get('hand_dev_acc', 0):.3f}")
+                      f"devF1={res['dev_macro_f1']:.3f} extAcc={res.get('ext_dev_acc', 0):.3f} "
+                      f"handAcc={res.get('hand_dev_acc', 0):.3f}")
     best = max(results, key=lambda r: r["score"])
     m = IntentModel(C=best["C"], dense_weight=best["dense_weight"]).fit(
         Vtr, ytr, _weights(tr, best["w_unknown"]))
