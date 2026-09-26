@@ -1,0 +1,19 @@
+{
+  "name": "saypay-contracts",
+  "private": true,
+  "description": "SayPayVault: seed-phrase-free wallet with guardian recovery and an inheritance switch",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "abi": "node scripts/export-abi.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.2",
+    "dotenv": "^18.0.4",
+    "hardhat": "^2.29.1",
+    "solc": "^0.8.28"
+  }
+}
