@@ -1,0 +1,73 @@
+# BLIND English test set (en). Written and frozen BEFORE the v5 model was trained;
+# never used for training, tuning or error analysis. Spoken-style English: fillers,
+# indirect requests, '$20', 'bucks', a pasted address and a phone number.
+# Columns: intent<TAB>script<TAB>text<TAB>amount<TAB>unit<TAB>contact
+check_balance	en	how much do I have left in my wallet	-	-	-
+check_balance	en	um what's my balance right now	-	-	-
+check_balance	en	could you tell me how much money I have	-	-	-
+check_balance	en	do I have enough money in my account	-	-	-
+check_balance	en	balance	-	-	-
+check_balance	en	how much ETH have I got	-	-	-
+check_balance	en	read out my balance	-	-	-
+check_balance	en	what's left in my account	-	-	-
+check_balance	en	how rich am I today	-	-	-
+send	en	send $20 to Rahul	20	USD	Rahul
+send	en	I'd like to send 50 dirhams to Ahmed please	50	AED	Ahmed
+send	en	can you transfer 0.2 ETH to Sara	0.2	ETH	Sara
+send	en	give Khalid 100 dirhams	100	AED	Khalid
+send	en	pay Priya 30 bucks	30	USD	Priya
+send	en	uh send my mom 200 dirhams	200	AED	Amma
+send	en	transfer 1.5 ether to my dad	1.5	ETH	Dad
+send	en	could you please pay Fatima 75 dirhams	75	AED	Fatima
+send	en	wire 500 dollars to Mohammed Ali	500	USD	Mohammed Ali
+send	en	send twenty five dirhams to my brother	25	AED	Brother
+send	en	let's send Ahmed 10 dollars	10	USD	Ahmed
+send	en	move 300 dirhams to Sara's wallet	300	AED	Sara
+send	en	I need to pay Rahul back 40 dollars	40	USD	Rahul
+send	en	send some money to Khalid	-	-	Khalid
+send	en	send 100 dirhams	100	AED	-
+send	en	pay 0.01 eth to 0x742d35cc6634c0532925a3b844bc454e4438f44e	0.01	ETH	-
+send	en	send 15 dollars to plus 971 55 987 6543	15	USD	-
+receive	en	I want Rahul to pay me 50 dirhams	50	AED	Rahul
+receive	en	ask Sara to send me 20 dollars	20	USD	Sara
+receive	en	how can someone send me money	-	-	-
+receive	en	what's my wallet address	-	-	-
+receive	en	pull up my QR so my friend can pay me	-	-	-
+receive	en	Khalid owes me 100 dirhams can you request it	100	AED	Khalid
+receive	en	I'm expecting money from Ahmed, show my code	-	-	Ahmed
+history	en	what did I spend this week	-	-	-
+history	en	read me my recent payments	-	-	-
+history	en	who have I sent money to lately	-	-	-
+history	en	go through my last few transactions	-	-	-
+history	en	what came in and out today	-	-	-
+history	en	any money received this month	-	-	-
+tx_status	en	did Rahul get the money I sent	-	-	Rahul
+tx_status	en	is my transfer to Ahmed still pending	-	-	Ahmed
+tx_status	en	has the payment been confirmed	-	-	-
+tx_status	en	why hasn't my last transfer arrived	-	-	-
+tx_status	en	check if the 50 dirhams reached Sara	50	AED	Sara
+tx_status	en	was my payment successful	-	-	-
+add_contact	en	add a new contact called Omar	-	-	-
+add_contact	en	save this number as Ravi	-	-	-
+add_contact	en	put the address I copied in my contacts as Leena	-	-	-
+add_contact	en	remember this wallet as my landlord	-	-	-
+add_contact	en	create a contact for Neha	-	-	-
+recovery_help	en	my phone got stolen what do I do	-	-	-
+recovery_help	en	I dropped my phone in the sea	-	-	-
+recovery_help	en	how do I restore my wallet on a new phone	-	-	-
+recovery_help	en	I can't get into my wallet	-	-	-
+recovery_help	en	I don't remember my PIN	-	-	-
+recovery_help	en	help me get my account back	-	-	-
+cancel	en	no wait don't do that	-	-	-
+cancel	en	hold on stop the payment	-	-	-
+cancel	en	forget it	-	-	-
+cancel	en	actually never mind	-	-	-
+cancel	en	no no no cancel	-	-	-
+cancel	en	scratch that	-	-	-
+unknown	en	what's the weather in Abu Dhabi	-	-	-
+unknown	en	tell me a joke	-	-	-
+unknown	en	call Ahmed	-	-	-
+unknown	en	what's the price of bitcoin	-	-	-
+unknown	en	set a reminder for tomorrow	-	-	-
+unknown	en	who won the football match	-	-	-
+unknown	en	hello how are you	-	-	-
