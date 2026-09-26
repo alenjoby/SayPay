@@ -36,6 +36,10 @@ import { hasUserCreatedWallet } from './utils/walletState';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 
+import logoImg from '../Assets/logo.png';
+import saypayWhyImg from '../Assets/saypay why.png';
+import saypayCtaImg from '../Assets/saypay-cta.png';
+
 export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<'landing' | 'wallet'>('landing');
   const [openCreateDirectly, setOpenCreateDirectly] = useState<boolean>(false);
@@ -129,11 +133,12 @@ export const App: React.FC = () => {
 
           {/* Logo (Centered) */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
-            <a href="#top" className="flex items-center gap-2.5 group outline-none" aria-label="SayPay Home">
-              <div className="w-8 h-8 rounded-xl bg-[#FF5500] flex items-center justify-center font-black text-white text-sm shadow-sm group-hover:scale-105 transition">
-                S
-              </div>
-              <span className="text-xl font-extrabold tracking-tight text-zinc-900 font-display">SayPay</span>
+            <a href="#top" className="flex items-center group outline-none" aria-label="SayPay Home">
+              <img
+                src={logoImg}
+                alt="SayPay"
+                className="h-8 sm:h-9 w-auto object-contain group-hover:scale-105 transition"
+              />
             </a>
           </div>
 
@@ -471,15 +476,18 @@ export const App: React.FC = () => {
               <div
                 data-aos="fade-up"
                 data-aos-delay="100"
-                className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[160px] sm:min-h-[175px] hover:shadow-md transition"
+                className="bg-white rounded-3xl p-7 sm:p-8 border border-slate-200/80 shadow-sm flex flex-col justify-between min-h-[190px] sm:min-h-[210px] hover:shadow-md hover:border-[#FF5500]/40 transition group"
               >
-                <div>
-                  <Headphones className="w-6 h-6 text-slate-800" />
+                <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-[#FF5500] group-hover:scale-105 transition">
+                  <Headphones className="w-6 h-6" />
                 </div>
-                <div className="mt-6">
-                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
+                <div className="mt-8">
+                  <h3 className="font-black text-slate-900 text-xl sm:text-2xl font-display leading-tight tracking-tight">
                     Real-time audio guidance, 24/7
                   </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-2 font-medium">
+                    Continuous acoustic earcons and verbal narration for all events.
+                  </p>
                 </div>
               </div>
 
@@ -487,15 +495,18 @@ export const App: React.FC = () => {
               <div
                 data-aos="fade-up"
                 data-aos-delay="200"
-                className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[160px] sm:min-h-[175px] hover:shadow-md transition"
+                className="bg-white rounded-3xl p-7 sm:p-8 border border-slate-200/80 shadow-sm flex flex-col justify-between min-h-[190px] sm:min-h-[210px] hover:shadow-md hover:border-[#FF5500]/40 transition group"
               >
-                <div>
-                  <Compass className="w-6 h-6 text-slate-800" />
+                <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-[#FF5500] group-hover:scale-105 transition">
+                  <Compass className="w-6 h-6" />
                 </div>
-                <div className="mt-6">
-                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
-                    Explore dApps and blind-first ecosystems
+                <div className="mt-8">
+                  <h3 className="font-black text-slate-900 text-xl sm:text-2xl font-display leading-tight tracking-tight">
+                    Explore dApps & blind-first ecosystems
                   </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-2 font-medium">
+                    Complete financial sovereignty with zero screen dependency.
+                  </p>
                 </div>
               </div>
             </div>
@@ -506,11 +517,11 @@ export const App: React.FC = () => {
               data-aos-delay="150"
               className="md:col-span-2 lg:col-span-6 flex items-center justify-center"
             >
-              <div className="w-full h-full min-h-[280px] sm:min-h-[340px] rounded-3xl overflow-hidden shadow-sm border border-slate-200/80 bg-slate-200">
+              <div className="w-full h-full min-h-[320px] sm:min-h-[420px] rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 bg-white p-2.5 flex items-center justify-center">
                 <img
-                  src="/assets/mascot.jpg"
-                  alt="SayPay Voice and Audio Interface"
-                  className="w-full h-full object-cover object-center max-h-[380px] sm:max-h-[420px]"
+                  src={saypayWhyImg}
+                  alt="SayPay - Why Choose SayPay Usability Architecture"
+                  className="w-full h-full object-cover object-center rounded-2xl max-h-[460px]"
                 />
               </div>
             </div>
@@ -521,15 +532,18 @@ export const App: React.FC = () => {
               <div
                 data-aos="fade-up"
                 data-aos-delay="200"
-                className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[160px] sm:min-h-[175px] hover:shadow-md transition"
+                className="bg-white rounded-3xl p-7 sm:p-8 border border-slate-200/80 shadow-sm flex flex-col justify-between min-h-[190px] sm:min-h-[210px] hover:shadow-md hover:border-[#FF5500]/40 transition group"
               >
-                <div>
-                  <RefreshCw className="w-6 h-6 text-slate-800" />
+                <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-[#FF5500] group-hover:scale-105 transition">
+                  <RefreshCw className="w-6 h-6" />
                 </div>
-                <div className="mt-6">
-                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
+                <div className="mt-8">
+                  <h3 className="font-black text-slate-900 text-xl sm:text-2xl font-display leading-tight tracking-tight">
                     Swaps across 100+ blockchains
                   </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-2 font-medium">
+                    Instant voice-initiated swaps with zero hexadecimal hex input.
+                  </p>
                 </div>
               </div>
 
@@ -537,15 +551,18 @@ export const App: React.FC = () => {
               <div
                 data-aos="fade-up"
                 data-aos-delay="300"
-                className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[160px] sm:min-h-[175px] hover:shadow-md transition"
+                className="bg-white rounded-3xl p-7 sm:p-8 border border-slate-200/80 shadow-sm flex flex-col justify-between min-h-[190px] sm:min-h-[210px] hover:shadow-md hover:border-[#FF5500]/40 transition group"
               >
-                <div>
-                  <ShieldCheck className="w-6 h-6 text-slate-800" />
+                <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-[#FF5500] group-hover:scale-105 transition">
+                  <ShieldCheck className="w-6 h-6" />
                 </div>
-                <div className="mt-6">
-                  <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
+                <div className="mt-8">
+                  <h3 className="font-black text-slate-900 text-xl sm:text-2xl font-display leading-tight tracking-tight">
                     Built-in Security Scanner & Recovery
                   </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-2 font-medium">
+                    Biometric hardware authentication and guardian restoration.
+                  </p>
                 </div>
               </div>
             </div>
@@ -758,8 +775,12 @@ export const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="w-48 h-48 rounded-full bg-[#FF5500]/15 flex items-center justify-center shrink-0 border border-[#FF5500]/30 shadow-[0_0_50px_rgba(255,85,0,0.2)]">
-            <Mic className="w-20 h-20 text-[#FF5500]" />
+          <div className="w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center shrink-0">
+            <img
+              src={saypayCtaImg}
+              alt="SayPay Biometric Voice Passkey Security"
+              className="w-full h-full object-contain filter drop-shadow-[0_10px_35px_rgba(255,85,0,0.35)]"
+            />
           </div>
         </div>
       </section>
@@ -767,12 +788,10 @@ export const App: React.FC = () => {
       {/* 8. Corporate Minimal Footer */}
       <footer className="bg-white border-t border-zinc-200 py-12 px-4 sm:px-8 text-xs text-zinc-500">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-[#FF5500] flex items-center justify-center font-black text-white text-xs">
-              S
-            </div>
-            <span className="font-extrabold text-sm text-zinc-900">SayPay</span>
-            <span>- Voice-First Smart Wallet Prototype</span>
+          <div className="flex items-center gap-3">
+            <img src={logoImg} alt="SayPay" className="h-6 w-auto object-contain" />
+            <span className="text-zinc-400">|</span>
+            <span>Voice-First Smart Wallet Prototype</span>
           </div>
 
           <div className="flex items-center gap-4 text-[11px] font-mono">
