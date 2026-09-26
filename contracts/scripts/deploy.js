@@ -91,6 +91,7 @@ async function main() {
   const dir = path.join(__dirname, "..", "deployments");
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, `${network.name}.json`), JSON.stringify(out, null, 2));
+  writeFrontendFiles(out, deviceKeys(demo, local, env));
 
   console.log(`guardians ${guardians.length} (need ${threshold}), timers ${timer}s`);
   console.log(`wrote deployments/${network.name}.json`);
@@ -98,6 +99,41 @@ async function main() {
     console.log(`\nContract: ${explorer}/address/${address}`);
     console.log(`Next: npm run verify:sepolia   (publishes the source code on Etherscan)`);
   }
+}
+
+// Keys for the phone app's demo pairing: the owner phone and the "new phone".
+function deviceKeys(demo, local, env) {
+  if (demo) return { owner: env.DEMO_OWNER_KEY, newphone: env.DEMO_NEWPHONE_KEY };
+  if (local) {
+    // Hardhat node's default test accounts #0 (owner) and #5 (new phone).
+    const m = ethers.Mnemonic.fromPhrase("test test test test test test test test test test test junk");
+    const at = (i) => ethers.HDNodeWallet.fromMnemonic(m, `m/44'/60'/0'/0/${i}`).privateKey;
+    return { owner: at(0), newphone: at(5) };
+  }
+  return {};
+}
+
+// frontend/public/chain/<network>.json (no keys) and frontend/.env.development.local
+// (git-ignored, dev server only: which network + the demo device keys).
+function writeFrontendFiles(out, keys) {
+  const fe = path.join(__dirname, "..", "..", "frontend");
+  if (!fs.existsSync(fe)) return;
+  const pub = path.join(fe, "public", "chain");
+  fs.mkdirSync(pub, { recursive: true });
+  fs.writeFileSync(path.join(pub, `${out.network}.json`), JSON.stringify(out, null, 2));
+
+  const envFile = path.join(fe, ".env.development.local");
+  const vars = { VITE_CHAIN_NETWORK: out.network, VITE_DEVICE_KEY_OWNER: keys.owner,
+                 VITE_DEVICE_KEY_NEWPHONE: keys.newphone };
+  let text = fs.existsSync(envFile) ? fs.readFileSync(envFile, "utf8") : "";
+  for (const [k, v] of Object.entries(vars)) {
+    if (!v) continue;
+    const line = `${k}=${v}`;
+    const re = new RegExp(`^${k}=.*$`, "m");
+    text = re.test(text) ? text.replace(re, line) : `${text}${text && !text.endsWith("\n") ? "\n" : ""}${line}\n`;
+  }
+  fs.writeFileSync(envFile, text);
+  console.log(`wrote frontend/public/chain/${out.network}.json and frontend/.env.development.local`);
 }
 
 main().catch((e) => { console.error(e); process.exitCode = 1; });

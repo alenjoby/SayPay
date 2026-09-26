@@ -1,0 +1,4 @@
+# Written by contracts/scripts/deploy.js. Local-chain deployments change on
+# every restart, so only public-network ones (sepolia.json) are committed.
+localhost.json
+hardhat.json
