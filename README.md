@@ -10,6 +10,28 @@ It has three parts:
 - **Web app** (`frontend/`): everything is read out loud and works with screen readers
 - **Smart contract** (`contracts/`): the SayPayVault wallet, with guardian recovery and an inheritance switch
 
+## The problems we picked (BitNBuild '26)
+
+**AI/ML: Code-Switching and Spelling by Ear.** People in the Gulf mix Arabic, Hindi
+and English in one sentence, and speech-to-text spells names however it hears them.
+We trained our own intent model (no chatbot API) on mixed-language and
+"wrong-script" commands like "Rahul ko 500 bhejo" or "send 0.05 ETH to أمي". It
+matches contact names by sound ("Sarah" finds Sara), reads amounts back in words, and
+asks when it isn't sure instead of guessing. On 120 hand-written test commands it gets
+96.7% (97.5% with the mmBERT ensemble), against 69% for an English-only model, with no
+confident wrong sends.
+
+**Blockchain: Self-Custody Assumes You Are Alive.** The SayPayVault contract has no
+seed phrase to lose. If you lose your phone, your guardians can move the wallet to a
+new one, but you get warned and can cancel it, and guardians can never take the money.
+If you stop showing up, an inheritance switch lets your family claim it after a
+waiting period, and saying "I'm here" stops it. Tested, and deployable to Sepolia.
+
+**Web: Interfaces That Change Silently.** Nothing on screen changes without being
+said out loud: every popup is a real dialog that a screen reader announces, security
+events (like someone starting a recovery) interrupt you, each state has its own sound,
+and you can type a command when speech doesn't work.
+
 ## Run it
 
 You need **Python 3.11+** and **Node.js 20+**.

@@ -14,7 +14,11 @@ mkdir -p "$LOGS"
 
 step() { printf '\033[1;33m> %s\033[0m\n' "$*"; }
 ok()   { printf '\033[1;32m  %s\033[0m\n' "$*"; }
-die()  { printf '\033[1;31mX %s\033[0m\n' "$*"; exit 1; }
+die()  { # message [log]
+  printf '\033[1;31mX %s\033[0m\n' "$1"
+  if [ -n "${2:-}" ] && [ -f "$2" ]; then printf '  Last lines of %s:\n' "$2"; tail -n 15 "$2" | sed 's/^/    /'; fi
+  exit 1
+}
 
 # ---- 1. Prerequisites --------------------------------------------------------
 PY=$(command -v python3 || command -v python || true)
@@ -40,16 +44,20 @@ if [ ! -x "$VPY" ] || [ "$(cat "$STAMP" 2>/dev/null)" != "$(hash_of ml/requireme
   step "Installing the voice model (first run: 1-3 minutes)..."
   [ -x "$VPY" ] || "$PY" -m venv "$VENV"
   "$VPY" -m pip install -q --upgrade pip >"$LOGS/install-ml.log" 2>&1
-  "$VPY" -m pip install -q -r ml/requirements.txt >>"$LOGS/install-ml.log" 2>&1 \
-    || die "Installing the voice model failed; see logs/install-ml.log"
+  # Core packages first; onnxruntime/tokenizers only power the optional mmBERT model.
+  grep -vE '^(onnxruntime|tokenizers)' ml/requirements.txt >"$LOGS/requirements-core.txt"
+  "$VPY" -m pip install -q -r "$LOGS/requirements-core.txt" >>"$LOGS/install-ml.log" 2>&1 \
+    || die "Installing the voice model failed." "$LOGS/install-ml.log"
+  "$VPY" -m pip install -q onnxruntime tokenizers >>"$LOGS/install-ml.log" 2>&1 \
+    || ok "Optional mmBERT support skipped (not available for this Python); the main model works."
   hash_of ml/requirements.txt >"$STAMP"
 fi
 
 for dir in contracts frontend; do
   if [ ! -d "$dir/node_modules" ] || [ "$dir/package-lock.json" -nt "$dir/node_modules/.package-lock.json" ]; then
     step "Installing $dir (first run: 1-2 minutes)..."
-    (cd "$dir" && npm ci --no-audit --no-fund >"$LOGS/install-$dir.log" 2>&1) \
-      || die "Installing $dir failed; see logs/install-$dir.log"
+    (cd "$dir" && npm install --no-audit --no-fund >"$LOGS/install-$dir.log" 2>&1) \
+      || die "Installing $dir failed." "$LOGS/install-$dir.log"
   fi
 done
 
@@ -72,13 +80,13 @@ start() { # name dir command...
 }
 wait_port() { # port name seconds
   for _ in $(seq 1 "$3"); do port_open "$1" && return 0; sleep 1; done
-  die "$2 did not start; see logs/$2.log"
+  die "$2 did not start." "$LOGS/$2.log"
 }
 
 step "Starting the local blockchain..."
 start chain contracts npx hardhat node
 wait_port 8545 chain 60
-(cd contracts && npm run -s deploy:local) >"$LOGS/deploy.log" 2>&1 || die "Deploying the contract failed; see logs/deploy.log"
+(cd contracts && npm run -s deploy:local) >"$LOGS/deploy.log" 2>&1 || die "Deploying the contract failed." "$LOGS/deploy.log"
 ok "SayPayVault deployed with 2.5 test ETH"
 
 step "Starting the voice model..."

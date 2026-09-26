@@ -13,7 +13,15 @@ New-Item -ItemType Directory -Force -Path $Logs | Out-Null
 
 function Step($m) { Write-Host "> $m" -ForegroundColor Yellow }
 function Ok($m)   { Write-Host "  $m" -ForegroundColor Green }
-function Die($m)  { Write-Host "X $m" -ForegroundColor Red; Read-Host 'Press Enter to close'; exit 1 }
+function Die($m, $log = $null) {
+  Write-Host "X $m" -ForegroundColor Red
+  if ($log -and (Test-Path $log)) {
+    Write-Host "  Last lines of $log :" -ForegroundColor DarkGray
+    Get-Content $log -Tail 15 | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+  }
+  Read-Host 'Press Enter to close'
+  exit 1
+}
 
 # ---- 1. Prerequisites --------------------------------------------------------
 $py = $null
@@ -47,8 +55,14 @@ if (-not (Test-Path $venvPy) -or -not (Test-Path $stamp) -or ((Get-Content $stam
   # Via cmd, with outer quotes (cmd strips one pair when a line starts with a quoted path),
   # so pip's warnings on stderr don't count as errors in PowerShell 5.
   cmd /c "`"`"$venvPy`" -m pip install -q --upgrade pip > `"$Logs\install-ml.log`" 2>&1`""
-  cmd /c "`"`"$venvPy`" -m pip install -q -r `"$Root\ml\requirements.txt`" >> `"$Logs\install-ml.log`" 2>&1`""
-  if ($LASTEXITCODE -ne 0) { Die 'Installing the voice model failed; see logs\install-ml.log' }
+  # Core packages first. onnxruntime/tokenizers only power the optional mmBERT model and
+  # may have no build yet for the newest Python, so they are tried separately.
+  $core = Join-Path $Logs 'requirements-core.txt'
+  Get-Content (Join-Path $Root 'ml\requirements.txt') | Where-Object { $_ -notmatch '^(onnxruntime|tokenizers)' } | Set-Content $core
+  cmd /c "`"`"$venvPy`" -m pip install -q -r `"$core`" >> `"$Logs\install-ml.log`" 2>&1`""
+  if ($LASTEXITCODE -ne 0) { Die 'Installing the voice model failed.' (Join-Path $Logs 'install-ml.log') }
+  cmd /c "`"`"$venvPy`" -m pip install -q onnxruntime tokenizers >> `"$Logs\install-ml.log`" 2>&1`""
+  if ($LASTEXITCODE -ne 0) { Ok 'Optional mmBERT support skipped (not available for this Python); the main model works.' }
   Set-Content -Path $stamp -Value $reqHash
 }
 
@@ -59,10 +73,11 @@ foreach ($dir in 'contracts', 'frontend') {
   if (-not (Test-Path $nm) -or $lockNewer) {
     Step "Installing $dir (first run: 1-2 minutes)..."
     Push-Location (Join-Path $Root $dir)
-    cmd /c "npm ci --no-audit --no-fund > `"$Logs\install-$dir.log`" 2>&1"
+    # npm install (not ci): updates in place, so a file still locked by an old dev server doesn't break it.
+    cmd /c "npm install --no-audit --no-fund > `"$Logs\install-$dir.log`" 2>&1"
     $code = $LASTEXITCODE
     Pop-Location
-    if ($code -ne 0) { Die "Installing $dir failed; see logs\install-$dir.log" }
+    if ($code -ne 0) { Die "Installing $dir failed. If it mentions EPERM or EBUSY, close VS Code and other terminals and try again." (Join-Path $Logs "install-$dir.log") }
   }
 }
 
@@ -82,7 +97,7 @@ function Stop-All {
 function Wait-Port($port, $name, $seconds) {
   for ($i = 0; $i -lt $seconds; $i++) { if (Test-Port $port) { return }; Start-Sleep -Seconds 1 }
   Stop-All
-  Die "$name did not start; see logs\$name.log"
+  Die "$name did not start." (Join-Path $Logs "$name.log")
 }
 
 try {
@@ -93,7 +108,7 @@ try {
   cmd /c "npm run -s deploy:local > `"$Logs\deploy.log`" 2>&1"
   $code = $LASTEXITCODE
   Pop-Location
-  if ($code -ne 0) { Stop-All; Die 'Deploying the contract failed; see logs\deploy.log' }
+  if ($code -ne 0) { Stop-All; Die 'Deploying the contract failed.' (Join-Path $Logs 'deploy.log') }
   Ok 'SayPayVault deployed with 2.5 test ETH'
 
   Step 'Starting the voice model...'
