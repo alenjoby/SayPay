@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SayPay Final Test</title>
+<style>
+:root{--bg:#fff;--ink:#18181b;--muted:#5f5f69;--line:#e4e4e7;--code:#f4f4f5;--accent:#d94a00;--done:#15803d}
+@media (prefers-color-scheme:dark){:root{--bg:#131316;--ink:#ececf0;--muted:#a1a1aa;--line:#2c2c33;--code:#1d1d22;--accent:#ff6a1a;--done:#4ade80;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:28px 16px 60px}
+main{max-width:880px;margin:0 auto}
+#progress{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:8px;font-weight:600;z-index:1;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#progress button{font:inherit;font-weight:500;border:1px solid var(--line);background:var(--code);color:var(--ink);border-radius:6px;padding:4px 10px;cursor:pointer}
+h1{font-size:28px;margin:0 0 12px} h2{font-size:20px;margin:36px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+a{color:var(--accent)} code{font:14px/1.5 ui-monospace,Consolas,monospace;background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:15px} th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top} th{color:var(--muted);font-weight:600}
+ul{padding-left:0} li.task{list-style:none;margin:6px 0} li.task label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+li.task input{width:18px;height:18px;margin-top:3px;flex-shrink:0;accent-color:var(--done)}
+li.task input:checked + span{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--done)}
+input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+</style></head><body><main>
+<div id="progress" role="status" aria-live="polite"><span id="count"></span><button id="reset" type="button">Clear all ticks</button></div>
+<h1>SayPay final test checklist</h1>
+<p>Every item comes from the project spec. Tick it only when it passes <strong>with the
+screen off or eyes closed</strong>, unless it is a visual check. Write the failing step
+and what happened next to anything that fails.</p>
+<h2>Status of the gaps found before the final test</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Spec says</th>
+<th>Now</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G1</td>
+<td>The app uses the contract</td>
+<td>✅ <strong>Fixed.</strong> Balance comes from SayPayVault; sends go through it (Pending → Confirmed → Sent); guardian actions from other phones are announced; &quot;cancel recovery&quot;, &quot;I'm here&quot;, &quot;finish recovery&quot; call the contract.</td>
+</tr>
+<tr>
+<td>G2</td>
+<td>&quot;Every voice action also works by typing&quot;</td>
+<td>✅ <strong>Fixed.</strong> Text box under the voice bar: &quot;Type a command instead of speaking&quot;.</td>
+</tr>
+<tr>
+<td>G3</td>
+<td>Confirmation steps are a real <code>&lt;dialog&gt;</code>, focus moves in and back</td>
+<td>✅ <strong>Fixed</strong> for Send, Receive, Contacts, Guardians, Transaction, Settings. (Create Wallet, Fund, Swap, onboarding popups are still <code>&lt;div&gt;</code>s.)</td>
+</tr>
+<tr>
+<td>G4</td>
+<td>Amounts read in words (&quot;zero point one test ETH&quot;)</td>
+<td>⚠️ Contract announcements still say &quot;0.1 test ETH&quot;. The send wording in the app currently comes from the old parser (&quot;Prepared transfer: Sending 0.05…&quot;), not the model's read-back.</td>
+</tr>
+<tr>
+<td>G5</td>
+<td>Installable as a PWA on Android</td>
+<td>❌ Not done.</td>
+</tr>
+<tr>
+<td>G6</td>
+<td>Guardian and beneficiary screens</td>
+<td>Contract tester page only (fine for the demo).</td>
+</tr>
+<tr>
+<td>G7</td>
+<td>Manglish</td>
+<td>Replaced by Arabic (team decision).</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>0. Setup (all on the demo PC)</h2>
+<ul>
+<li class="task"><label><input type="checkbox" id="c1"> <span><code>git pull</code> on branch <code>claude/trusting-allen-e40phb</code>; <code>npm install</code> in <code>frontend/</code> and <code>contracts/</code>; <code>pip install -r requirements.txt</code> in <code>ml/</code></span></label></li>
+<li class="task"><label><input type="checkbox" id="c2"> <span><strong>Model</strong>: <code>cd ml</code> → <code>python -m uvicorn app.main:app --port 8000</code> → http://localhost:8000/health shows <code>&quot;status&quot;:&quot;ok&quot;</code> (and <code>v3+mmbert</code> if the mmBERT files are in <code>ml/models/mmbert_fp32/</code>)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c3"> <span><strong>Contract</strong>: Sepolia: <code>cd contracts</code> → <code>npm run wallets</code> (once) → <code>npm run deploy:sepolia</code> → Etherscan link opens and shows the contract
+<em>(or local: <code>npx hardhat node</code> + <code>npm run deploy:local</code>)</em></span></label></li>
+<li class="task"><label><input type="checkbox" id="c4"> <span><strong>Frontend</strong>: <code>cd frontend</code> → <code>npm install</code> → <code>npm run dev</code> (start <strong>after</strong> the deploy) → http://localhost:5173 opens in <strong>Edge</strong></span></label></li>
+<li class="task"><label><input type="checkbox" id="c5"> <span>The wallet's ETH balance equals the vault's balance (0.1 on Sepolia by default, 2.5 locally), <strong>not</strong> a made-up number</span></label></li>
+<li class="task"><label><input type="checkbox" id="c6"> <span><strong>Contract tester</strong> (guardians / beneficiary): <code>cd contracts</code> → <code>npm run tester -- sepolia</code> → http://localhost:5174</span></label></li>
+<li class="task"><label><input type="checkbox" id="c7"> <span>Earphones plugged in; Windows volume up; Edge Natural voices present (Settings → speech, or just listen: it should sound human)</span></label></li>
+</ul>
+<h2>1. AI / voice commands (spec: AI/ML module)</h2>
+<p>Press <strong>Space</strong>, speak, watch the voice card above the voice bar and DevTools console (<code>[SayPay model …]</code>).
+Pick the page language (EN / हिंदी / العربية) <strong>before</strong> speaking that language.</p>
+<p><strong>Intents (spec: at least these 6)</strong></p>
+<ul>
+<li class="task"><label><input type="checkbox" id="c8"> <span>check_balance: &quot;What's my balance&quot; / &quot;मेरा बैलेंस कितना है&quot; / &quot;كم رصيدي&quot;</span></label></li>
+<li class="task"><label><input type="checkbox" id="c9"> <span>send: &quot;Send 0.05 ETH to Priya&quot; / &quot;प्रिया को 0.2 ईथर भेजो&quot; / &quot;حول 0.1 إيثيريوم لأمي&quot;</span></label></li>
+<li class="task"><label><input type="checkbox" id="c10"> <span>history: &quot;Show my transactions&quot; → Activity tab</span></label></li>
+<li class="task"><label><input type="checkbox" id="c11"> <span>add_contact: &quot;Save this number as Ravi&quot; → Contacts with <strong>Ravi</strong> filled in</span></label></li>
+<li class="task"><label><input type="checkbox" id="c12"> <span>recovery_help: &quot;I lost my phone&quot; / &quot;نسيت كلمة السر&quot; → Guardians</span></label></li>
+<li class="task"><label><input type="checkbox" id="c13"> <span>cancel: &quot;Cancel&quot; / &quot;rehne do&quot; / &quot;الغي&quot;</span></label></li>
+</ul>
+<p><strong>Language challenges (spec)</strong></p>
+<ul>
+<li class="task"><label><input type="checkbox" id="c14"> <span>Code-switching: &quot;Ahmed ko fifty dirham send karo&quot;, &quot;send 50 درهم to Ahmed&quot;</span></label></li>
+<li class="task"><label><input type="checkbox" id="c15"> <span>Spelling by ear: &quot;Send to <strong>Sarah</strong> 0.1&quot; → Sara; &quot;Send 0.1 to <strong>Zayd</strong>&quot; → Zaid</span></label></li>
+<li class="task"><label><input type="checkbox" id="c16"> <span>Transliteration: &quot;7awel 0.1 la Amma&quot; (Arabizi), &quot;Rahul ko 500 bhejo&quot; (Latin Hindi)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c17"> <span>Spoken numbers: &quot;पांच सौ&quot;, &quot;साढ़े तीन सौ&quot; (350), &quot;خمسين&quot;, &quot;zero point one&quot;</span></label></li>
+<li class="task"><label><input type="checkbox" id="c18"> <span>Contact matching: &quot;mom&quot; / &quot;أمي&quot; / &quot;मम्मी&quot; → Amma</span></label></li>
+</ul>
+<p><strong>Safety (spec: confidence rule, AI never moves money)</strong></p>
+<ul>
+<li class="task"><label><input type="checkbox" id="c19"> <span>Low confidence → asks (&quot;Did you want to … or …?&quot;), <strong>no Send popup</strong></span></label></li>
+<li class="task"><label><input type="checkbox" id="c20"> <span>&quot;Send money to Priya&quot; → &quot;How much…?&quot;, no popup</span></label></li>
+<li class="task"><label><input type="checkbox" id="c21"> <span>&quot;Send 50 dirhams to Priya&quot; → &quot;I can only send test ETH…&quot;, no popup</span></label></li>
+<li class="task"><label><input type="checkbox" id="c22"> <span>&quot;Ask Priya for 20 dollars&quot; → <strong>never</strong> opens Send</span></label></li>
+<li class="task"><label><input type="checkbox" id="c23"> <span>&quot;Book a flight&quot; → &quot;Sorry, I didn't understand&quot;</span></label></li>
+<li class="task"><label><input type="checkbox" id="c24"> <span>Model server stopped → app still works with the basic parser (grey card)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c25"> <span><strong>Typed fallback</strong>: type each command above in &quot;Type a command instead of speaking&quot; → same result as speaking</span></label></li>
+</ul>
+<p><strong>Numbers for the pitch (spec: held-out test set vs English-only baseline)</strong></p>
+<ul>
+<li class="task"><label><input type="checkbox" id="c26"> <span><code>cd ml/scripts</code> → <code>python evaluate.py --sets blind_v2,blind_hi,blind_en</code> → note accuracy for <code>v3</code> and <code>english_only</code>
+(held-out hand-written sets: 120 + 79 + 69 = 268 commands, more than the spec's 150)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c27"> <span>Amount / contact extraction accuracy from the same report (<code>reports/eval.md</code>)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c28"> <span>Decide the model: current v3 (default) or <code>SAYPAY_V3_MODEL=models/intent_v5.joblib</code> (better Hindi, lower Arabic dialect scores)</span></label></li>
+</ul>
+<h2>2. Read-back and fingerprint (spec: &quot;never cut&quot;)</h2>
+<ul>
+<li class="task"><label><input type="checkbox" id="c29"> <span>Every send is <strong>read back</strong> before anything happens: amount in words + name (&quot;Send zero point zero five test ETH to Priya. Confirm with your fingerprint.&quot;)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c30"> <span>Say &quot;fingerprint&quot; / press Review &amp; Sign → the <strong>real</strong> Windows Hello / phone fingerprint prompt appears</span></label></li>
+<li class="task"><label><input type="checkbox" id="c31"> <span>Cancel the fingerprint → nothing is sent, and it says so</span></label></li>
+<li class="task"><label><input type="checkbox" id="c32"> <span>Approve → 5-second undo window; &quot;undo&quot; within 5 s cancels</span></label></li>
+<li class="task"><label><input type="checkbox" id="c33"> <span>Sent amount equals the spoken amount (0.05 stays 0.05)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c34"> <span>After the undo window you hear <strong>&quot;Pending.&quot; → &quot;Confirmed.&quot; → &quot;Sent 0.05 test ETH to Amma.&quot;</strong>, and the balance drops by exactly that amount (check Etherscan: one transaction, not two)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c35"> <span>History shows the payment; on Sepolia its hash opens on Etherscan</span></label></li>
+</ul>
+<h2>3. Blockchain (spec: contract module)</h2>
+<ul>
+<li class="task"><label><input type="checkbox" id="c36"> <span><code>cd contracts</code> → <code>npm test</code> → <strong>12 passing</strong>, including the spec's 5: recovery with threshold, cancelled by owner, inheritance vetoed, inheritance claimed, guardians can't send</span></label></li>
+<li class="task"><label><input type="checkbox" id="c37"> <span>Deployed on a <strong>public testnet</strong> (Sepolia) with an Etherscan link; <code>npm run verify:sepolia</code> → source code visible on Etherscan</span></label></li>
+<li class="task"><label><input type="checkbox" id="c38"> <span>Etherscan shows <strong>no names, phone numbers or personal data</strong>, only addresses and amounts</span></label></li>
+<li class="task"><label><input type="checkbox" id="c39"> <span><strong>Send</strong> (tester or <code>/chain-test.html</code>): Pending → Confirmed → &quot;Sent … to Amma&quot;, Etherscan link works</span></label></li>
+<li class="task"><label><input type="checkbox" id="c40"> <span><strong>Guardians can't send</strong>: tester → act as Guardian → Send → &quot;Only the owner can do that&quot;</span></label></li>
+<li class="task"><label><input type="checkbox" id="c41"> <span><strong>Recovery on a second device</strong> (spec success criterion): second browser profile opens <code>/chain-test.html</code> as <strong>New phone</strong>; Guardian Ahmed proposes + Guardian Priya approves (tester) → owner phone hears the <strong>urgent</strong> warning → wait 2 min → New phone &quot;Finish recovery&quot; → &quot;This phone now controls your wallet&quot;; old phone hears &quot;Your wallet moved…&quot; and can no longer send</span></label></li>
+<li class="task"><label><input type="checkbox" id="c42"> <span><strong>Owner cancels a recovery</strong>: new recovery → owner &quot;Cancel recovery&quot; within 2 min → &quot;Recovery cancelled. Your wallet is safe.&quot; → finishing it later fails</span></label></li>
+<li class="task"><label><input type="checkbox" id="c43"> <span><strong>Inheritance with the 2-minute timer</strong> (spec success criterion): no owner activity 2 min → Start inheritance → announced → wait 2 min → Beneficiary Sara claims → all funds to Sara, wallet closed</span></label></li>
+<li class="task"><label><input type="checkbox" id="c44"> <span><strong>Veto</strong>: start inheritance → a guardian vetoes (or owner pings) → stopped, announced</span></label></li>
+<li class="task"><label><input type="checkbox" id="c45"> <span>Only one recovery at a time (second propose refused)</span></label></li>
+</ul>
+<p><strong>The same, from the wallet app itself</strong> (voice or typed)</p>
+<ul>
+<li class="task"><label><input type="checkbox" id="c46"> <span>A guardian proposes recovery (tester) → the app interrupts with the <strong>alert</strong>: &quot;…started moving your wallet to a new phone. If this wasn't you, say cancel recovery.&quot;</span></label></li>
+<li class="task"><label><input type="checkbox" id="c47"> <span>Say/type <strong>&quot;cancel recovery&quot;</strong> → fingerprint → &quot;Recovery cancelled. Your wallet is safe.&quot;</span></label></li>
+<li class="task"><label><input type="checkbox" id="c48"> <span>Start inheritance (tester) → the app announces it → say/type <strong>&quot;I'm here&quot;</strong> → fingerprint → inheritance stopped</span></label></li>
+<li class="task"><label><input type="checkbox" id="c49"> <span>Second browser profile opens the app with <strong><code>?device=newphone</code></strong>; after guardians approve and 2 min pass, say/type <strong>&quot;finish recovery&quot;</strong> → &quot;This phone now controls your wallet&quot;; the first browser hears &quot;Your wallet moved to your new phone&quot;</span></label></li>
+</ul>
+<h2>4. Accessibility (spec: Web module)</h2>
+<p><strong>Announcer</strong></p>
+<ul>
+<li class="task"><label><input type="checkbox" id="c50"> <span>One polite live region and one alert region exist when the app loads (<code>LiveAnnouncer</code>)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c51"> <span>Polite for normal updates; <strong>alert only</strong> for errors and security events (recovery started on your wallet)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c52"> <span>The same message twice in a row is announced twice (clear → ~100 ms → text)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c53"> <span><strong>Every contract event is announced</strong> (spec: also a Playwright test) — Deposited, Sent, RecoveryProposed, RecoveryApproved, RecoveryExecuted, RecoveryCancelled, InheritanceStarted, InheritanceVetoed, InheritanceClaimed</span></label></li>
+<li class="task"><label><input type="checkbox" id="c54"> <span>Nothing changes on screen without being announced (balance change, errors, popups opening)</span></label></li>
+</ul>
+<p><strong>Sounds</strong> (short, under 1 s, never instead of words)</p>
+<ul>
+<li class="task"><label><input type="checkbox" id="c55"> <span>Listening started · success · error · security warning are <strong>different</strong> sounds</span></label></li>
+<li class="task"><label><input type="checkbox" id="c56"> <span>Pending and Confirmed have different sounds</span></label></li>
+</ul>
+<p><strong>Focus</strong></p>
+<ul>
+<li class="task"><label><input type="checkbox" id="c57"> <span>A popup (Send, Receive, Contacts, Guardians) takes focus when it opens and its title is read; <strong>Escape</strong> closes it; focus returns to the button that opened it</span></label></li>
+<li class="task"><label><input type="checkbox" id="c58"> <span>Inside the Send popup, pressing <strong>Space</strong> still starts the mic (it must not press a button)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c59"> <span>Focus never jumps while typing or speaking</span></label></li>
+<li class="task"><label><input type="checkbox" id="c60"> <span>Tab order is logical; focus outline always visible</span></label></li>
+</ul>
+<p><strong>Other</strong></p>
+<ul>
+<li class="task"><label><input type="checkbox" id="c61"> <span>Every button has a clear label (&quot;Send money&quot;, not &quot;Next&quot;); icon-only buttons have <code>aria-label</code> (check the mic button)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c62"> <span>Terms explained in plain words (&quot;Wallet address: like a bank account number&quot;)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c63"> <span>No step times out while the user thinks (the passkey prompt allows 45 s: acceptable?)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c64"> <span>Full keyboard use: do a whole send without the mouse</span></label></li>
+<li class="task"><label><input type="checkbox" id="c65"> <span>One <strong>large</strong> on-screen button starts voice input</span></label></li>
+<li class="task"><label><input type="checkbox" id="c66"> <span>Reads well in Arabic (right-to-left layout, Arabic voice)</span></label></li>
+</ul>
+<p><strong>Screen readers (spec: every flow)</strong></p>
+<ul>
+<li class="task"><label><input type="checkbox" id="c67"> <span><strong>NVDA</strong> on Windows (app speech OFF to avoid double speech): balance, send + fingerprint, recovery announcement</span></label></li>
+<li class="task"><label><input type="checkbox" id="c68"> <span><strong>TalkBack</strong> on Android (Chrome, same Wi-Fi or a tunnel): balance, send</span></label></li>
+</ul>
+<h2>5. Security answers (spec: say these in the pitch, honestly)</h2>
+<ul>
+<li class="task"><label><input type="checkbox" id="c69"> <span>Can explain: no voice password (voice clones from ~3 s audio) → fingerprint</span></label></li>
+<li class="task"><label><input type="checkbox" id="c70"> <span>AI never moves money: proposes → read-back → fingerprint</span></label></li>
+<li class="task"><label><input type="checkbox" id="c71"> <span>No personal data on chain; contacts stay on the phone</span></label></li>
+<li class="task"><label><input type="checkbox" id="c72"> <span>No seed phrase: guardian recovery instead</span></label></li>
+<li class="task"><label><input type="checkbox" id="c73"> <span>Recovery delay the owner can cancel; guardians can't move funds</span></label></li>
+<li class="task"><label><input type="checkbox" id="c74"> <span>Voice commands processed on our own server, never logged</span></label></li>
+<li class="task"><label><input type="checkbox" id="c75"> <span>&quot;Testnet prototype, not security-audited&quot; (say it)</span></label></li>
+</ul>
+<h2>6. Demo rehearsal (spec: 4 minutes, screen dimmed, screen reader on)</h2>
+<ul>
+<li class="task"><label><input type="checkbox" id="c76"> <span>1 Setup without a seed phrase: create wallet, add 2 guardians by contact name, every step announced</span></label></li>
+<li class="task"><label><input type="checkbox" id="c77"> <span>2 Balance by voice (Arabic or Hindi) → answered and announced</span></label></li>
+<li class="task"><label><input type="checkbox" id="c78"> <span>3 Send by voice → read-back → fingerprint → &quot;Pending&quot; → &quot;Confirmed&quot;, distinct sounds</span></label></li>
+<li class="task"><label><input type="checkbox" id="c79"> <span>4 A judge tries it in their own language mix (have 3 example cards ready: EN / हिंदी / العربية)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c80"> <span>5 Lost phone: second device, 2 guardians approve, delay, access returns; mention the owner could cancel</span></label></li>
+<li class="task"><label><input type="checkbox" id="c81"> <span>6 Inheritance with the 2-minute timer: beneficiary claims</span></label></li>
+<li class="task"><label><input type="checkbox" id="c82"> <span>7 Before/after clip: same steps in MetaMask with a screen reader (silence) vs SayPay</span></label></li>
+<li class="task"><label><input type="checkbox" id="c83"> <span>Whole demo under 4 minutes, run twice without errors</span></label></li>
+<li class="task"><label><input type="checkbox" id="c84"> <span><strong>Backup demo video recorded</strong> (spec success criterion)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c85"> <span>Plan B if Wi-Fi fails: local chain (<code>npx hardhat node</code> + <code>deploy:local</code>, then restart <code>npm run dev</code>); if speech fails: the typed command box</span></label></li>
+</ul>
+<h2>7. &quot;Done means&quot; (spec)</h2>
+<ul>
+<li class="task"><label><input type="checkbox" id="c86"> <span>Balance check and a send work fully by voice (in our languages)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c87"> <span>Every send is read back and approved with a fingerprint</span></label></li>
+<li class="task"><label><input type="checkbox" id="c88"> <span>Guardian recovery works on a second device, and the owner can cancel it</span></label></li>
+<li class="task"><label><input type="checkbox" id="c89"> <span>Inheritance claim works with the 2-minute demo timer</span></label></li>
+<li class="task"><label><input type="checkbox" id="c90"> <span>Every contract event is announced, verified with a screen reader</span></label></li>
+<li class="task"><label><input type="checkbox" id="c91"> <span>Intent accuracy measured on ≥150 held-out commands (we have 268)</span></label></li>
+<li class="task"><label><input type="checkbox" id="c92"> <span>Backup demo video recorded</span></label></li>
+</ul>
+
+</main>
+<script>
+const KEY = 'saypay-final-test-v1';
+const boxes = [...document.querySelectorAll('li.task input')];
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+const update = () => {
+  const done = boxes.filter(b => b.checked).length;
+  document.getElementById('count').textContent = `${done} of ${boxes.length} passed`;
+  try { localStorage.setItem(KEY, JSON.stringify(Object.fromEntries(boxes.map(b => [b.id, b.checked])))); } catch (e) {}
+};
+boxes.forEach(b => { b.checked = !!saved[b.id]; b.addEventListener('change', update); });
+document.getElementById('reset').addEventListener('click', () => { boxes.forEach(b => b.checked = false); update(); });
+update();
+</script>
+</body></html>
