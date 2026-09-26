@@ -52,13 +52,13 @@ If you restart `npx hardhat node`, run `npm run deploy:local` again and reload.
 ### Sepolia (public testnet)
 
 You need a throwaway MetaMask account with Sepolia test ETH (a faucet gives it;
-0.3 ETH is plenty). Nothing else: the RPC defaults to a free public endpoint.
+0.05 ETH, one faucet drip, is enough). Nothing else: the RPC defaults to a free public endpoint.
 
 ```bash
 cp .env.example .env          # then paste the MetaMask account's private key:
                               # DEPLOYER_PRIVATE_KEY=...  (with or without 0x)
 npm run wallets               # once: creates the demo people's test wallets in .env
-npm run deploy:sepolia        # deploys, puts 0.1 ETH in the vault, gives each person gas
+npm run deploy:sepolia        # deploys, puts 0.02 ETH in the vault, gives each signer 0.004 gas
 npm run verify:sepolia        # optional, needs ETHERSCAN_API_KEY: source code on Etherscan
 npm run tester -- sepolia     # tester page on Sepolia: http://localhost:5174
 ```
