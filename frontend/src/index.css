@@ -1,0 +1,241 @@
+@import "tailwindcss";
+
+:root {
+  --primary-orange: #FF5500;
+  --primary-hover: #E04B00;
+  --bg-canvas: #FAFAFA;
+  --card-bg: #FFFFFF;
+  --text-dark: #09090B;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-dark);
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Space Grotesk', 'Outfit', sans-serif;
+    letter-spacing: -0.03em;
+  }
+
+  /* High contrast accessible focus rings using primary-orange */
+  *:focus-visible {
+    outline: 2px solid var(--primary-orange);
+    outline-offset: 3px;
+  }
+}
+
+/* Luxury Web3 Card Style */
+.tw-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E4E4E7;
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 20px -2px rgba(9, 9, 11, 0.04), 0 2px 4px -2px rgba(9, 9, 11, 0.02);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tw-card:hover {
+  border-color: rgba(255, 85, 0, 0.4);
+  box-shadow: 0 12px 28px -6px rgba(255, 85, 0, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Signature Solar Orange Button */
+.btn-orange, .btn-lime {
+  background-color: #FF5500;
+  color: #FFFFFF;
+  font-weight: 800;
+  transition: all 0.2s ease;
+}
+
+.btn-orange:hover, .btn-lime:hover {
+  background-color: #E04B00;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+/* Pitch Black Button */
+.btn-dark {
+  background-color: #09090B;
+  color: #FFFFFF;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.btn-dark:hover {
+  background-color: #18181B;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+/* Minimalist Phone Container */
+.tw-phone {
+  background-color: #09090B;
+  border-radius: 2.75rem;
+  border: 8px solid #18181B;
+  box-shadow: 0 25px 60px -15px rgba(9, 9, 11, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+/* Subtle Animated Waveform */
+@keyframes barPulse {
+  0%, 100% {
+    height: 4px;
+    opacity: 0.4;
+  }
+  50% {
+    height: 24px;
+    opacity: 1;
+  }
+}
+
+.wave-1 { animation: barPulse 0.8s ease-in-out infinite; }
+.wave-2 { animation: barPulse 0.6s ease-in-out infinite 0.2s; }
+.wave-3 { animation: barPulse 1.0s ease-in-out infinite 0.1s; }
+.wave-4 { animation: barPulse 0.7s ease-in-out infinite 0.3s; }
+.wave-5 { animation: barPulse 0.9s ease-in-out infinite 0.15s; }
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Voice cockpit radial aura animation */
+@keyframes voiceAura {
+  0% {
+    transform: scale(0.96);
+    box-shadow: 0 0 0 0 rgba(255, 85, 0, 0.45);
+  }
+  70% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 22px rgba(255, 85, 0, 0);
+  }
+  100% {
+    transform: scale(0.96);
+    box-shadow: 0 0 0 0 rgba(255, 85, 0, 0);
+  }
+}
+
+.voice-aura-active {
+  animation: voiceAura 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+/* Custom sleek scrollbar for modal content and transaction feed */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(215, 217, 206, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(19, 80, 91, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF5500;
+}
+
+/* Dynamic Animation Utilities */
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-float {
+  animation: floatGentle 4s ease-in-out infinite;
+}
+
+@keyframes laserScan {
+  0% {
+    top: 5%;
+    opacity: 0.2;
+  }
+  50% {
+    top: 85%;
+    opacity: 1;
+  }
+  100% {
+    top: 5%;
+    opacity: 0.2;
+  }
+}
+
+.animate-laser {
+  animation: laserScan 2.4s ease-in-out infinite;
+}
+
+@keyframes radarPulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.animate-radar {
+  animation: radarPulse 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+@keyframes shimmerEffect {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,85,0,0.15) 50%, rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: shimmerEffect 2.8s infinite;
+}
+
+/* Slowly flowing organic wave underline for "with your voice" */
+@keyframes waveFlowSlow {
+  0% {
+    background-position-x: 0;
+  }
+  100% {
+    background-position-x: 36px;
+  }
+}
+
+.animated-voice-wave {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.animated-voice-wave::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 9px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 9' fill='none'%3E%3Cpath d='M0 4.5 Q 9 0.5 18 4.5 T 36 4.5' stroke='%23FF5500' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 36px 9px;
+  animation: waveFlowSlow 3.2s linear infinite;
+  opacity: 0.85;
+}
+
