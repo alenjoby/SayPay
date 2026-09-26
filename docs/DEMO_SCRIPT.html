@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SayPay Demo Script</title>
+<style>
+:root{--bg:#fff;--ink:#18181b;--muted:#5f5f69;--line:#e4e4e7;--code:#f4f4f5;--accent:#d94a00;--say:#fff4ed}
+@media (prefers-color-scheme:dark){:root{--bg:#131316;--ink:#ececf0;--muted:#a1a1aa;--line:#2c2c33;--code:#1d1d22;--accent:#ff6a1a;--say:#2a1a10;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:28px 16px 60px}
+main{max-width:860px;margin:0 auto}
+h1{font-size:28px;margin:0 0 8px} h2{font-size:20px;margin:34px 0 10px;padding-top:14px;border-top:1px solid var(--line);color:var(--accent)}
+strong{font-weight:700} em{color:var(--muted)} code{font:15px ui-monospace,Consolas,monospace;background:var(--code);padding:1px 5px;border-radius:4px}
+table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:15px} th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top} th{color:var(--muted)}
+ol>li,ul>li{margin:8px 0} li.task{list-style:none} li.task label{display:flex;gap:10px;cursor:pointer} li.task input{width:18px;height:18px;margin-top:4px;flex-shrink:0}
+ul:has(li.task){padding-left:0}
+</style></head><body><main>
+<h1>SayPay demo script (4 min 50 s)</h1>
+<p>Order of emphasis: <strong>AI/ML first</strong> (longest), then <strong>Web accessibility</strong>, then <strong>Blockchain</strong>.
+Two people: <strong>Narrator</strong> (voice-over) and <strong>Operator</strong> (presses Space, speaks commands).
+Lines in quotes after &quot;SAY&quot; are spoken to the app. <em>Italics</em> = what the app answers.</p>
+<h2>Before recording (10 min)</h2>
+<ul>
+<li class="task"><label><input type="checkbox" id="d1"> <span>Fresh chain: stop and restart <code>npx hardhat node</code>, then <code>npm run deploy:local</code> → wallet shows <strong>2.5 ETH</strong></span></label></li>
+<li class="task"><label><input type="checkbox" id="d2"> <span>Model running (<code>uvicorn</code>, check http://localhost:8000/health). If you have the mmBERT files, <code>/health</code> says <code>v3+mmbert</code></span></label></li>
+<li class="task"><label><input type="checkbox" id="d3"> <span>Window <strong>A</strong>: the app in Chrome/Edge (wallet open, Voice-Assisted mode). Window <strong>C</strong>: contract tester http://127.0.0.1:5174 (off-camera or second screen). Tab: the Sepolia contract on Etherscan</span></label></li>
+<li class="task"><label><input type="checkbox" id="d4"> <span>Say &quot;change to Arabic&quot; off-camera (the cold open starts in Arabic)</span></label></li>
+<li class="task"><label><input type="checkbox" id="d5"> <span>Recorder captures <strong>system audio + your mic</strong> (OBS, or Win+Alt+R Xbox Game Bar); <strong>earphones on</strong> so the mic doesn't re-hear the app</span></label></li>
+<li class="task"><label><input type="checkbox" id="d6"> <span>Windows Hello / fingerprint works (or the software fallback)</span></label></li>
+<li class="task"><label><input type="checkbox" id="d7"> <span>Rehearse once; record scene by scene and cut; the typed box is the backup if a voice line misfires</span></label></li>
+</ul>
+<hr />
+<h2>0:00–0:20 Cold open (screen dark)</h2>
+<p>Operator turns on <strong>Screen Curtain</strong> (Privacy menu): the screen goes black. Only audio.</p>
+<ul>
+<li>Operator holds Space, SAY: &quot;كم رصيدي&quot;</li>
+<li><em>App (Arabic): &quot;إجمالي قيمة محفظتك… 2.5 إيثيريوم تجريبي…&quot;</em></li>
+</ul>
+<p><strong>Narrator:</strong> &quot;That was a blind user checking their crypto wallet, in Gulf Arabic, with the screen off. This is SayPay.&quot;</p>
+<p>Turn Screen Curtain off.</p>
+<h2>0:20–0:40 The problem</h2>
+<p><strong>Narrator:</strong> &quot;Crypto wallets are built for eyes. In a study of 23 blind users on MetaMask, people couldn't read 42-character addresses, missed pop-ups their screen reader never announced, and couldn't safely handle a 12-word seed phrase. And voice assistants expect clean English, but here in the Gulf people speak Arabic, Hindi and English, often in one sentence. SayPay fixes all three: the AI understands mixed-language speech, the interface announces everything, and the blockchain removes the seed phrase.&quot;</p>
+<h2>0:40–2:20 AI/ML: code-switching and spelling by ear (the core)</h2>
+<ol>
+<li>
+<p>SAY: &quot;Hindi mein baat karo&quot; → <em>&quot;भाषा बदलकर हिंदी कर दी गई है।&quot;</em>
+SAY: &quot;प्रिया को 0.05 ईथर भेजो&quot; → Send popup: <strong>Priya, 0.05</strong>; <em>read-back in Hindi, amount in words</em>.
+Press <strong>Escape</strong>.
+<strong>Narrator:</strong> &quot;Hindi, with the English word 'ether' inside. The amount is read back in words, so a misheard number is caught before anything moves.&quot;</p>
+</li>
+<li>
+<p>SAY: &quot;change to English&quot;, then SAY: &quot;Send 0.05 to Sarah&quot; → popup: <strong>Sara, 0.05</strong>. Escape.
+<strong>Narrator:</strong> &quot;The contact is saved as Sara; speech-to-text wrote Sarah. We match names by sound, across Arabic, Latin and Devanagari script: 'mom', 'أمي' and 'मम्मी' all find Amma.&quot;</p>
+</li>
+<li>
+<p>SAY: &quot;Send money to Priya&quot; → <em>&quot;How much should I send to Priya?&quot;</em> (no popup)
+SAY: &quot;Ask Priya for 20 dollars&quot; → <em>asks &quot;receive or send?&quot;</em>, never opens Send.
+<strong>Narrator:</strong> &quot;When it isn't sure, it asks. Asking someone for money can never become sending it. The AI never moves money: it only proposes, and you approve with your fingerprint.&quot;</p>
+</li>
+<li>
+<p>Point at the <strong>voice card</strong> above the voice bar (You said → understood as, % sure).
+<strong>Narrator:</strong> &quot;This is our own model on our own server, not a chatbot API, so financial commands stay private. It's a TF-IDF model over normalised, transliterated and phonetic views of the sentence, ensembled with a fine-tuned multilingual transformer, mmBERT. On 120 hand-written commands we froze before training, it scores <strong>97.5%</strong>. A plain English-only model scores <strong>69%</strong>. When it acts without asking, it's right <strong>100%</strong> of the time, with <strong>zero confident wrong sends</strong>. It even handles Arabic dialects it never trained on: <strong>92.5% Moroccan, 94% Tunisian</strong>. And it answers in about <strong>25 milliseconds</strong>.&quot;</p>
+</li>
+</ol>
+<h2>2:20–3:20 Web: nothing changes silently</h2>
+<ol>
+<li><strong>Narrator:</strong> &quot;Everything works by holding Space. And if speech fails, you can type.&quot;
+Operator types in the box: &quot;What's my balance&quot; + Enter → <em>answer</em>.</li>
+<li>Operator: SAY &quot;Send 0.1 ETH to Amma&quot; → Send popup opens.
+<strong>Narrator:</strong> &quot;Pop-ups are real dialogs: the screen reader announces them, focus moves in, and Escape returns you exactly where you were: the problem the MetaMask study found.&quot;
+(Leave the popup open for the next scene.)</li>
+<li><strong>Narrator:</strong> &quot;Every state change is announced: polite for normal updates, an interrupting alert for security events, and a distinct sound for listening, success, error and warnings. It works with NVDA and TalkBack, and an earphone check stops balances being read out to the room.&quot;
+<em>(Optional 5 s clip, recorded separately: NVDA reading the Send dialog's title.)</em></li>
+</ol>
+<h2>3:20–4:35 Blockchain: self-custody that doesn't assume you're alive and have eyes</h2>
+<ol>
+<li>
+<p>In the open popup, SAY: &quot;fingerprint&quot; → Windows Hello → <em>&quot;5 seconds to undo&quot;</em> → <em>&quot;Pending.&quot; → &quot;Confirmed.&quot; → &quot;Sent 0.1 test ETH to Amma.&quot;</em> Balance <strong>2.5 → 2.4</strong>.
+<strong>Narrator:</strong> &quot;That's a real transaction on our SayPayVault smart contract, signed by a key that lives on the phone and only unlocks with the fingerprint. No seed phrase, ever.&quot;</p>
+</li>
+<li>
+<p>Window <strong>C</strong> (show briefly): Guardian Ahmed → <strong>Propose recovery</strong>.
+App interrupts: <em>&quot;Guardian Ahmed started moving your wallet to a new phone. If this wasn't you, say cancel recovery.&quot;</em>
+SAY: &quot;cancel recovery&quot; → fingerprint → <em>&quot;Recovery cancelled. Your wallet is safe.&quot;</em>
+<strong>Narrator:</strong> &quot;If you lose your phone, two of three guardians move the wallet to your new phone after a waiting period, and if it wasn't you, one sentence stops them. Guardians can never move funds themselves. And if the owner is gone, an inheritance switch passes the funds to their family, unless a guardian or the owner vetoes it.&quot;</p>
+</li>
+<li>
+<p>Show the <strong>Etherscan</strong> tab for 3 seconds.
+<strong>Narrator:</strong> &quot;The contract is tested (12 tests, including every case from our spec) and deployed on the Sepolia testnet. It's a testnet prototype, not audited.&quot;</p>
+</li>
+</ol>
+<h2>4:35–4:50 Close</h2>
+<p><strong>Narrator:</strong> &quot;SayPay: speak in your own language, hear it back, approve with your fingerprint. No seed phrase, no silent screens. A crypto wallet built for people who can't see it.&quot;</p>
+<hr />
+<h2>If something goes wrong on camera</h2>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A voice line is misheard</td>
+<td>Type the same command in the box; keep going</td>
+</tr>
+<tr>
+<td>The model server is down</td>
+<td>The app still works with the basic parser (grey card); skip scene 1.4's numbers or say them over a slide</td>
+</tr>
+<tr>
+<td>A transaction fails</td>
+<td>Reset the chain (see top) and re-record that scene</td>
+</tr>
+<tr>
+<td>Double speech</td>
+<td>Screen reader and app voice both on: turn one off</td>
+</tr>
+</tbody>
+</table>
+<h2>Numbers (from <code>ml/reports/v4_ensemble_colab.md</code>)</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>English-only</th>
+<th>v3</th>
+<th><strong>v3 + mmBERT</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blind test (120 hand-written, frozen)</td>
+<td>69.2%</td>
+<td>96.7%</td>
+<td><strong>97.5%</strong></td>
+</tr>
+<tr>
+<td>Correct when it acts without asking</td>
+<td>89.0%</td>
+<td>100%</td>
+<td><strong>100%</strong></td>
+</tr>
+<tr>
+<td>Confident wrong sends</td>
+<td>0%</td>
+<td>0%</td>
+<td><strong>0%</strong></td>
+</tr>
+<tr>
+<td>Saudi / Moroccan / Tunisian Arabic</td>
+<td>61.9 / 60.0 / 78.1%</td>
+<td>94.3 / 90.0 / 87.0%</td>
+<td><strong>97.3 / 92.5 / 94.0%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Use the v3 + mmBERT numbers only if the demo PC runs <code>v3+mmbert</code> (<code>/health</code>); otherwise say 96.7%.</p>
+
+</main></body></html>
